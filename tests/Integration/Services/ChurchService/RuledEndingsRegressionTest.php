@@ -21,6 +21,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
@@ -330,6 +331,35 @@ class RuledEndingsRegressionTest extends TestCase
         $this->assertEqualsWithDelta($fixture['live']['cut'], end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE);
     }
 
+    /** Early cue starts must not undo the last word's decoded placement and tail. */
+    #[Test]
+    #[TestWith([932, 2383.615])]
+    #[TestWith([1371, 1428.54])]
+    public function an_early_next_cue_does_not_clip_the_sermons_last_word(int $run, float $expected): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(base_path('tests/Fixtures/RuledEndings/run-'.$run.'-2026-10-23.json.gz'))), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
+        $audit = json_encode($plan['metadata']['cue_edge_widening'] ?? [], JSON_THROW_ON_ERROR);
+
+        $this->assertEqualsWithDelta($expected, end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE, $audit);
+    }
+
+    #[Test]
+    #[TestWith([1270, 4280.22])]
+    #[TestWith([1273, 4029.06])]
+    #[TestWith([1135, 3722.2])]
+    public function the_onset_cap_does_not_protect_a_later_lines_word(int $run, float $expected): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(base_path('tests/Fixtures/RuledEndings/run-'.$run.'-2026-10-23.json.gz'))), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
+
+        $this->assertEqualsWithDelta($expected, end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE);
+    }
+
     /**
      * 1108's sermon ends on "…To make a wretch is true." (4119.46) before the housekeeping "Let's
      * stand to sing." (4119.58–4121.44). The recording drops out mid-word (levels at −∞ from
@@ -339,12 +369,14 @@ class RuledEndingsRegressionTest extends TestCase
     #[Test]
     public function a_dropout_inside_a_word_is_not_a_pause_to_end_in(): void
     {
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/run-1108-2026-10-23.json.gz')), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($fixture);
 
-        $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
+        // Exercise the dropout edge itself; the refreshed fixture's section now ends after the announcement.
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 2554.53, 'end_time' => 4119.58]], sermonEnd: true);
         $cut = end($plan['segments'])['end_time'];
-        $audit = json_encode(array_values(array_filter($plan['metadata']['cue_edge_widening'] ?? [], static fn (array $edge): bool => $edge['edge'] === 'end')), JSON_THROW_ON_ERROR);
+        $audit = json_encode(array_values(array_filter($plan['cue_edge_widening'], static fn (array $edge): bool => $edge['edge'] === 'end')), JSON_THROW_ON_ERROR);
 
         $this->assertGreaterThanOrEqual(4119.46, $cut, $audit);
         $this->assertLessThanOrEqual(4119.58, $cut, 'not inside "Let": '.$audit);
@@ -376,6 +408,7 @@ class RuledEndingsRegressionTest extends TestCase
     #[Test]
     public function an_opening_mic_check_can_be_removed_without_losing_the_sermon_introduction(): void
     {
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-957-start.json.gz')), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($this->withoutSentenceAnswers($fixture));
         OpenAI::fake(array_fill(0, 20, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
@@ -393,6 +426,7 @@ class RuledEndingsRegressionTest extends TestCase
     #[Test]
     public function an_opening_the_recording_joins_mid_sentence_keeps_that_sentence(): void
     {
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
         // 1269's sermon: the feed came back during "…of a little boy who went to church with his
         // mother", and both answers shrank it away as a fragment (operator, 10-22: words lost).
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-957-start.json.gz')), true, flags: JSON_THROW_ON_ERROR);
@@ -455,7 +489,6 @@ class RuledEndingsRegressionTest extends TestCase
                 }
             }
         }
-
 
         // A cut the sentence rule (10-26) makes against this older ruling, with its source: heard
         // right again on 10-26, or (1130 §2066) an open miss heard wrong whose ruling still stands.

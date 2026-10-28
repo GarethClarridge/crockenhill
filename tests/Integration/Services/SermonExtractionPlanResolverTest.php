@@ -961,7 +961,7 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->bankNoWordOutputEdges($log);
         // The edge step's K16 answer: the sermon ends where it was detected.
         $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock
-            ->shouldReceive('songStart')->andReturn(240.0)
+            ->shouldReceive('join')->andReturn(['song' => null, 'end' => 240.0])
             ->shouldReceive('read')->andReturn(['end' => 200.0, 'ties_to_sermon' => false, 'line' => 'Identified sermon.']));
         $composition = $this->resolver->compose($log);
         $this->assertSame([], $composition['risks']);

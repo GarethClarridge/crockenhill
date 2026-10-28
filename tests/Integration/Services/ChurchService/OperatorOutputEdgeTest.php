@@ -18,6 +18,7 @@ use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
@@ -83,6 +84,7 @@ class OperatorOutputEdgeTest extends TestCase
     #[Test]
     public function a_start_set_by_ear_applies_after_the_dead_feed_rule(): void
     {
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
         [$log, $sermon] = $this->sermonAfterADeadFeed();
         $spans = [['start_time' => 10.0, 'end_time' => 40.0]];
         $planned = $this->plans()->forSpans($log, $spans, sermonEnd: true);
@@ -290,7 +292,7 @@ class OperatorOutputEdgeTest extends TestCase
         // K16: the answer keeps the verse read as the sermon's conclusion; its last line before the
         // music window, "…rest on Jesus' head,", is as far as the end can go.
         $answer = CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
-            'sermon_last_line' => 1, 'ties_to_sermon' => true, 'video_last_line' => 5, 'reason' => 'test',
+            'sermon_last_line' => 5, 'ties_to_sermon' => true, 'video_last_line' => 5, 'reason' => 'test',
         ], JSON_THROW_ON_ERROR)]]]]);
         OpenAI::fake([$answer, $answer]);
         app(SermonSongIntroductionCheck::class)->prepare($log, [['start_time' => 2545.22, 'end_time' => 4007.22]]);
@@ -314,7 +316,7 @@ class OperatorOutputEdgeTest extends TestCase
         ], [['sermon', 1694.88, 3024.83], ['other', 3024.83, 3071.99, 'Introduction to “O I Have Heard The Gospel Told”'], ['song', 3072.08, 3183.16]],
             timeline: [[3000, 3070, 0.01, 0.8], [3070, 3190, 0.8, 0.01]]);
         $answer = CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
-            'sermon_last_line' => 1, 'ties_to_sermon' => true, 'video_last_line' => 2, 'reason' => 'test',
+            'sermon_last_line' => 2, 'ties_to_sermon' => true, 'video_last_line' => 2, 'reason' => 'test',
         ], JSON_THROW_ON_ERROR)]]]]);
         OpenAI::fake([$answer, $answer]);
         app(SermonSongIntroductionCheck::class)->prepare($log, [['start_time' => 1694.88, 'end_time' => 3024.83]]);

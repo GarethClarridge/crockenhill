@@ -301,7 +301,7 @@ class CueSafeExtractionPlan
         $timeline = $songEnds || $sermonEnd ? $this->timeline($log) : null;
         // K16: a sermon followed by a song ends where the banked introduction answer says.
         $introduction = $sermonEnd ? app(SermonSongIntroductionCheck::class) : null;
-        $introductionSong = $introduction?->songStart($log, $spans);
+        $introductionJoin = $introduction?->join($log, $spans);
         $last = array_key_last($spans);
         $sectionSpans = $spans;
         $audit = [];
@@ -321,7 +321,7 @@ class CueSafeExtractionPlan
                 $besideSong = false;
                 $thoughtComplete = true;
                 $songIntroduction = null;
-                if ($edge === 'end' && $index === $last && $introductionSong !== null) {
+                if ($edge === 'end' && $index === $last && $introductionJoin !== null) {
                     $besideSong = true;
                     // Never asked is evidence not yet gathered, as undecoded words are: the edge
                     // step asks before it decodes. Asked with no line named leaves it to the operator.
@@ -388,6 +388,9 @@ class CueSafeExtractionPlan
                         if ($edge === 'end') {
                             $heardWords ??= $evidence->heardWords($log);
                             $decision = $this->beforeWordHeardElsewhere($this->withSpokenEndTail($decision), $heardWords);
+                            if ($besideSong && $thoughtComplete) {
+                                $decision = $this->beforeNextLine($decision, $cues, $songIntroduction, $this->withWindow($words, $window));
+                            }
                         }
                         $span[$key] = $decision['time'];
                         $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $movedFrom ?? $original,
@@ -414,13 +417,15 @@ class CueSafeExtractionPlan
                         }
                     }
                 } while ($before !== $time);
+                $lineDecision = $besideSong && $thoughtComplete ? $this->beforeNextLine(['time' => $time], $cues, $songIntroduction) : ['time' => $time];
+                $time = $lineDecision['time'];
                 $span[$key] = $time;
                 if ($time !== $original || $window !== null || $movedFrom !== null) {
                     $included = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] < max($time, $original) && $cue['end'] > min($time, $original)));
                     $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $movedFrom ?? $original,
                         'time' => $time, 'seconds_added' => abs($time - ($movedFrom ?? $original)), 'seconds_moved' => $time - ($movedFrom ?? $original),
                         'cue' => $included[0] ?? ($window['cues'][0] ?? null), 'cues' => $included,
-                        'window' => $window, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
+                        'window' => $window, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null, ...$lineDecision,
                         'reason' => $thoughtComplete ? 'no_words_whole_cue' : self::SPOKEN_END_UNRESOLVED, 'text_disagreement' => false, 'moved_beside_song_from' => $movedFrom, 'song_introduction' => $songIntroduction];
                 }
             }
@@ -582,6 +587,61 @@ class CueSafeExtractionPlan
         $tail = min(self::SPOKEN_END_TAIL, max(0.0, ((float) $pause['end'] - $from) / 2));
 
         return [...$decision, 'time' => max((float) $decision['time'], $from + $tail)];
+    }
+
+    /**
+     * A K16 end keeps none of the following line. Its decoded opening bounds the cut; a cue-only
+     * start cannot shorten the kept word's tail (932's Amen and 1371's "fear" run past that start).
+     *
+     * @param  array<string, mixed>  $decision
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{end: float|null, ties_to_sermon: bool|null, line: string|null}  $introduction
+     * @param  list<array{start: float, end: float, word: string, window_start: float}>  $words
+     * @return array<string, mixed>
+     */
+    private function beforeNextLine(array $decision, array $cues, array $introduction, array $words = []): array
+    {
+        foreach ($cues as $index => $cue) {
+            if (abs($cue['end'] - $introduction['end']) > 0.001 || trim($cue['text']) !== $introduction['line']) {
+                continue;
+            }
+            foreach (array_slice($cues, $index + 1) as $next) {
+                if (! TranscriptCueEvidence::hasWords($next)) {
+                    continue;
+                }
+
+                $bound = $next['start'];
+                if ($words !== []) {
+                    $lastWord = $decision['word_before'] ?? null;
+                    $heard = $this->merged($words);
+                    $keptWords = array_values(array_filter($heard, static fn (array $word): bool => $lastWord !== null
+                        && $word['start'] <= $lastWord['start'] + 0.001 && TranscriptCueEvidence::tokens($word['word']) !== []));
+                    $keptWord = $keptWords[array_key_last($keptWords)] ?? null;
+                    $keptTokens = $keptWord === null ? [] : TranscriptCueEvidence::tokens($keptWord['word']);
+                    $closingTokens = TranscriptCueEvidence::tokens($cue['text']);
+                    // A pause already beyond the closing line must not protect an announcement or answering Amen.
+                    if ($keptWord !== null && $keptWord['start'] < $next['start'] && end($keptTokens) === end($closingTokens)) {
+                        $opening = $this->openingHeard($next, $heard, min($next['start'], $cue['end']));
+                        $firstToken = TranscriptCueEvidence::tokens($next['text'])[0];
+                        if ($opening !== null && (TranscriptCueEvidence::tokens($opening['word']['word'])[0] ?? null) === $firstToken
+                            && $opening['word']['end'] - $opening['word']['start'] <= self::ANCHOR_REACH) {
+                            $bound = $opening['word']['start'];
+                        } else {
+                            $tail = $this->withSpokenEndTail([...$decision, 'time' => $lastWord['end'] ?? 0.0]);
+                            $bound = max($bound, $tail['time']);
+                        }
+                    }
+                }
+
+                return $decision['time'] >= $bound
+                    ? [...$decision, 'time' => $bound, 'next_line_starts_at' => $next['start'], 'next_line_bound' => $bound]
+                    : $decision;
+            }
+
+            break;
+        }
+
+        return $decision;
     }
 
     /**

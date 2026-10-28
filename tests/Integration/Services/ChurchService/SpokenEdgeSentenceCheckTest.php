@@ -10,11 +10,13 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
+use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use App\Services\ChurchService\TalkReadingPairing;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
 use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
@@ -172,6 +174,7 @@ class SpokenEdgeSentenceCheckTest extends TestCase
     #[Test]
     public function a_join_inside_the_sermon_output_is_not_asked_about(): void
     {
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
         [$first, $second] = $this->handover(ServiceSectionType::Sermon, ServiceSectionType::Sermon, join: [1717.75, 1717.75]);
         OpenAI::fake([]);
 
@@ -228,6 +231,7 @@ class SpokenEdgeSentenceCheckTest extends TestCase
     #[Test]
     public function both_edges_of_a_gap_the_sermon_output_keeps_are_asked_about(): void
     {
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
         [$sermon, $prayer] = $this->gap();
         $this->answers(['keep', ''], ['keep', ''], ['keep', ''], ['keep', '']);
 

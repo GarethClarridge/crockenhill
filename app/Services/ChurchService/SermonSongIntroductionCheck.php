@@ -18,14 +18,11 @@ use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;
 
 /**
- * Where a sermon followed by a song ends (register K16, operator 2026-10-16): at the join to the
- * song, never after the music starts. The preacher's introduction to the song is part of the
- * sermon when it ties the song to the sermon, so that it works as the sermon's conclusion; a bare
- * announcement, an unrelated song's introduction and notices are not, and neither is a "let's
- * stand and sing" call on its own. "It's not really about the length, it's about the relevance of
- * the song to the sermon." Housekeeping between the sermon and a tied introduction ends the sermon
- * at its own last sentence, since a video cannot skip it (951's 35 s about a song missing from the
- * internet).
+ * Where a sermon ends at a song or the recording's end (register K16, operator 2026-10-28):
+ * at its own last line, before the song's introduction, whether or not it relates to the sermon.
+ * Banked answers to the original introduction question supply the sermon's and video's last lines.
+ * An untied answer keeps a later closing prayer through the preacher's Amen, within its video vote;
+ * a standalone answering Amen immediately after an Amen line is not part of the sermon.
  *
  * That is a judgement of meaning, so it is asked of the structure model, as the sentence check is
  * ({@see SpokenEdgeSentenceCheck}). The read-only measurement of 2026-10-16 over 280 sermons
@@ -65,6 +62,9 @@ class SermonSongIntroductionCheck
 
     /** Lines shown after the music has started, so the model hears where the song begins. */
     private const LINES_AFTER_MUSIC = 3;
+
+    /** A line whose last word is "Amen". */
+    private const ENDS_ON_AMEN = '/(?:^|[^\p{L}\p{N}])amen[\s\p{P}]*$/iu';
 
     private const SYSTEM_PROMPT = <<<'TXT'
 You read the end of a sermon in a church-service transcript and what is said between it and the next song. Rules from the person who publishes the sermon videos:
@@ -109,7 +109,7 @@ TXT;
             $calls[] = $this->ask($log, $question['prompt']);
         }
 
-        $decision = $this->decision($calls, $question['lines']);
+        $decision = $this->decision($calls, $question['lines'], 'sermon_last_line');
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $this->kind($question['identity']), [
             'calls_completed' => true, 'identity' => $question['identity'], 'prompt' => $question['prompt'], 'lines' => $question['lines'], 'calls' => $calls, ...$decision,
         ]);
@@ -125,9 +125,9 @@ TXT;
      */
     public function songStart(MediaProcessingLog $log, array $sermonSpans): ?float
     {
-        $song = $this->song($log, $sermonSpans);
+        $join = $this->join($log, $sermonSpans);
 
-        return $song !== null ? (float) $song->start_time : null;
+        return ($join['song'] ?? null) !== null ? (float) $join['song']->start_time : null;
     }
 
     /**
@@ -151,11 +151,12 @@ TXT;
 
     /**
      * The next song after the sermon output, reached across items that are no clip of their own
-     * (an introduction, notices, a prayer), within {@see self::SONG_REACH}.
+     * (an introduction, notices, a prayer), or the recording ending before it, within {@see self::SONG_REACH}.
      *
      * @param  list<array{start_time: float, end_time: float}>  $sermonSpans
+     * @return array{song: ServiceSection|null, end: float}|null
      */
-    private function song(MediaProcessingLog $log, array $sermonSpans): ?ServiceSection
+    public function join(MediaProcessingLog $log, array $sermonSpans): ?array
     {
         if ($sermonSpans === []) {
             return null;
@@ -177,7 +178,7 @@ TXT;
             }
 
             if ($section->section_type === ServiceSectionType::Song) {
-                return $section;
+                return ['song' => $section, 'end' => (float) $section->start_time];
             }
 
             if ($handlers->forSection($section) !== null || $section->section_type === ServiceSectionType::Sermon) {
@@ -185,12 +186,19 @@ TXT;
             }
         }
 
-        return null;
+        $cues = app(OutputEdgeWordTimings::class)->cues($log);
+        $recordingEnd = $cues === [] ? null : (float) $cues[array_key_last($cues)]['end'];
+
+        if ($recordingEnd === null || $recordingEnd <= $start || $recordingEnd < $end - self::SONG_REACH || $recordingEnd > $end + self::SONG_REACH) {
+            return null;
+        }
+
+        return ['song' => null, 'end' => $recordingEnd];
     }
 
     /**
      * The question for the sermon output's end: the numbered lines the model reads, the prompt and
-     * the identity an answer is banked under. Null when no song follows; no lines when nothing
+     * the identity an answer is banked under. Null when neither join is in reach; no lines when nothing
      * credible is said near the join.
      *
      * @param  list<array{start_time: float, end_time: float}>  $sermonSpans
@@ -199,14 +207,18 @@ TXT;
     public function question(MediaProcessingLog $log, array $sermonSpans): ?array
     {
         $last = array_key_last($sermonSpans);
-        $song = $this->song($log, $sermonSpans);
+        $join = $this->join($log, $sermonSpans);
 
-        if ($last === null || $song === null) {
+        if ($last === null || $join === null) {
             return null;
         }
 
         $end = (float) $sermonSpans[$last]['end_time'];
-        $songStart = (float) $song->start_time;
+        $song = $join['song'];
+        if ($song === null && $log->duration !== null && $end > $log->duration && $end <= $log->duration + 1.0) {
+            $end = (float) $log->duration;
+        }
+        $songStart = $join['end'];
         $timeline = app(CueSafeExtractionPlan::class)->audioTimeline($log);
         $music = $this->firstMusicWindow($timeline, $end - self::MUSIC_LEAD);
         $lines = [];
@@ -234,12 +246,13 @@ TXT;
             return ['end' => $end, 'lines' => [], 'prompt' => '', 'identity' => []];
         }
 
-        $prompt = $this->prompt($log, $sermonSpans, $song, $end, $lines);
+        $prompt = $this->prompt($log, $song, $songStart, $end, $lines);
 
         return ['end' => $end, 'lines' => $lines, 'prompt' => $prompt, 'identity' => [
             'processing_id' => $log->processing_id,
             'sermon_end' => round($end, 3),
-            'song_start' => round($songStart, 3),
+            'song_start' => $song === null ? null : round($songStart, 3),
+            ...($song === null ? ['recording_end' => round($songStart, 3)] : []),
             'model' => (string) config('media-processing.service_structure.model'),
             'prompt_version' => self::PROMPT_VERSION,
             'transcript' => hash('sha256', $prompt),
@@ -260,12 +273,11 @@ TXT;
     }
 
     /**
-     * @param  list<array{start_time: float, end_time: float}>  $sermonSpans
      * @param  list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>  $lines
      */
-    private function prompt(MediaProcessingLog $log, array $sermonSpans, ServiceSection $song, float $end, array $lines): string
+    private function prompt(MediaProcessingLog $log, ?ServiceSection $song, float $joinEnd, float $end, array $lines): string
     {
-        $between = $log->serviceSections()->where('start_time', '>=', $end - 0.05)->where('start_time', '<', (float) $song->start_time)->orderBy('start_time')->get()
+        $between = $log->serviceSections()->where('start_time', '>=', $end - 0.05)->where('start_time', '<', $joinEnd)->orderBy('start_time')->get()
             ->map(static fn (ServiceSection $section): string => sprintf('%s "%s"', str_replace('_', ' ', $section->section_type->value), $section->title))->all();
         $sermon = $log->serviceSections()->where('section_type', ServiceSectionType::Sermon)->where('start_time', '<', $end)->orderByDesc('start_time')->first();
         $text = '';
@@ -280,9 +292,9 @@ TXT;
             $text .= sprintf("%d. %s%s\n", $line['n'], ['no' => '', 'may' => '[music may start] ', 'yes' => '[music] '][$line['music']], $line['text']);
         }
 
-        return sprintf("Sermon: \"%s\".\nNext song: \"%s\".\n%s\nTranscript:\n%s",
+        return sprintf("Sermon: \"%s\".\nNext song: %s.\n%s\nTranscript:\n%s",
             $sermon->title ?? 'Sermon',
-            $song->title,
+            $song === null ? 'not in the recording (it ends after the last line)' : sprintf('"%s"', $song->title),
             $between === [] ? '' : 'Detected between them: '.implode('; ', $between).".\n",
             $text,
         );
@@ -322,13 +334,15 @@ TXT;
      * The majority judgement and its answers' line: one named at least twice, else the middle of
      * three, else the earlier of two (the longer answer ran on into housekeeping: 1160's "Maybe
      * we can have the words on the screen"), stepped back off any line after the music started.
-     * No end when the answers fail or name no line.
+     * Both song and recording-end joins vote on the sermon itself, keeping the preacher’s
+     * closing prayer and excluding the congregation’s answering Amen. No end when the answers fail or name no line.
      *
      * @param  list<array{sermon_last_line: int|null, ties_to_sermon: bool|null, video_last_line: int|null, reason: string|null}>  $calls
      * @param  list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>  $lines
+     * @param  'sermon_last_line'|'video_last_line'  $lineKey
      * @return array{ties_to_sermon: bool|null, end: float|null, line: string|null}
      */
-    private function decision(array $calls, array $lines): array
+    private function decision(array $calls, array $lines, string $lineKey = 'video_last_line'): array
     {
         $votes = array_count_values(array_map(static fn (array $call): string => var_export($call['ties_to_sermon'], true), $calls));
         arsort($votes);
@@ -339,25 +353,62 @@ TXT;
         }
 
         $ties = $winner === 'true';
-        $numbers = array_filter(array_map(static fn (array $call): ?int => $call['ties_to_sermon'] === $ties ? $call['video_last_line'] : null, $calls), is_int(...));
         $byNumber = array_column($lines, null, 'n');
-        $named = array_count_values($numbers);
-        arsort($named);
-        sort($numbers);
-        $chosen = match (true) {
-            $numbers === [] => null,
-            reset($named) >= 2 => array_key_first($named),
-            count($numbers) === 3 => $numbers[1],
-            default => $numbers[0],
-        };
+        $chosen = $this->votedLine($calls, $ties, $lineKey);
+
+        if ($lineKey === 'sermon_last_line' && ! $ties && $chosen !== null && isset($byNumber[$chosen])) {
+            $videoLast = $this->votedLine($calls, $ties, 'video_last_line');
+            foreach ($lines as $line) {
+                if ($line['n'] > $chosen && $line['n'] <= $videoLast && $line['music'] !== 'yes'
+                    && preg_match(self::ENDS_ON_AMEN, $line['text']) === 1 && ! $this->answersAmen($byNumber, $line['n'])) {
+                    $chosen = $line['n'];
+                }
+            }
+        }
 
         while ($chosen !== null && ($byNumber[$chosen]['music'] ?? 'yes') === 'yes') {
             $chosen = $chosen > 1 ? $chosen - 1 : null;
         }
 
+        while ($chosen !== null && $this->answersAmen($byNumber, $chosen)) {
+            $chosen--;
+        }
+
         return $chosen === null
             ? ['ties_to_sermon' => $ties, 'end' => null, 'line' => null]
-            : ['ties_to_sermon' => $ties, 'end' => $byNumber[$chosen]['end'], 'line' => $byNumber[$chosen]['text']];
+            : ['ties_to_sermon' => $ties, 'end' => (float) $byNumber[$chosen]['end'], 'line' => $byNumber[$chosen]['text']];
+    }
+
+    /**
+     * A standalone "Amen" straight after a line ending on one: the congregation answering the
+     * preacher's Amen, which is not part of the sermon (operator 2026-10-28).
+     *
+     * @param  array<int, array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>  $byNumber
+     */
+    private function answersAmen(array $byNumber, int $n): bool
+    {
+        return isset($byNumber[$n], $byNumber[$n - 1])
+            && TranscriptCueEvidence::tokens($byNumber[$n]['text']) === ['amen']
+            && preg_match(self::ENDS_ON_AMEN, $byNumber[$n - 1]['text']) === 1;
+    }
+
+    /**
+     * @param  list<array{sermon_last_line: int|null, ties_to_sermon: bool|null, video_last_line: int|null, reason: string|null}>  $calls
+     * @param  'sermon_last_line'|'video_last_line'  $lineKey
+     */
+    private function votedLine(array $calls, bool $ties, string $lineKey): ?int
+    {
+        $numbers = array_filter(array_map(static fn (array $call): ?int => $call['ties_to_sermon'] === $ties ? $call[$lineKey] : null, $calls), is_int(...));
+        $named = array_count_values($numbers);
+        arsort($named);
+        sort($numbers);
+
+        return match (true) {
+            $numbers === [] => null,
+            reset($named) >= 2 => array_key_first($named),
+            count($numbers) === 3 => $numbers[1],
+            default => $numbers[0],
+        };
     }
 
     /**
@@ -383,6 +434,29 @@ TXT;
                 // Older null answers may have swallowed a transport failure; ask again once.
                 if ($payload['end'] === null && ($payload['calls_completed'] ?? false) !== true) {
                     continue;
+                }
+
+                if (is_array($payload['calls'] ?? null) && $payload['calls'] !== [] && is_array($payload['lines'] ?? null)) {
+                    $calls = [];
+                    foreach ($payload['calls'] as $call) {
+                        $calls[] = [
+                            'sermon_last_line' => is_int($call['sermon_last_line'] ?? null) ? $call['sermon_last_line'] : null,
+                            'video_last_line' => is_int($call['video_last_line'] ?? null) ? $call['video_last_line'] : null,
+                            'ties_to_sermon' => is_bool($call['ties_to_sermon'] ?? null) ? $call['ties_to_sermon'] : null,
+                            'reason' => is_string($call['reason'] ?? null) ? $call['reason'] : null,
+                        ];
+                    }
+                    $lines = [];
+                    foreach ($payload['lines'] as $line) {
+                        if (is_int($line['n'] ?? null) && is_numeric($line['start'] ?? null) && is_numeric($line['end'] ?? null)
+                            && is_string($line['text'] ?? null) && in_array($line['music'] ?? null, ['no', 'may', 'yes'], true)) {
+                            $lines[] = ['n' => $line['n'], 'start' => (float) $line['start'], 'end' => (float) $line['end'], 'text' => $line['text'], 'music' => $line['music']];
+                        }
+                    }
+
+                    $decision = $this->decision($calls, $lines, 'sermon_last_line');
+
+                    return ['end' => $decision['end'], 'ties_to_sermon' => $decision['ties_to_sermon'], 'line' => $decision['line']];
                 }
 
                 return [

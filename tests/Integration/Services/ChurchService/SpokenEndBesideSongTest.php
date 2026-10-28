@@ -33,6 +33,31 @@ class SpokenEndBesideSongTest extends TestCase
 {
     use DatabaseTransactions;
 
+    /** The K16 tail must not include the first syllable of the following line (10-28 review). */
+    #[Test]
+    #[TestWith([99.9, 100.0, true])]
+    #[TestWith([99.9, 100.0, true, 'Amen.'])]
+    #[TestWith([100.15, 100.0, true])]
+    #[TestWith([99.9, 99.95, false])]
+    public function the_sermon_end_never_crosses_the_next_lines_start(float $wordEnd, float $nextStart, bool $decoded, string $nextText = "Let's stand and sing."): void
+    {
+        $log = $this->service([
+            ['start' => 98.0, 'end' => 100.0, 'text' => 'Amen.'],
+            ['start' => $nextStart, 'end' => 102.0, 'text' => $nextText],
+        ], [['sermon', 0.0, 100.0], ['song', 105.0, 200.0]]);
+        $spans = [['start_time' => 0.0, 'end_time' => 100.0]];
+        $this->introduction($log, $spans, [1, false, 1], [1, false, 1]);
+        $this->bank($log, 100.0, $decoded ? [
+            ['start' => 99.0, 'end' => $wordEnd, 'word' => ' Amen.'],
+            ['start' => $nextStart, 'end' => $nextStart + 0.2, 'word' => $nextText === 'Amen.' ? ' Amen.' : " Let's"],
+        ] : []);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, $spans, sermonEnd: true);
+
+        $this->assertSame($nextStart, $plan['segments'][0]['end_time']);
+        $this->assertSame($nextStart, collect($plan['cue_edge_widening'])->last()['next_line_starts_at']);
+    }
+
     /**
      * Run 1216: K16 keeps the unpunctuated last phrase before the repeated hymn number, and only there.
      * The second case needs a real gap before the phrase: 1216's own line "us what we've" runs past the
@@ -52,7 +77,7 @@ class SpokenEndBesideSongTest extends TestCase
             ['start' => 4186.52, 'end' => 4187.3, 'text' => 'how deep'],
         ], [['sermon', 1939.25, 4185.0], ['song', 4185.0, 4360.0]]);
         $spans = [['start_time' => 1939.25, 'end_time' => 4185.0]];
-        $this->introduction($log, $spans, [1, true, 4], [1, true, 4]);
+        $this->introduction($log, $spans, [4, true, 4], [4, true, 4]);
         $this->bank($log, 4184.84, [
             ['start' => 4183.23, 'end' => 4183.24, 'word' => ' We'],
             ['start' => 4183.24, 'end' => 4183.47, 'word' => "'ve"],
@@ -88,7 +113,7 @@ class SpokenEndBesideSongTest extends TestCase
             $repeat, $repeat, $repeat,
             ['start' => 1935.66, 'end' => 1938.26, 'text' => 'I will remember you, my Lord,'],
         ], [['sermon', 0.0, 1920.08], ['song', 1921.4, 1942.7]], timeline: [[1900, 1940, 0.01, 0.8]]);
-        $this->introduction($log, [['start_time' => 0.0, 'end_time' => 1920.08]], [1, true, 6], [1, true, 6]);
+        $this->introduction($log, [['start_time' => 0.0, 'end_time' => 1920.08]], [6, true, 6], [6, true, 6]);
 
         $through = app(CueSafeExtractionPlan::class)->spokenEndsBesideSongs($log, [['start_time' => 0.0, 'end_time' => 1920.08]]);
 
@@ -104,7 +129,7 @@ class SpokenEndBesideSongTest extends TestCase
             ['start' => 4113.66, 'end' => 4115.72, 'text' => 'Number 749.'],
             ['start' => 4130.92, 'end' => 4137.10, 'text' => 'The grace of God'],
         ], [['sermon', 1965.95, 4115.0], ['song', 4115.0, 4303.18]], timeline: [[4100, 4120, 0.01, 0.75], [4120, 4300, 0.66, 0.02]]);
-        $this->introduction($log, [['start_time' => 1965.95, 'end_time' => 4115.0]], [1, true, 2], [1, true, 2]);
+        $this->introduction($log, [['start_time' => 1965.95, 'end_time' => 4115.0]], [2, true, 2], [2, true, 2]);
         $this->bank($log, 4115.72, [
             ['start' => 4112.78, 'end' => 4113.60, 'word' => ' amazes me.'],
             ['start' => 4113.66, 'end' => 4113.80, 'word' => ' Number'],
@@ -135,7 +160,7 @@ class SpokenEndBesideSongTest extends TestCase
             ['start' => 3736.74, 'end' => 3740.08, 'text' => 'Every man by the saints'],
         ], [['sermon', 1871.36, 3702.58], ['song', 3706.01, 3897.92]], timeline: [[3690, 3705, 0.01, 0.77], [3705, 3710, 0.59, 0.49], [3710, 3900, 0.8, 0.01]]);
         $spans = [['start_time' => 1871.36, 'end_time' => 3702.58]];
-        $this->introduction($log, $spans, [0, true, 3], [0, true, 3]);
+        $this->introduction($log, $spans, [3, true, 3], [3, true, 3]);
         $this->bank($log, 3704.54, [
             ['start' => 3702.90, 'end' => 3703.10, 'word' => ' Jesus'],
             ['start' => 3703.20, 'end' => 3704.02, 'word' => ' saves.'],
@@ -159,7 +184,7 @@ class SpokenEndBesideSongTest extends TestCase
         $log = $this->service($this->unfinishedThought(), [['sermon', 1871.36, 3702.58], ['song', 3706.01, 3897.92]],
             timeline: [[3600, 3710, 0.05, 0.8], [3710, 3900, 0.8, 0.02]]);
         $spans = [['start_time' => 1871.36, 'end_time' => 3702.58]];
-        $this->introduction($log, $spans, [1, true, 4], [1, true, 4]);
+        $this->introduction($log, $spans, [4, true, 4], [4, true, 4]);
         $plans = app(CueSafeExtractionPlan::class);
         $this->assertSame([3707.2], $plans->spokenEndsBesideSongs($log, $spans));
         $this->bank($log, 3707.2, [
@@ -211,12 +236,12 @@ class SpokenEndBesideSongTest extends TestCase
      * the answer keeps, across the boundary the old rule stopped at.
      */
     #[Test]
-    public function a_tied_introduction_in_a_section_of_its_own_joins_the_sermon(): void
+    public function a_sermon_conclusion_in_a_section_of_its_own_joins_the_sermon(): void
     {
         $log = $this->service($this->quotationAcrossTheSongStart(), [['sermon', 1871.36, 3702.58], ['other', 3702.70, 3709.0], ['song', 3710.0, 3897.92]],
             timeline: [[3690, 3710, 0.01, 0.78], [3710, 3900, 0.8, 0.01]]);
         $spans = [['start_time' => 1871.36, 'end_time' => 3702.58]];
-        $this->introduction($log, $spans, [1, true, 3], [1, true, 3]);
+        $this->introduction($log, $spans, [3, true, 3], [3, true, 3]);
         $this->bank($log, 3706.0, [
             ['start' => 3704.70, 'end' => 3705.10, 'word' => ' tidings'],
             ['start' => 3705.10, 'end' => 3705.40, 'word' => ' all'],

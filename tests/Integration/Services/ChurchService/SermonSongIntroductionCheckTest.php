@@ -6,10 +6,13 @@ namespace Tests\Integration\Services\ChurchService;
 
 use App\Data\ChurchServiceTranscript;
 use App\Enums\ServiceSectionType;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Support\MediaProcessingVersion;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
@@ -37,17 +40,17 @@ class SermonSongIntroductionCheckTest extends TestCase
 
     /** 1111: the introduction is a section of its own; the sermon runs on through it to the song. */
     #[Test]
-    public function a_tied_introduction_in_a_section_of_its_own_ends_the_sermon_at_its_last_line(): void
+    public function a_tied_introduction_in_a_section_of_its_own_is_left_out_of_the_sermon(): void
     {
         $log = $this->service();
-        $this->answers([3, true, 6], [3, true, 6]);
+        $this->answers([2, true, 6], [2, true, 6]);
 
         $result = app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
 
         $this->assertTrue($result['asked']);
         $this->assertTrue($result['ties_to_sermon']);
-        $this->assertSame(3064.4, $result['end'], 'through "…that all of us will be able to sing that", before "So let\'s stand to sing 861."');
-        $this->assertSame(3064.4, app(SermonSongIntroductionCheck::class)->read($log->fresh(), $this->spans())['end']);
+        $this->assertSame(3019.1, $result['end'], 'the sermon ends before the tied introduction');
+        $this->assertSame(3019.1, app(SermonSongIntroductionCheck::class)->read($log->fresh(), $this->spans())['end']);
     }
 
     /** A bare announcement goes: the sermon ends at its own last line, even inside its section. */
@@ -72,7 +75,7 @@ class SermonSongIntroductionCheckTest extends TestCase
     public function answers_naming_different_lines_are_settled_by_a_third(): void
     {
         $log = $this->service();
-        $this->answers([3, true, 5], [3, true, 6], [3, true, 5]);
+        $this->answers([5, true, 5], [6, true, 6], [5, true, 5]);
 
         $result = app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
 
@@ -84,7 +87,7 @@ class SermonSongIntroductionCheckTest extends TestCase
     public function three_different_lines_take_the_middle_one(): void
     {
         $log = $this->service();
-        $this->answers([3, true, 4], [3, true, 6], [3, true, 5]);
+        $this->answers([4, true, 4], [6, true, 6], [5, true, 5]);
 
         $this->assertSame(3057.1, app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans())['end']);
     }
@@ -94,7 +97,7 @@ class SermonSongIntroductionCheckTest extends TestCase
     public function two_winning_answers_naming_different_lines_take_the_earlier(): void
     {
         $log = $this->service();
-        $this->answers([3, true, 5], [2, false, 2], [3, true, 6]);
+        $this->answers([5, true, 5], [2, false, 2], [6, true, 6]);
 
         $result = app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
 
@@ -107,7 +110,7 @@ class SermonSongIntroductionCheckTest extends TestCase
     public function answers_that_disagree_on_the_judgement_are_settled_by_a_third(): void
     {
         $log = $this->service();
-        $this->answers([3, true, 6], [2, false, 2], [3, true, 6]);
+        $this->answers([6, true, 6], [2, false, 2], [6, true, 6]);
 
         $result = app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
 
@@ -125,7 +128,7 @@ class SermonSongIntroductionCheckTest extends TestCase
     public function lines_after_the_first_music_window_are_never_the_sermons_end(): void
     {
         $log = $this->service(timeline: [[2950, 3065, 0.01, 0.8], [3065, 3070, 0.6, 0.5], [3070, 3200, 0.8, 0.02]]);
-        $this->answers([3, true, 9], [3, true, 9]);
+        $this->answers([9, true, 9], [9, true, 9]);
 
         $result = app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
 
@@ -145,8 +148,286 @@ class SermonSongIntroductionCheckTest extends TestCase
         $again = $check->prepare($log->fresh(), $this->spans());
 
         $this->assertFalse($again['asked']);
-        $this->assertSame(3064.4, $again['end']);
+        $this->assertSame(3024.8, $again['end']);
         OpenAI::assertSent(Chat::class, 2);
+    }
+
+    #[Test]
+    public function recording_ending_during_a_bare_announcement_still_asks_k16(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 1580.5]], timeline: [[1500, 1580, 0.01, 0.8]]);
+        $cues = [
+            ['start' => 1568.0, 'end' => 1570.0, 'text' => 'Amen.'],
+            ['start' => 1570.0, 'end' => 1573.0, 'text' => "Let's sing again."],
+            ['start' => 1573.0, 'end' => 1579.72, 'text' => "And I've chosen you."],
+        ];
+        Storage::disk('local')->put('temp/introduction.json', json_encode(ChurchServiceTranscript::fromCues($cues, 1580, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $spans = [['start_time' => 0.0, 'end_time' => 1580.5]];
+        $this->answers([1, false, 1], [1, false, 1]);
+        $check = app(SermonSongIntroductionCheck::class);
+
+        $question = $check->question($log, $spans);
+        $this->assertNotNull($question);
+        $this->assertNull($question['identity']['song_start']);
+        $this->assertSame(1579.72, $question['identity']['recording_end']);
+        $this->assertStringContainsString('Next song: not in the recording (it ends after the last line).', $question['prompt']);
+        $this->assertNull($check->songStart($log, $spans));
+        $this->assertSame(['asked' => true, 'end' => 1570.0, 'ties_to_sermon' => false], $check->prepare($log, $spans));
+        $this->assertSame(['asked' => false, 'end' => 1570.0, 'ties_to_sermon' => false], $check->prepare($log->fresh(), $spans));
+        OpenAI::assertSent(Chat::class, 2);
+    }
+
+    #[Test]
+    public function a_tied_introduction_before_recording_end_stops_at_the_sermons_own_last_line(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3024.83], ['other', 3024.83, 3076.1]], timeline: [[2950, 3080, 0.01, 0.8]]);
+        $this->answers([2, true, 6], [2, true, 6]);
+        $check = app(SermonSongIntroductionCheck::class);
+
+        $this->assertSame(['asked' => true, 'end' => 3019.1, 'ties_to_sermon' => true], $check->prepare($log, $this->spans()));
+        $this->assertSame(3019.1, $check->read($log->fresh(), $this->spans())['end']);
+        $this->assertNull($check->songStart($log, $this->spans()));
+    }
+
+    #[Test]
+    #[DataProvider('recordingEndLineVotes')]
+    public function recording_end_reuses_banked_calls_to_vote_on_the_sermons_last_line(array $numbers, float $expected, bool $music): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3024.83]],
+            timeline: $music ? [[2950, 3055, 0.01, 0.8], [3055, 3060, 0.8, 0.5], [3060, 3080, 0.8, 0.5]] : [[2950, 3080, 0.01, 0.8]]);
+        $check = app(SermonSongIntroductionCheck::class);
+        $question = $check->question($log, $this->spans());
+        $identity = $question['identity'];
+        $kind = 'sermon-song-introduction-'.hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
+        $payload = ['identity' => $identity, 'calls_completed' => true, 'end' => 3064.4, 'ties_to_sermon' => true,
+            'line' => $this->cues()[5]['text'], 'lines' => $question['lines'],
+            'calls' => array_map(static fn (int $n): array => ['sermon_last_line' => $n, 'ties_to_sermon' => true, 'video_last_line' => 6, 'reason' => 'banked'], $numbers)];
+        if ($numbers === []) {
+            unset($payload['calls']);
+        }
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $kind, $payload);
+        OpenAI::fake([]);
+
+        $this->assertSame($expected, $check->read($log->fresh(), $this->spans())['end']);
+        $this->assertSame(['asked' => false, 'end' => $expected, 'ties_to_sermon' => true], $check->prepare($log->fresh(), $this->spans()));
+        $this->assertSame($payload, json_decode(Storage::disk('local')->get(ServiceArtifactStorage::recordedFor($log->fresh())[0]['path']), true));
+        OpenAI::assertNothingSent();
+    }
+
+    /** @return array<string, array{list<int>, float, bool}> */
+    public static function recordingEndLineVotes(): array
+    {
+        return [
+            'majority' => [[2, 4, 2], 3019.1, false],
+            'median of three' => [[2, 4, 3], 3024.8, false],
+            'earlier of two' => [[4, 2], 3019.1, false],
+            'step back from music' => [[6, 6], 3057.1, true],
+            'legacy payload without calls keeps stored end' => [[], 3064.4, false],
+        ];
+    }
+
+    #[Test]
+    #[DataProvider('closingPrayerLines')]
+    public function a_recording_end_keeps_the_last_closing_amen_within_the_untied_video_vote(string $fifth, string $sixth, int $videoLine, bool $ties, bool $song, float $expected): void
+    {
+        $log = $song ? $this->service() : $this->service(sections: [['sermon', 0.0, 3024.83]], timeline: [[2950, 3080, 0.01, 0.8]]);
+        $cues = $this->cues();
+        $cues[4]['text'] = $fifth;
+        $cues[5]['text'] = $sixth;
+        Storage::disk('local')->put('temp/introduction.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->answers([2, $ties, $videoLine], [2, $ties, $videoLine]);
+        $check = app(SermonSongIntroductionCheck::class);
+
+        $this->assertSame($expected, $check->prepare($log, $this->spans())['end']);
+        $this->assertSame($expected, $check->read($log->fresh(), $this->spans())['end']);
+        $this->assertSame(['asked' => false, 'end' => $expected, 'ties_to_sermon' => $ties], $check->prepare($log->fresh(), $this->spans()));
+        OpenAI::assertSent(Chat::class, 2);
+    }
+
+    /** @return array<string, array{string, string, int, bool, bool, float}> */
+    public static function closingPrayerLines(): array
+    {
+        return [
+            'closing prayer before thanks' => ['In Jesus’ name. Amen.', 'Thank you.', 6, false, false, 3057.1],
+            'congregational amen after preacher amen excluded' => ['Amen.', 'Amen.', 6, false, false, 3057.1],
+            'double amen inside one line stays whole' => ['In Jesus’ name. Amen. Amen.', 'Thank you.', 6, false, false, 3057.1],
+            'quoted capital amen' => ['“AMEN!”', 'Thank you.', 6, false, false, 3057.1],
+            'amen beyond video vote excluded' => ['Amen.', 'Thank you.', 4, false, false, 3019.1],
+            'amen followed by a singing call excluded' => ["Amen. Let's sing.", 'Thank you.', 6, false, false, 3019.1],
+            'no later amen keeps sermon line' => ['A conclusion.', 'Thank you.', 6, false, false, 3019.1],
+            'tied introduction never recovers an amen' => ['Amen.', 'Amen.', 6, true, false, 3019.1],
+            'song joins keep the preacher prayer too' => ['Amen.', 'Thank you.', 6, false, true, 3057.1],
+        ];
+    }
+
+    #[Test]
+    public function a_congregational_amen_straight_after_the_sermons_amen_is_not_recovered(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3024.83]], timeline: [[2950, 3080, 0.01, 0.8]]);
+        $cues = $this->cues();
+        $cues[1]['text'] = 'In Jesus’ name. Amen.';
+        $cues[2]['text'] = '“Amen.”';
+        Storage::disk('local')->put('temp/introduction.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->answers([2, false, 3], [2, false, 3]);
+        $check = app(SermonSongIntroductionCheck::class);
+
+        $this->assertSame(3019.1, $check->prepare($log, $this->spans())['end']);
+        $this->assertSame(3019.1, $check->read($log->fresh(), $this->spans())['end']);
+        OpenAI::assertSent(Chat::class, 2);
+    }
+
+    #[Test]
+    #[DataProvider('chosenAmenLines')]
+    public function a_chosen_answering_amen_steps_back_to_the_first_amen_line(string $previous, string $chosen, int $chosenLine, bool $ties, bool $song, float $expected): void
+    {
+        $log = $song ? $this->service() : $this->service(sections: [['sermon', 0.0, 3024.83]], timeline: [[2950, 3080, 0.01, 0.8]]);
+        $cues = $this->cues();
+        $cues[1]['text'] = $previous;
+        $cues[2]['text'] = $chosen;
+        $cues[3]['text'] = 'Amen.';
+        Storage::disk('local')->put('temp/introduction.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->answers([$chosenLine, $ties, $chosenLine], [$chosenLine, $ties, $chosenLine]);
+        $check = app(SermonSongIntroductionCheck::class);
+
+        $this->assertSame($expected, $check->prepare($log, $this->spans())['end']);
+        $this->assertSame($expected, $check->read($log->fresh(), $this->spans())['end']);
+        $this->assertSame(['asked' => false, 'end' => $expected, 'ties_to_sermon' => $ties], $check->prepare($log->fresh(), $this->spans()));
+        OpenAI::assertSent(Chat::class, 2);
+    }
+
+    /** @return array<string, array{string, string, int, bool, bool, float}> */
+    public static function chosenAmenLines(): array
+    {
+        return [
+            '1204 lone amen after amen' => ['Amen.', 'Amen.', 3, false, false, 3019.1],
+            '1352 two answering amens after prayer' => ['For evermore. Amen.', 'Amen.', 4, false, false, 3019.1],
+            'punctuation and capitalisation' => ['In Jesus’ name. AMEN!', '“AMEN.”', 3, false, false, 3019.1],
+            'song join' => ['Amen.', 'Amen.', 3, false, true, 3019.1],
+            'tied vote' => ['Amen.', 'Amen.', 3, true, true, 3019.1],
+            'first amen stays' => ['Let us pray.', 'Amen.', 3, false, false, 3024.8],
+            'substantive chosen line stays' => ['Amen.', 'For evermore. Amen.', 3, false, false, 3024.8],
+            'amen inside previous line is not its end' => ['Amen means so be it.', 'Amen.', 3, false, false, 3024.8],
+        ];
+    }
+
+    #[Test]
+    public function closing_prayer_recovery_uses_the_agreed_video_line_and_never_steps_into_music(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3024.83]], timeline: [[2950, 3055, 0.01, 0.8], [3055, 3080, 0.8, 0.5]]);
+        $cues = $this->cues();
+        $cues[3]['text'] = 'Amen.';
+        $cues[5]['text'] = 'Amen.';
+        Storage::disk('local')->put('temp/introduction.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->answers([2, false, 4], [2, false, 6], [2, false, 6]);
+        $check = app(SermonSongIntroductionCheck::class);
+
+        $this->assertSame(3032.2, $check->prepare($log, $this->spans())['end']);
+        $this->assertSame(3032.2, $check->read($log->fresh(), $this->spans())['end']);
+        OpenAI::assertSent(Chat::class, 3);
+    }
+
+    #[Test]
+    public function a_song_join_ends_at_the_sermons_own_line_even_when_the_introduction_is_tied(): void
+    {
+        $log = $this->service();
+        $this->answers([2, true, 6], [2, true, 6]);
+        $check = app(SermonSongIntroductionCheck::class);
+
+        $this->assertSame(3019.1, $check->prepare($log, $this->spans())['end']);
+        $this->assertSame(3019.1, $check->read($log->fresh(), $this->spans())['end']);
+        OpenAI::assertSent(Chat::class, 2);
+    }
+
+    #[Test]
+    public function a_song_answer_banked_under_the_original_identity_is_reused(): void
+    {
+        $log = $this->service();
+        $check = app(SermonSongIntroductionCheck::class);
+        $log->serviceSections()->where('section_type', ServiceSectionType::Sermon)->update(['title' => 'Sermon']);
+        $log->serviceSections()->where('section_type', ServiceSectionType::Other)->update(['title' => 'Introduction']);
+        $log->serviceSections()->where('section_type', ServiceSectionType::Song)->update(['title' => 'Hymn']);
+        $prompt = <<<'TXT'
+Sermon: "Sermon".
+Next song: "Hymn".
+Detected between them: other "Introduction".
+
+Transcript:
+1. You'll meet your king to begin a life of eternal joy with
+2. him and all his people.
+3. We're going to sing.
+--- (the detected sermon section ends here) ---
+4. We're going to sing a hymn that I chose.
+5. Oh, let me see the lightning flare that ends this world's long night,
+6. I pray that all of us will be able to sing that.
+7. So let's stand to sing 861.
+8. [music may start] I have heard the cross
+
+TXT;
+        $this->assertSame($prompt, $check->question($log, $this->spans())['prompt']);
+        $identity = [
+            'processing_id' => $log->processing_id,
+            'sermon_end' => 3024.83,
+            'song_start' => 3072.7,
+            'model' => (string) config('media-processing.service_structure.model'),
+            'prompt_version' => 2,
+            'transcript' => hash('sha256', $prompt),
+            'media_processing' => MediaProcessingVersion::signature(),
+        ];
+        $this->assertSame($identity, $check->question($log, $this->spans())['identity']);
+        $this->assertStringContainsString('Next song: "', $prompt);
+        $kind = 'sermon-song-introduction-'.hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $kind, [
+            'identity' => $identity, 'calls_completed' => true, 'end' => 3064.4, 'ties_to_sermon' => true, 'line' => $this->cues()[5]['text'],
+        ]);
+        OpenAI::fake([]);
+
+        $this->assertSame(['asked' => false, 'end' => 3064.4, 'ties_to_sermon' => true], $check->prepare($log->fresh(), $this->spans()));
+        OpenAI::assertNothingSent();
+    }
+
+    #[Test]
+    public function a_recording_end_answer_survives_the_planners_source_duration_cap(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3076.5]], timeline: [[2950, 3080, 0.01, 0.8]]);
+        $log->update(['duration' => 3076.1]);
+        $check = app(SermonSongIntroductionCheck::class);
+        $this->answers([2, false, 2], [2, false, 2]);
+        $check->prepare($log, [['start_time' => 0.0, 'end_time' => 3076.5]]);
+
+        $this->assertSame(3019.1, $check->read($log->fresh(), [['start_time' => 0.0, 'end_time' => 3076.1]])['end'] ?? null);
+        OpenAI::assertSent(Chat::class, 2);
+    }
+
+    #[Test]
+    public function a_recording_end_join_requires_a_banked_answer_before_planning(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3024.83]], timeline: [[2950, 3080, 0.01, 0.8]]);
+        OpenAI::fake([]);
+        $this->expectException(OutputEdgeTimingsMissing::class);
+        $this->expectExceptionMessage('has no answer on where its sermon ends');
+
+        app(CueSafeExtractionPlan::class)->forSpans($log, $this->spans(), sermonEnd: true);
+    }
+
+    #[Test]
+    #[DataProvider('blockedRecordingEnds')]
+    public function a_recording_end_does_not_cross_a_published_item_or_exceed_reach(array $sections, float $end): void
+    {
+        $log = $this->service(sections: $sections);
+        OpenAI::fake([]);
+
+        $this->assertNull(app(SermonSongIntroductionCheck::class)->question($log, [['start_time' => 0.0, 'end_time' => $end]]));
+        OpenAI::assertNothingSent();
+    }
+
+    /** @return array<string, array{list<array{string, float, float}>, float}> */
+    public static function blockedRecordingEnds(): array
+    {
+        return [
+            'published talk' => [[['sermon', 0.0, 3024.83], ['short_talk', 3025.0, 3076.1]], 3024.83],
+            'another sermon' => [[['sermon', 0.0, 3024.83], ['sermon', 3025.0, 3076.1]], 3024.83],
+            'recording end beyond reach' => [[['sermon', 0.0, 2900.0]], 2900.0],
+        ];
     }
 
     /** An answer judged the words it read: a line re-transcribed is a new question. */
@@ -228,7 +509,7 @@ class SermonSongIntroductionCheckTest extends TestCase
 
         $this->assertNull(app(SermonSongIntroductionCheck::class)->read($log->fresh(), $this->spans()));
         $this->answers([3, true, 6], [3, true, 6]);
-        $this->assertSame(3064.4, app(SermonSongIntroductionCheck::class)->prepare($log->fresh(), $this->spans())['end']);
+        $this->assertSame(3024.8, app(SermonSongIntroductionCheck::class)->prepare($log->fresh(), $this->spans())['end']);
     }
 
     /** @return array<string, array{int}> */
@@ -258,7 +539,7 @@ class SermonSongIntroductionCheckTest extends TestCase
             $answer,
         ]);
 
-        $this->assertSame(3064.4, app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans())['end']);
+        $this->assertSame(3024.8, app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans())['end']);
         OpenAI::assertSent(Chat::class, static fn (string $method, array $parameters): bool => $method === 'create' && $parameters['service_tier'] === 'default');
         OpenAI::assertSent(Chat::class, 3);
     }
@@ -279,7 +560,7 @@ class SermonSongIntroductionCheckTest extends TestCase
         }
 
         $this->answers([3, true, 6], [3, true, 6]);
-        $this->assertSame(3064.4, app(SermonSongIntroductionCheck::class)->prepare($log->fresh(), $this->spans())['end']);
+        $this->assertSame(3024.8, app(SermonSongIntroductionCheck::class)->prepare($log->fresh(), $this->spans())['end']);
     }
 
     /** @return list<array{start_time: float, end_time: float}> */
