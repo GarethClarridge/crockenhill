@@ -35,6 +35,14 @@ class EdgeListeningRulingsTest(unittest.TestCase):
         records = edge_listening.collect('s', questions, answers)
         self.assertEqual([(3779, 'at', 216.0)], [(r['section_id'], r['expect'], r['ruled_time']) for r in records])
 
+    def test_answer_source_is_preserved_separately_from_the_listening_page(self):
+        questions = [self.question(1, 'end', 10, 11), self.question(2, 'end', 20, 21)]
+        answers = [{**self.answer('1-end', 'a'), 'source': 'operator'},
+                   {**self.answer('2-end', 'b'), 'source': 'claude-review'}]
+        records = edge_listening.collect('listening-page', questions, answers)
+        self.assertEqual(['listening-page', 'listening-page'], [r['source'] for r in records])
+        self.assertEqual(['operator', 'claude-review'], [r['answer_source'] for r in records])
+
     def test_unsure_and_unknown_questions_give_no_ruling(self):
         records = edge_listening.collect('s', [self.question(959, 'start', 524.27, 523.0)],
                                          [self.answer('959-start', 'unsure'), self.answer('2867-start', 'neither', 'not a song')])

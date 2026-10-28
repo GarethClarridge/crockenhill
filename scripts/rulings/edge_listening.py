@@ -49,6 +49,7 @@ def collect(source, questions, answers):
             'section_type': key.get('type', 'song'), 'title': answer.get('title'), 'edge': edge,
             'heard': round(float(heard), 3), 'answer': choice, 'expect': expect, 'ruled_time': at,
             'note': answer.get('note', ''),
+            **({'answer_source': answer['source']} if 'source' in answer else {}),
             **({'points': [round(float(t), 3) for t in points]} if points else {}),
         })
     return records
