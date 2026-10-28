@@ -1982,7 +1982,8 @@ class CueSafeExtractionPlan
         // A cue opening where the classifier hears no speech is not where speech starts: 1117
         // §1959's announcement cue opens in music alone at 713.62, twelve seconds before it is
         // heard, and the cut there faded out the last sung word (canary 13).
-        if ($speech !== null && TranscriptCueEvidence::isEvidence($speech, $timeline) && $this->speechHeardFrom($timeline, $speech['start'])) {
+        $speechHeardBy = $speech !== null && TranscriptCueEvidence::isEvidence($speech, $timeline) ? $this->speechHeardBy($timeline, $speech['start']) : null;
+        if ($speechHeardBy !== null) {
             $bounds[] = $speech['start'];
         }
 
@@ -2009,8 +2010,17 @@ class CueSafeExtractionPlan
         }
 
         // A silence the music comes back after is inside the outro, not its end: 1117 §1959 dipped
-        // for 1.8 s after its last sung word and played on to 720 (canary 13).
-        $silence = $levels !== null ? $this->beforeMusicResumes(fn (float $from): ?float => $this->silenceOnset($levels, $from, $until), $levels, $timeline, $lastSound, $until) : null;
+        // for 1.8 s after its last sung word and played on to 720 (canary 13). A cue start the
+        // classifier hears speech after, not at, has not shown speech there: a second of silence
+        // before that speech window ends is still the song's end. 954 §901's "Our gracious…" opened
+        // in the music 6.5 s before it was said, after 3.9 s of silence (heard 10-20); 1216 §2655's
+        // "Well, let's pray" opened 6 s before, and its cut there took the outro (heard 10-26). The
+        // second of silence must pass before the cue has finished: 1366 §4567's "Prayer and commit
+        // our service to the Lord. Let's pray." is spliced straight onto the recorded song, and its
+        // only silence began as "pray" ended (heard 10-28).
+        $silenceUntil = $speechHeardBy !== null && abs($until - $speech['start']) < 0.001
+            ? max($until, min($speechHeardBy, $speech['end'] - self::SONG_END_SILENCE_SECONDS)) : $until;
+        $silence = $levels !== null ? $this->beforeMusicResumes(fn (float $from): ?float => $this->silenceOnset($levels, $from, $silenceUntil), $levels, $timeline, $lastSound, $silenceUntil) : null;
 
         if ($silence !== null) {
             return ['time' => $silence, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
@@ -2387,17 +2397,20 @@ class CueSafeExtractionPlan
         return null;
     }
 
-    /** Whether the classifier hears speech in the window a time falls in or the one after it. */
-    private function speechHeardFrom(?AudioTimeline $timeline, float $time): bool
+    /**
+     * By when the classifier hears speech from a time: the time itself when its window holds speech,
+     * the end of the next window when only that one does, or null.
+     */
+    private function speechHeardBy(?AudioTimeline $timeline, float $time): ?float
     {
         $window = $timeline?->windowAt($time);
 
-        if ($timeline === null || $window === null) {
-            return true;
+        if ($timeline === null || $window === null || $timeline->windows[$window]['speech'] >= AudioTimeline::SPEECH_CUTOFF) {
+            return $time;
         }
 
-        return $timeline->windows[$window]['speech'] >= AudioTimeline::SPEECH_CUTOFF
-            || ($window + 1 < $timeline->windowCount() && $timeline->windows[$window + 1]['speech'] >= AudioTimeline::SPEECH_CUTOFF);
+        return $window + 1 < $timeline->windowCount() && $timeline->windows[$window + 1]['speech'] >= AudioTimeline::SPEECH_CUTOFF
+            ? (float) $timeline->windows[$window + 1]['end'] : null;
     }
 
     /**

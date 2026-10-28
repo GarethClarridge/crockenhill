@@ -665,6 +665,65 @@ class SongEndEdgesTest extends TestCase
         $this->assertGreaterThanOrEqual(713.62, $end - ($plan['audio_fade_out'] ?? 0.0) - 0.001, 'the fade starts after the last sung sound');
     }
 
+    /**
+     * 954 §901 (heard 10-20, 10-28): "Our gracious and loving God," opens at 3830.56 while the band
+     * plays; the classifier hears speech only in the next window. The second of silence before that
+     * window's speech is still the song's end, not the cue's start.
+     */
+    #[Test]
+    public function a_song_ends_at_the_silence_before_speech_only_the_next_window_hears(): void
+    {
+        $sung = ['start' => 3820.0, 'end' => 3826.0, 'text' => 'and evermore.'];
+        $prayer = ['start' => 3830.56, 'end' => 3838.8, 'text' => 'Our gracious and loving God,'];
+        $section = $this->song(3700.0, 3826.0, [$sung, $prayer],
+            [[3800, 3833.1, self::LOUD], [3833.1, 3835.6, self::SILENT], [3835.6, 3850, -30.0]],
+            timeline: [[3800, 3835, ...self::MUSIC], [3835, 3850, ...self::SPEECH]]);
+        $this->bank($section, 3826.0, [
+            ['start' => 3824.1, 'end' => 3825.9, 'word' => ' evermore.'],
+        ]);
+        $this->bank($section, 3830.56, [
+            ['start' => 3835.7, 'end' => 3836.0, 'word' => ' Our'],
+            ['start' => 3836.0, 'end' => 3836.6, 'word' => ' gracious'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertGreaterThanOrEqual(3833.1, $plan['segments'][0]['end_time']);
+        $this->assertLessThanOrEqual(3835.6, $plan['segments'][0]['end_time']);
+        $this->assertSame('song_end_silence', $this->endEdge($plan)['reason']);
+    }
+
+    /**
+     * 1366 §4567 (heard 10-28): "Prayer and commit our service to the Lord. Let's pray." is spliced
+     * straight onto the recorded song; the classifier hears speech only in the next window, and the
+     * only silence begins as "pray" ends. A silence the cue's speech has not finished before is not
+     * before its speech: the song ends by the cue's start.
+     */
+    #[Test]
+    public function a_silence_after_the_speech_cue_has_finished_does_not_end_the_song(): void
+    {
+        $sung = ['start' => 418.9, 'end' => 425.02, 'text' => 'For He dwells in the presence of all His people'];
+        $prayer = ['start' => 435.64, 'end' => 443.44, 'text' => "Prayer and commit our service to the Lord. Let's pray."];
+        $next = ['start' => 444.74, 'end' => 446.70, 'text' => 'Our loving God and Heavenly Father,'];
+        $section = $this->song(200.0, 425.02, [$sung, $prayer, $next],
+            [[400, 443.4, self::LOUD], [443.4, 444.7, self::SILENT], [444.7, 460, -30.0]],
+            timeline: [[400, 440, ...self::MUSIC], [440, 460, ...self::SPEECH]]);
+        $this->bank($section, 425.02, [
+            ['start' => 423.5, 'end' => 425.0, 'word' => ' people'],
+        ]);
+        $this->bank($section, 435.64, [
+            ['start' => 434.78, 'end' => 440.80, 'word' => ' Prayer'],
+            ['start' => 440.80, 'end' => 441.42, 'word' => ' and'],
+            ['start' => 441.42, 'end' => 441.74, 'word' => ' commit'],
+            ['start' => 442.95, 'end' => 443.16, 'word' => " Let's"],
+            ['start' => 443.24, 'end' => 443.44, 'word' => ' pray.'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertLessThanOrEqual(435.64, $plan['segments'][0]['end_time']);
+    }
+
     /** @param array{cue_edge_widening: list<array<string, mixed>>} $plan
      * @return array<string, mixed>
      */

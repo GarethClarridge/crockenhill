@@ -353,6 +353,17 @@ records.extend(edge_listening_rulings(
     [{**answer, 'choice': MARGIN.get(answer['choice'], answer['choice'])}
      for answer in saved('start-margin-listening-20261027/answers/rulings').values()],
 ))
+# 10-28: song ends the silence fix moves (A now, B at the silence), and two sermon ends. 1053 played three
+# cuts; the note ("C is right. B is acceptable.") makes B and C the two acceptable ones, C heard.
+SONG_END_SILENCE = {'1053-sermon-end': ({'a': 1576.9, 'b': 1573.4}, 'both')}
+song_end_answers = saved('test-fixes-listening-20261027/answers/rulings')
+records.extend(edge_listening_rulings(
+    'song-end-silence-20261028',
+    [{**q, 'key': {**q['key'], 'times': SONG_END_SILENCE.get(q['id'], (q['key']['times'],))[0]}}
+     for q in load('test-fixes-listening-20261027/questions.json')],
+    [{**answer, 'choice': SONG_END_SILENCE[question_id][1]} if question_id in SONG_END_SILENCE else answer
+     for question_id, answer in song_end_answers.items()],
+))
 
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.

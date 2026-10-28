@@ -158,13 +158,14 @@ class RuledEndingsRegressionTest extends TestCase
         $this->assertEqualsWithDelta(1706.0, end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE, json_encode($plan['cue_edge_widening'], JSON_THROW_ON_ERROR));
     }
 
+    /** 1012, 1088 and 946 end at the silence after the band stops: B or either on the Song End Silence page (10-28). */
     #[Test]
     #[TestWith(['listening-held-word-20261021-1211-s175128-end', 175128, 4387.835])]
     #[TestWith(['canary13-041-1250-end', 3124, 421.82])]
-    #[TestWith(['listening-held-word-20261021-1012-s1291-end', 1291, 995.48])]
+    #[TestWith(['listening-held-word-20261021-1012-s1291-end', 1291, 997.466])]
     #[TestWith(['listening-held-word-20261021-1023-s1364-end', 1364, 2500.34])]
-    #[TestWith(['listening-held-word-20261021-1088-s1778-end', 1778, 543.68])]
-    #[TestWith(['listening-held-word-20261021-946-s780-end', 780, 378.52])]
+    #[TestWith(['listening-held-word-20261021-1088-s1778-end', 1778, 545.327])]
+    #[TestWith(['listening-held-word-20261021-946-s780-end', 780, 379.699])]
     #[TestWith(['listening-held-word-20261021-1213-s175130-end', 175130, 4330.48])]
     public function song_ends_distinguish_held_words_from_the_following_speech(string $name, int $sectionId, float $expected): void
     {

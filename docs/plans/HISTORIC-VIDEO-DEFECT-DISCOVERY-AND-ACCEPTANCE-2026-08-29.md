@@ -26,6 +26,17 @@
 > itself come after release, when the historic import is done (register R8). **Deferred:** the second copy of the source masters (§4.6) has
 > no destination yet; the operator expects to use the staging drive once historic processing is done. C6 stays
 > on until then.
+> **10-27 → 10-28 (edge evidence lane; §5 from "10-27: direction review"):** the wider edge decode (Step 2), the
+> song-start margin and the song-end silence fix (with its cue-end guard) are adopted; the suite was repaired and
+> has **one expected failure, `end-1053-sermon`** (§5 "10-28"). No run has been re-cut; nothing is public.
+> **Next, for a new session, in order** (each waits for the operator's go; "plan" means write the plan, then stop):
+> 1. Plan the **sermon-end rule for 1053**: the sermon runs past "Amen. Let's sing again." into the hymn
+>    introduction. Plan it with the **dependent song openings** plan (§5 "10-27 night", step 1 = decode past the
+>    cut for the 19 measured starts, not started), since both are an introduction that leans on what follows.
+> 2. Plan the **lyric-based rule for 1291** (a reading that opens on the song's last sung line; §5 "10-27 night:
+>    the suite's failures"). The classifier cannot carry it.
+> 3. Put **1267 §3355** (now 44:04.82, unheard) on the next listening page.
+> 4. The older queue below (disk, the 120 open edges, the recompose-and-re-cut round) is unchanged.
 > Getting production complete is mapped in the
 > [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16);
 > weekly take-over (§4.2), lasting evaluation and custody (§4.6) and legacy transcripts (§4.7, decided 10-17) were
@@ -5688,3 +5699,32 @@ first reading in this session: Step 2 did not cause them.
   "Amen."; the 10-18 and 10-19 rulings contradict) and 1160 (A 1976.155 now; B 1994.59, ruled right 10-18).
 - **Suite now:** 4 failures, 0 errors: 954 and 1216 (the held patch), 1053 and 1160 (the page). Dusk 63/63; PHPStan
   and Pint clean.
+
+#### 10-28: Song End Silence answered; silence fix adopted with a cue-end guard
+
+**Answers** (source `song-end-silence-20261028`, 24 rulings): of the 23 song ends, **B** 6 (1012, 1025, 1111, 1267
+§3358, 1347, 974), **either** 16, **A** 1: 1366 §4567, where B ran through "Prayer and commit our service to the
+Lord. Let's pray." (operator: a bad splice in the recording, straight from the recorded song into the sentence).
+**1160:** A (the end now, after the hymn's title) is right, replacing the 10-18 ruling. **1053:** "C is right. B is
+acceptable." (after "Amen." 1573.4, or after "Let's sing again." 1576.9), recorded as the two acceptable cuts, C
+heard; it agrees with the 10-12 "Ends on the Amen".
+
+**Adopted, with a guard.** The patch applied, plus: the second of silence must pass before the speech cue has
+finished (`silenceUntil` capped at the cue's end less `SONG_END_SILENCE_SECONDS`). 1366's only silence began as
+"pray" ended (443.39 against the cue's 443.44); 954 (3833.1 against 3838.8) and 1216 (1357.1 against 1361.6) keep
+theirs. Red-to-green in `SongEndEdgesTest` (`a_song_ends_at_the_silence_before_speech_only_the_next_window_hears`,
+`a_silence_after_the_speech_cue_has_finished_does_not_end_the_song`); each fails without its own change. Across
+the 1,192 song ends the fix now moves 31 (was 45): the guard returns 1366 to A, three "either" ends and 11 unheard
+ones to the end they have now, and puts 1267 §3355 at 2444.82 (unheard; between its old end and its old B).
+
+**Fixtures.** The 184 entries on the 29 runs involved recaptured (`capture-fixtures.php --current`) and refreshed
+from the committed files (`storage/scratch/song-end-silence-fixtures-20261028/refresh.py`, which keeps every
+acceptance field; prior files in `before/`); `widening:1267-start-1727` cannot be captured (its section was
+re-detected away) and stays as it was. Each of the 24 answers has a dataset (`run-*-2026-10-28.json.gz`). The
+10-21 held-word pins on 1012 §1291, 1088 §1778 and 946 §780 are retired (`expected_range_retired`) in favour of
+the register, and the named held-word test pins the new ends.
+
+**Still red: 1053's sermon end** (`end-1053-sermon`, ruled "keep" at the Amen, so it cannot be an open defect).
+The cut runs past "Amen. Let's sing again." into the hymn introduction ("And I've chosen you", 1579.72). It
+needs a sermon-end rule: the same family as the dependent-openings plan (an introduction that leans on what
+follows belongs with the song, not the sermon). Not planned yet.
