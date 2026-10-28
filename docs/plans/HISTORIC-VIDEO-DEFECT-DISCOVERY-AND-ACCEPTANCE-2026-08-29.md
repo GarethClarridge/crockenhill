@@ -31,11 +31,11 @@
 > had **one expected failure, `end-1053-sermon`** (§5 "10-28"). That case is now green after the K16 change below;
 > the other affected fixtures await listening and recapture. No run has been re-cut; nothing is public.
 > **Next, for a new session, in order** (each waits for the operator's go; "plan" means write the plan, then stop):
-> 1. **1053's sermon end is a K16 gap, not a new rule** (§5 "10-28 (later)"): no song section follows, so the
->    introduction check never asks, and 126 of 411 sermon outputs go unjudged (nearly all: the recording ends before
->    the song). Code and the approved Luna batch are complete: 123 answers banked; three are outside the join rule.
->    Listening done 10-28 (artifact page; 21 operator + 33 Claude under the operator's rule). **Next: the plan in §5
->    "10-28 (night)"**, in which K16 ends a sermon at its own last line: Codex implements, then hands back at step 4 for listening. All five 1053 fixture cases now pass. The **dependent song openings** plan (§5 "10-27 night") is separate and starts only, unchanged.
+> 1. **Dependent song openings** (§5 "10-27 night"): step 1 done 10-28; word length cannot tell speech from
+>    singing, so step 2 is revised to an announcement-word test. **Next: Codex re-takes the 19 cuts from the
+>    current planner and decodes the 13 candidates without words, then builds step 2** (on the operator's go).
+>    The sermon-end K16 work (1053, own last line, Amen step-back) is committed (`80cf9a8e0`…`e4be0954c`);
+>    1288's merged Amens remain open (§5, "Open: merged Amens").
 > 2. Plan the **lyric-based rule for 1291** (a reading that opens on the song's last sung line; §5 "10-27 night:
 >    the suite's failures"). The classifier cannot carry it.
 > 3. Put **1267 §3355** (now 44:04.82, unheard) on the next listening page.
@@ -5606,7 +5606,7 @@ builder `storage/scratch/start-margin-listening-20261027/`). The three starts th
 against a ruling or with none: 1023 §1361 (A ruled / B now 24:48.42 / C 24:49.15), 1348 §4399 (B 55:04.86 /
 C 55:05.30), 1225 §165330 (B 41:21.64 / C 41:21.85). The rule is built only if the answers back C.
 
-#### 10-27 night: start margin built; dependent song openings — plan (not built)
+#### 10-27 night: start margin built; dependent song openings — plan (step 1 done 10-28; step 2 revised, not built)
 
 **Start margin answered and built (uncommitted).** Song Start Margin answers: 1023 §1361 **C**, 1348 §4399
 **either**, 1225 §165330 **either** (source `start-margin-20261027`, three rulings; they supersede the
@@ -5654,18 +5654,50 @@ placed from decoded words:
    same pause rule and 15 s cap as `OutputEdgeDecodeWindow`. Local Whisper only; no paid calls. Bank for the
    19 measured edges first and check what the words show before any rule. Re-measure the whole corpus with the
    banked words, since the 13 starts without words may change class.
-2. **Rule.** When the first kept sentence opens with and / but / or / because / then (any letter case), and its
-   decoded words are spoken, move the start to that sentence's decoded end and repeat while the next one also
-   opens with one; then apply the first-quiet margin. Never past the span end. Speech, not singing: no decoded word
-   in the sentence longer than a sung-word limit set from step 1's measurements (starting point: the 2.0 s
-   `ANCHOR_REACH`; 1226 suggests lower), and no sentence the transcript repeats back-to-back (loops). Without
-   decoded words for the sentence, the rule does nothing.
+2. **Rule (revised 10-28 after step 1; the word-length test is dropped, see "Step 1 results" below).** When the
+   first kept sentence opens with and / but / or / because / then (any letter case) and is an announcement, move
+   the start to that sentence's decoded end and repeat while the next one also opens with one and is an
+   announcement; then apply the first-quiet margin. Never past the span end. All three conditions must hold:
+   - **An announcement, by its words:** the sentence contains sing / sang / sung / singing, stand / standing,
+     song, hymn, chorus, number, chosen or played (whole words, any letter case). The test reads the
+     transcript sentence; it is the sentence the rule drops.
+   - **Decoded and matching:** the follow-on decode holds the sentence. Its normalised words must match the
+     transcript sentence's (1042 decodes "Thank you" where the transcript loops "And then we'll be right back";
+     that is no match). Without a matching decode, the rule does nothing.
+   - **Not a loop:** no sentence the transcript repeats back-to-back (1042, 1311).
+   No word-length test: step 1 found none that holds (below). A sentence that names the next song without an
+   announcement word (1096 "And secondly, I know that my Redeemer lives.") does not move: a soft miss, and its cut
+   is acceptable today. An announcement that runs straight into a sung lyric in the same sentence (1174 "And
+   remaining standing, all heaven declares.") has no text test yet: the rule will move it, and the step 3 page
+   decides. A lyric-tail guard comes only if that answer says it is wrong (see the 1291 lyric-rule plan, which may
+   share the mechanism).
+   **Before building (Codex):** re-take the 19 old cuts from the current planner (step 1 used the 10-27 values,
+   before the start margin: 1023 1488.42 there, 1489.15 now), and decode the 13 candidates without follow-on words
+   (local Whisper only), so the corpus measure in step 3 has words for every candidate.
 3. **Measure and listen.** Count every start the rule moves, with the text it drops, scored against active
-   rulings. One listening page with one clip per version (now / new): every ruled edge it moves (1273 §3421, 981
-   §1052, 1023 §1361 and any others), every move over 5 s, and a sample of the rest. Per the operator's 10-27
-   statement, an older ruling the rule moves past is expected, not a regression; the page's answer supersedes it.
-4. **Adopt.** Red-to-green tests (1023's opening, a sung "And …" line that must not move, a loop that must not
-   move); rulings gathered; fixtures recaptured; full suite and Dusk; commit on the operator's word.
+   rulings, and every linking-word start it declines, with the condition that stopped it. One listening page with
+   one clip per version (now / new): every ruled edge it moves (1273 §3421, 981 §1052, 1023 §1361 and any others),
+   every move over 5 s, 1174 §2332, the three openings step 1 could not recover (1042 §1521, 1104 §164579,
+   1311 §73576: is the current start right?), and a sample of the rest. Per the operator's 10-27 statement, an
+   older ruling the rule moves past is expected, not a regression; the page's answer supersedes it.
+4. **Adopt.** Red-to-green tests (1023's opening; a sung "And …" line that must not move, 1226; a loop that must
+   not move, 1042; a decode that does not match the transcript sentence); rulings gathered; fixtures recaptured;
+   full suite and Dusk; commit on the operator's word.
+
+**Step 1 results (10-28, Codex; `storage/scratch/dependent-opening-step1-20261028/`, read-only, local Whisper
+only, nothing banked).** All 19 edges decoded past the cut (`report.md`, `words.csv`; hashes and receipts in
+`evidence-audit.json`). 13 read as spoken introductions, 2 as sung lines (1226, 1241), 1 is mixed (1174), and 3
+do not recover the expected text (1042 and 1104 decode "Thank you"; 1311's repeated "and sing" is not heard).
+- **Word length does not separate speech from singing.** The longest word in a spoken opening is 0.38–1.36 s,
+  in a sung one 1.18–1.22 s. Mean length and the share of words over 0.30 / 0.50 s separate the 15 rows at the
+  decoded timings, but none survives ±0.05 s per word (`duration-sensitivity.json`), and re-decoding the same
+  audio in a different window moved word lengths by a median of about 0.2 s (`offline-review.md`). Whisper's word
+  times are alignment estimates: a pause is folded into a neighbouring word (1023's "and" is 1.12 s).
+- **The words do separate them.** 12 of the 13 spoken openings contain an announcement word (sing, stand, song,
+  hymn, number, chosen, played); neither sung line does. The exception is 1096, which names the next song. This
+  is 19 hand-picked edges, so step 3 measures it across the corpus before anything is adopted.
+- **Of the 13 candidates without words**, nine have no saved placement reason and five were stopped by lyric
+  overlap or missing lyrics (one is in both); none has a follow-on decode yet (`handoff.md`).
 
 #### 10-27 night: the suite's failures triaged and fixed (operator: "We should fix the test failures first")
 
