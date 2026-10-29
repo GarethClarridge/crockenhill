@@ -1828,6 +1828,26 @@ It does not authorise dispatch, paid calls or release. Keep fixes within the sha
    "So". **Mechanism class (unmeasured):** an end clamped to `word_after.start`, or a start clamped to
    `word_before.end`, sits on a decoded word boundary instead of inside the pause, so a late-decoded
    onset (or early-decoded end) leaks into the clip. Next: measure the class read-only before any rule.
+   **Correction and measurement (10-29 night, operator: "Yes, do all that"; read-only, no calls;
+   `storage/scratch/word-boundary-edges-20261029/`: `measure.php` → `boundary.json`, `score.py`,
+   `candidates.json`).** 1288's cut is not `pause()`'s clamp: the audit's pause is the narrow decode's
+   (3755.04–3756.14, no next word), and **`beforeWordHeardElsewhere()`** (10-18, 1108) stopped the
+   end's tail at another decode's next word, *at* its decoded start (`next_word_heard_at` 3755.31).
+   Three paths put an end on a decoded onset: that one (30 ends), `beforeNextLine()`'s heard opening
+   (39) and the `pause()` clamp (110 ends; 601 starts). Over 2,024 live plans (3,618 final edges, 711
+   on a boundary), **11 ends** have the next word's sound already up before the cut. That leak alone
+   does not separate: 1288 (0.05 s) heard wrong, 1202 (0.06), 1340 (0.09), 1314 (0.15) heard right.
+   **Dip depth does:** the quietest point in the 0.25 s before the cut is 21.7–33.3 dB under the onset
+   on 4 (928, 1288, 1340, 1303) and ≤ 12.6 dB on the other 7, whose words run together (moving the
+   cut there only re-cuts mid-sound). Starts are left out: sound after a start may be the clip's
+   own first word, and 14 leaking starts were heard right. **Candidate rule (not built):** an end on
+   a decoded onset with a ≥ 20 dB dip in the 0.25 s before it ends at the dip's quietest point. Moves
+   928 1866.19 → 1866.11 (an internal join: the reading's end before "I'd like us now to turn to God
+   again in prayer."), 1288 3755.31 → 3755.19 (after the congregation's Amen, before "So"), 1340
+   3272.00 → 3271.89 (heard right at 3271.76, 10-28), 1303 §3860 1129.90 → 1129.84. **Page "Before
+   The Next Word"** https://claude.ai/artifact/8sq6bC4EP16CR9fnjdX6r7 (`rulings`, ids
+   `<run>-sermon-end`, `1303-s3860-end`; builder and key `storage/scratch/word-boundary-listening-20261029/`,
+   times a = now, b = quietest point). Build and adoption wait for the answers.
 3. **Measure the combined result before freezing.** Recount eligible runs, open and unassessable
    rulings on final code. Compare current outputs with proposed plans across the eligible corpus,
    including every changed edge, internal join, refused plan and conflicting ruling. Use the
@@ -2301,6 +2321,24 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
   evidence-bound.
 
 ### 4.5 Prove acceptance, then converge and release
+
+**Wider acceptance and agent ownership (operator direction, 2026-10-29).** Completing §4.1a and
+the processing round produces release candidates. The
+[post-round audit §0](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md#0-wider-release-confidence-and-who-does-the-checks-2026-10-29)
+maps the wider checks: missing outputs, whole-sermon coherence, correlated evidence errors, final
+editorial truth, complete-file/destination quality, production reconciliation and every release
+surface. Codex/Claude should perform the checks wherever tools and evidence permit, using the
+existing acceptance lanes. The operator receives consequential unresolved questions with prepared
+evidence, not routine manual comparisons. Keep expressly human listening and signed-release gates;
+never pass text review off as hearing. The linked section owns the detailed execution/escalation rule.
+
+- [ ] Complete that wider acceptance matrix against current artifacts, including apparently clean
+  and previously held outputs; distinguish processing completion, content acceptance, delivery
+  verification and release authority. Report gaps explicitly instead of equating readiness with QA.
+- [ ] Exercise one representative service through the complete local acceptance journey in the
+  authorised staged canary before bulk expansion; leave destination checks explicitly pending.
+- [ ] Prepare the programme's production census early, then reconcile and rehearse a small era
+  release after content acceptance. Do not infer production convergence from the local graph.
 
 **10-29 listener and release priorities (operator agreement; update the checkboxes below as work
 lands).** A complete sermon argument, its own final sentence and its closing prayer matter more
