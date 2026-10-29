@@ -6,10 +6,10 @@
 > October 16 route list in §4.0, and the dated handoff below are historical measurements. Recount
 > eligible runs, open edges and unassessable rulings on the final code before freezing a new round.
 >
-> **Next:** hear the 11 tied cut-aways that may be the sermon's own application (K16 as narrowed
-> 10-29; §5 "10-29"), then decide whether the prompt needs rewording; with the operator's word,
-> ask a third draw for the six banked answers whose sermon lines split; settle the material cases 968 and
-> 1291, review dependent song openings without risking sung lyrics, and hear 1267 §3355. A merged
+> **Next:** with the operator's word, reword K16's `sermon_last_line` definition and measure it on
+> the 116 tied answers against the 10-29 rulings (1131 and 1183 lose their conclusions today; §5
+> "10-29 (later)"); hear 1184's new end; settle the material cases 968 (now 2672.36 against the
+> ruled 2692.61; refresh its fixture to the current answer) and 1291, review dependent song openings without risking sung lyrics, and hear 1267 §3355. A merged
 > congregational Amen can remain in an otherwise complete sermon when safe separation is unproved.
 > Then satisfy the [runbook's](HISTORIC-ROUND-RUNBOOK.md) disk, backup, route and canary checks.
 > Recheck actual output media, song acceptance and editorial evidence after the round (§4.3–4.5).
@@ -6149,4 +6149,44 @@ or the untied Amen extension reaches the same end (962, 1063, 1080, 1114, 1151, 
 the earlier line where it moves the end:** 968 (1.5 s, the split sentence above), 1001 (3.0 s, "Make it today."
 vs "And celebrate his mercy to you,"), 1086 (7.6 s), 1128 (3.3 s, "Thank you."), 1157 (19 s; the later line
 holds a prayer's opening) and 958 (23 s; the earlier line is the Amen, the later "Thank you.", so the earlier is
-probably right). A third draw for those six is model spend and waits for the operator's word.
+probably right).
+
+**Third draws asked (operator: "Do the calls", 10-29; Luna).** `SermonSongIntroductionCheck::settleBankedSplit()`
+adds the third answer to a banked pair that needs one and leaves every other answer alone (tested: split pair,
+agreeing pair, three already, nothing banked). Script and receipts: `k16-tied-cutaway-20261029/settle.php`,
+`settled-<run>.json`. Ends now: **968 2670.90 → 2672.36** ("…to pieces.", the split sentence closed), **1001
+1924.20 → 1927.20** ("And celebrate his mercy to you,", which may now split the sentence running on into the hymn
+invitation; on the listening page), **1086 1344.02 → 1351.64**; 958, 1128 and 1157 kept the earlier line. Media are
+not re-cut; the next round carries these ends.
+
+**Listening page (10-29):** https://claude.ai/artifact/TiF827oP7N22pnkjNSXUU7, built in
+`storage/scratch/k16-tied-listening-20261029/` (`build.php` cloned from the 10-28 Amen page; collection `rulings`,
+ids `<run>-k16-tied`). The 11 candidates above, one clip per cut: A the current end, B the end of the voted video
+line. Answered: see the next entry.
+
+#### 10-29 (later): tied cut-aways heard; an end left open on a clause steps back
+
+**Answers** (page `TiF827oP7N22pnkjNSXUU7`, collection `rulings`, saved to
+`storage/scratch/k16-tied-listening-20261029/answers/`): **B** (the cut-away is the sermon) 1001, 1131, 1183; **A**
+938, 1244 (note: "B would be ok, but it finishes mid sentence"); **either** 956, 973, 1031, 1111, 1318, 1364, where
+the shorter A stands. So the current prompt loses a substantive conclusion in **1131** ("I don't always find it
+easy to trust God… he's the sovereign Lord") and **1183** (the application after reading "In Christ Alone"). Both
+are tied answers whose `sermon_last_line` stops before the song is named. **Next (plan, not built):** reword the
+prompt's `sermon_last_line` definition so that the sermon's own application stays when it names the song, bump
+the identity, and measure the change on the 116 tied answers against these 11 rulings before adopting it
+(model spend, so it waits for the operator's word).
+
+**Mid-sentence ends (operator: "The mid sentence thing is a real problem").** 1001's third answer moved its end to
+"And celebrate his mercy to you,". On 10-28 the operator heard "…Make it today." (1924.76) as right, and on 10-29
+the whole sentence through the hymn invitation (1939.2). Both are whole-sentence ends, and the shorter wins on a
+sermon end. Measured over all **417** current K16 ends (`midsentence.php`, `midsentence.json`), 51 lines lack
+final punctuation, but nearly all are unpunctuated transcripts whose next line starts a new sentence ("we're
+going…", "Let's…"). Only **2 end on an open clause**: 1001, and 1184, whose recording stops on "Shall we just pray
+for a moment and then,". **Built:** `decision()` steps a chosen line ending on a comma, semicolon, colon or dash
+back to the line before, as long as it starts before the song's recorded start (a transcribed lyric ends most
+lines on a comma: 1077's "I will remember you, my Lord,"). Unpunctuated lines are left alone. The tests came first,
+and the shared fixture's hymn line now ends on a full stop so that the voting tests still test voting. Corpus
+replay (`midsentence-before.json` vs `midsentence.json`): exactly two ends move, **1001 1927.20 → 1924.20**
+("…Make it today.", its 10-28 ruled end) and **1184 1401.58 → 1399.00** ("…to live God's word out in everyday
+life."; unheard). The `run-1001` ruled-endings fixture passes. Full parallel suite: 10,844 tests, the 4 known red
+(968's split sentence, 1288's merged Amen ×3); Dusk 63 passed.

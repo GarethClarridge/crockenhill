@@ -100,6 +100,97 @@ class SermonSongIntroductionCheckTest extends TestCase
         OpenAI::assertSent(Chat::class, 3);
     }
 
+    /**
+     * 1001 (heard 10-28 and 10-29): a third answer moved the end to "And celebrate his mercy to you,",
+     * splitting the sentence that runs on into the hymn invitation. Either whole sentence was heard
+     * as right and the shorter wins on a sermon end, so a line left open on a clause steps back.
+     */
+    #[Test]
+    #[DataProvider('openClauseEndings')]
+    public function a_line_left_open_on_a_clause_steps_back_to_the_line_before(string $fifth, float $expected): void
+    {
+        $log = $this->service();
+        $cues = $this->cues();
+        $cues[4]['text'] = $fifth;
+        Storage::disk('local')->put('temp/introduction.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->answers([5, true, 6], [5, true, 6]);
+
+        $this->assertSame($expected, app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans())['end']);
+    }
+
+    /** 1077: inside the song's recorded section a comma ends a transcribed lyric line, not a sentence. */
+    #[Test]
+    public function a_line_from_the_songs_recorded_start_is_not_taken_as_open(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3024.83], ['other', 3024.83, 3050.0], ['song', 3050.0, 3300.0]]);
+        $cues = $this->cues();
+        $cues[4]['text'] = 'Because you died for me,';
+        Storage::disk('local')->put('temp/introduction.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->answers([5, true, 5], [5, true, 5]);
+
+        $this->assertSame(3057.1, app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans())['end']);
+    }
+
+    /** @return array<string, array{string, float}> */
+    public static function openClauseEndings(): array
+    {
+        return [
+            'comma' => ['And celebrate his mercy to you,', 3032.2],
+            'colon' => ['now by singing our final hymn from your heart:', 3032.2],
+            'closing quote after a comma' => ['“Make it today,”', 3032.2],
+            'full stop stays' => ['Make it today.', 3057.1],
+            'unpunctuated line stays' => ['make it today', 3057.1],
+        ];
+    }
+
+    /** A pair banked before the sermon line drew a third answer gets that answer, and keeps its first two. */
+    #[Test]
+    public function a_banked_pair_split_on_the_sermon_line_is_settled_by_a_third(): void
+    {
+        $log = $this->service();
+        $this->bankPair($log, [2, true, 6], [5, true, 6]);
+        $check = app(SermonSongIntroductionCheck::class);
+        $this->assertSame(3019.1, $check->read($log, $this->spans())['end'], 'the earlier line, before settling');
+        $this->answers([5, true, 6]);
+
+        $result = $check->settleBankedSplit($log, $this->spans());
+
+        $this->assertSame(['asked' => true, 'end' => 3057.1, 'ties_to_sermon' => true], $result);
+        $this->assertSame(3057.1, $check->read($log->fresh(), $this->spans())['end']);
+        OpenAI::assertSent(Chat::class, 1);
+    }
+
+    #[Test]
+    #[DataProvider('settledBankedAnswers')]
+    public function a_banked_answer_that_needs_no_third_is_not_asked_again(array $first, array $second, ?array $third): void
+    {
+        $log = $this->service();
+        $this->bankPair($log, $first, $second, $third);
+        OpenAI::fake([]);
+
+        $this->assertFalse(app(SermonSongIntroductionCheck::class)->settleBankedSplit($log, $this->spans())['asked']);
+        OpenAI::assertNothingSent();
+    }
+
+    /** @return array<string, array{array{int, bool, int}, array{int, bool, int}, array{int, bool, int}|null}> */
+    public static function settledBankedAnswers(): array
+    {
+        return [
+            'agreeing pair' => [[5, true, 6], [5, true, 6], null],
+            'already three' => [[2, true, 6], [5, true, 6], [5, true, 6]],
+        ];
+    }
+
+    #[Test]
+    public function nothing_banked_is_nothing_to_settle(): void
+    {
+        $log = $this->service();
+        OpenAI::fake([]);
+
+        $this->assertNull(app(SermonSongIntroductionCheck::class)->settleBankedSplit($log, $this->spans()));
+        OpenAI::assertNothingSent();
+    }
+
     #[Test]
     public function three_different_lines_take_the_middle_one(): void
     {
@@ -374,7 +465,7 @@ Transcript:
 3. We're going to sing.
 --- (the detected sermon section ends here) ---
 4. We're going to sing a hymn that I chose.
-5. Oh, let me see the lightning flare that ends this world's long night,
+5. Oh, let me see the lightning flare that ends this world's long night.
 6. I pray that all of us will be able to sing that.
 7. So let's stand to sing 861.
 8. [music may start] I have heard the cross
@@ -594,7 +685,7 @@ TXT;
             ['start' => 3017.4, 'end' => 3019.1, 'text' => 'him and all his people.'],
             ['start' => 3023.5, 'end' => 3024.8, 'text' => "We're going to sing."],
             ['start' => 3029.6, 'end' => 3032.2, 'text' => "We're going to sing a hymn that I chose."],
-            ['start' => 3053.3, 'end' => 3057.1, 'text' => "Oh, let me see the lightning flare that ends this world's long night,"],
+            ['start' => 3053.3, 'end' => 3057.1, 'text' => "Oh, let me see the lightning flare that ends this world's long night."],
             ['start' => 3062.7, 'end' => 3064.4, 'text' => 'I pray that all of us will be able to sing that.'],
             ['start' => 3066.8, 'end' => 3069.1, 'text' => "So let's stand to sing 861."],
             ['start' => 3072.7, 'end' => 3076.1, 'text' => 'I have heard the cross'],
@@ -620,6 +711,27 @@ TXT;
         }
 
         return $log->fresh();
+    }
+
+    /**
+     * Bank answers as a run asked before 10-29 did, without the third draw on the sermon line.
+     *
+     * @param  array{0: int, 1: bool, 2: int}  $first
+     * @param  array{0: int, 1: bool, 2: int}  $second
+     * @param  array{0: int, 1: bool, 2: int}|null  $third
+     */
+    private function bankPair(MediaProcessingLog $log, array $first, array $second, ?array $third = null): void
+    {
+        $question = app(SermonSongIntroductionCheck::class)->question($log, $this->spans());
+        $calls = array_map(static fn (array $answer): array => [
+            'sermon_last_line' => $answer[0], 'ties_to_sermon' => $answer[1], 'video_last_line' => $answer[2], 'reason' => 'test',
+        ], array_values(array_filter([$first, $second, $third])));
+        $kind = 'sermon-song-introduction-'.hash('sha256', json_encode($question['identity'], JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $kind, [
+            'calls_completed' => true, 'identity' => $question['identity'], 'prompt' => $question['prompt'], 'lines' => $question['lines'], 'calls' => $calls,
+            'ties_to_sermon' => true, 'end' => null, 'line' => null,
+        ]);
+        $log->refresh();
     }
 
     /** @param array{0: int, 1: bool, 2: int} ...$answers sermon_last_line, ties_to_sermon, video_last_line */

@@ -64,6 +64,14 @@ class SermonSongIntroductionCheck
     /** Lines shown after the music has started, so the model hears where the song begins. */
     private const LINES_AFTER_MUSIC = 3;
 
+    /**
+     * A line left open on a clause: a sentence split there (1001, 10-29, "And celebrate his mercy to
+     * you,"). The end steps back to the line before, as the shorter whole-sentence end is preferred.
+     * An unpunctuated line is not taken as open: whole transcripts arrive without punctuation. Nor is
+     * a line from the song's recorded start on: a transcribed lyric ends most lines on a comma.
+     */
+    private const OPEN_CLAUSE = '/[,;:\x{2013}\x{2014}-][\s"\'\x{201D}\x{2019}]*$/u';
+
     /** A line whose last word is "Amen". */
     private const ENDS_ON_AMEN = '/(?:^|[^\p{L}\p{N}])amen[\s\p{P}]*$/iu';
 
@@ -106,13 +114,65 @@ TXT;
 
         $calls = [$this->ask($log, $question['prompt']), $this->ask($log, $question['prompt'])];
 
-        if ($calls[0]['ties_to_sermon'] !== $calls[1]['ties_to_sermon']
-            || $calls[0]['sermon_last_line'] !== $calls[1]['sermon_last_line']
-            || $calls[0]['video_last_line'] !== $calls[1]['video_last_line']) {
+        if ($this->needsThirdAnswer($calls)) {
             $calls[] = $this->ask($log, $question['prompt']);
         }
 
-        $decision = $this->decision($calls, $question['lines'], 'sermon_last_line');
+        return $this->bank($log, $question, $calls);
+    }
+
+    /**
+     * A banked pair of answers that disagree, banked before the third answer was asked on the
+     * sermon line, gets the third answer {@see prepare()} now asks (operator 2026-10-29: 14 of 420
+     * banked pairs differed only there and took the earlier line). Answers that agree, or already
+     * have a third, are left as they are.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $sermonSpans  The sermon output's parts, as detected
+     * @return array{asked: bool, end: float|null, ties_to_sermon: bool|null}|null Null when nothing is banked for the current question
+     */
+    public function settleBankedSplit(MediaProcessingLog $log, array $sermonSpans): ?array
+    {
+        $question = $this->question($log, $sermonSpans);
+
+        if ($question === null || $question['lines'] === []) {
+            return null;
+        }
+
+        $payload = $this->bankedPayload($log, $question['identity']);
+
+        if ($payload === null) {
+            return null;
+        }
+
+        $calls = $this->bankedCalls($payload);
+
+        if (count($calls) !== 2 || ! $this->needsThirdAnswer($calls)) {
+            $banked = $this->answer($log, $question['identity']);
+
+            return ['asked' => false, 'end' => $banked['end'] ?? null, 'ties_to_sermon' => $banked['ties_to_sermon'] ?? null];
+        }
+
+        $calls[] = $this->ask($log, $question['prompt']);
+
+        return $this->bank($log, $question, $calls);
+    }
+
+    /** @param  list<array{sermon_last_line: int|null, ties_to_sermon: bool|null, video_last_line: int|null, reason: string|null}>  $calls */
+    private function needsThirdAnswer(array $calls): bool
+    {
+        return $calls[0]['ties_to_sermon'] !== $calls[1]['ties_to_sermon']
+            || $calls[0]['sermon_last_line'] !== $calls[1]['sermon_last_line']
+            || $calls[0]['video_last_line'] !== $calls[1]['video_last_line'];
+    }
+
+    /**
+     * @param  array{identity: array<string, mixed>, prompt: string, lines: list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>}  $question
+     * @param  list<array{sermon_last_line: int|null, ties_to_sermon: bool|null, video_last_line: int|null, reason: string|null}>  $calls
+     * @return array{asked: bool, end: float|null, ties_to_sermon: bool|null}
+     */
+    private function bank(MediaProcessingLog $log, array $question, array $calls): array
+    {
+        $decision = $this->decision($calls, $question['lines'], 'sermon_last_line', $this->identitySongStart($question['identity']));
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $this->kind($question['identity']), [
             'calls_completed' => true, 'identity' => $question['identity'], 'prompt' => $question['prompt'], 'lines' => $question['lines'], 'calls' => $calls, ...$decision,
         ]);
@@ -345,7 +405,7 @@ TXT;
      * @param  'sermon_last_line'|'video_last_line'  $lineKey
      * @return array{ties_to_sermon: bool|null, end: float|null, line: string|null}
      */
-    private function decision(array $calls, array $lines, string $lineKey = 'video_last_line'): array
+    private function decision(array $calls, array $lines, string $lineKey = 'video_last_line', ?float $songStart = null): array
     {
         $votes = array_count_values(array_map(static fn (array $call): string => var_export($call['ties_to_sermon'], true), $calls));
         arsort($votes);
@@ -375,6 +435,11 @@ TXT;
 
         while ($chosen !== null && $this->answersAmen($byNumber, $chosen)) {
             $chosen--;
+        }
+
+        while ($chosen !== null && isset($byNumber[$chosen]) && preg_match(self::OPEN_CLAUSE, $byNumber[$chosen]['text']) === 1
+            && ($songStart === null || $byNumber[$chosen]['start'] < $songStart)) {
+            $chosen = isset($byNumber[$chosen - 1]) ? $chosen - 1 : null;
         }
 
         return $chosen === null
@@ -420,6 +485,39 @@ TXT;
      */
     private function answer(MediaProcessingLog $log, array $identity): ?array
     {
+        $payload = $this->bankedPayload($log, $identity);
+
+        if ($payload === null) {
+            return null;
+        }
+
+        if (is_array($payload['calls'] ?? null) && $payload['calls'] !== [] && is_array($payload['lines'] ?? null)) {
+            $lines = [];
+            foreach ($payload['lines'] as $line) {
+                if (is_int($line['n'] ?? null) && is_numeric($line['start'] ?? null) && is_numeric($line['end'] ?? null)
+                    && is_string($line['text'] ?? null) && in_array($line['music'] ?? null, ['no', 'may', 'yes'], true)) {
+                    $lines[] = ['n' => $line['n'], 'start' => (float) $line['start'], 'end' => (float) $line['end'], 'text' => $line['text'], 'music' => $line['music']];
+                }
+            }
+
+            $decision = $this->decision($this->bankedCalls($payload), $lines, 'sermon_last_line', $this->identitySongStart($identity));
+
+            return ['end' => $decision['end'], 'ties_to_sermon' => $decision['ties_to_sermon'], 'line' => $decision['line']];
+        }
+
+        return [
+            'end' => is_numeric($payload['end']) ? (float) $payload['end'] : null,
+            'ties_to_sermon' => is_bool($payload['ties_to_sermon'] ?? null) ? $payload['ties_to_sermon'] : null,
+            'line' => is_string($payload['line'] ?? null) ? $payload['line'] : null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $identity
+     * @return array<string, mixed>|null
+     */
+    private function bankedPayload(MediaProcessingLog $log, array $identity): ?array
+    {
         $kind = $this->kind($identity);
 
         foreach (ServiceArtifactStorage::recordedFor($log) as $entry) {
@@ -439,38 +537,36 @@ TXT;
                     continue;
                 }
 
-                if (is_array($payload['calls'] ?? null) && $payload['calls'] !== [] && is_array($payload['lines'] ?? null)) {
-                    $calls = [];
-                    foreach ($payload['calls'] as $call) {
-                        $calls[] = [
-                            'sermon_last_line' => is_int($call['sermon_last_line'] ?? null) ? $call['sermon_last_line'] : null,
-                            'video_last_line' => is_int($call['video_last_line'] ?? null) ? $call['video_last_line'] : null,
-                            'ties_to_sermon' => is_bool($call['ties_to_sermon'] ?? null) ? $call['ties_to_sermon'] : null,
-                            'reason' => is_string($call['reason'] ?? null) ? $call['reason'] : null,
-                        ];
-                    }
-                    $lines = [];
-                    foreach ($payload['lines'] as $line) {
-                        if (is_int($line['n'] ?? null) && is_numeric($line['start'] ?? null) && is_numeric($line['end'] ?? null)
-                            && is_string($line['text'] ?? null) && in_array($line['music'] ?? null, ['no', 'may', 'yes'], true)) {
-                            $lines[] = ['n' => $line['n'], 'start' => (float) $line['start'], 'end' => (float) $line['end'], 'text' => $line['text'], 'music' => $line['music']];
-                        }
-                    }
-
-                    $decision = $this->decision($calls, $lines, 'sermon_last_line');
-
-                    return ['end' => $decision['end'], 'ties_to_sermon' => $decision['ties_to_sermon'], 'line' => $decision['line']];
-                }
-
-                return [
-                    'end' => is_numeric($payload['end']) ? (float) $payload['end'] : null,
-                    'ties_to_sermon' => is_bool($payload['ties_to_sermon'] ?? null) ? $payload['ties_to_sermon'] : null,
-                    'line' => is_string($payload['line'] ?? null) ? $payload['line'] : null,
-                ];
+                return $payload;
             }
         }
 
         return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return list<array{sermon_last_line: int|null, ties_to_sermon: bool|null, video_last_line: int|null, reason: string|null}>
+     */
+    private function bankedCalls(array $payload): array
+    {
+        $calls = [];
+        foreach (is_array($payload['calls'] ?? null) ? $payload['calls'] : [] as $call) {
+            $calls[] = [
+                'sermon_last_line' => is_int($call['sermon_last_line'] ?? null) ? $call['sermon_last_line'] : null,
+                'video_last_line' => is_int($call['video_last_line'] ?? null) ? $call['video_last_line'] : null,
+                'ties_to_sermon' => is_bool($call['ties_to_sermon'] ?? null) ? $call['ties_to_sermon'] : null,
+                'reason' => is_string($call['reason'] ?? null) ? $call['reason'] : null,
+            ];
+        }
+
+        return $calls;
+    }
+
+    /** @param array<string, mixed> $identity */
+    private function identitySongStart(array $identity): ?float
+    {
+        return is_numeric($identity['song_start'] ?? null) ? (float) $identity['song_start'] : null;
     }
 
     /** @param array<string, mixed> $identity */
