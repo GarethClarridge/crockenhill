@@ -403,6 +403,45 @@ class SongEndEdgesTest extends TestCase
     }
 
     /**
+     * 1291 §3643: the reading after "The Lord's My Shepherd" opened on the song's last note, held
+     * through a gap the decode heard as a pause between words ("This is the end of the song",
+     * 10-19; "Should be about 18:45", 10-29). A song that fades out before known speech has stopped
+     * sounding at its cut, as one ending in silence or at speech has.
+     */
+    #[Test]
+    public function a_spoken_part_after_a_song_that_fades_starts_at_the_songs_cut(): void
+    {
+        $sung = ['start' => 4140.0, 'end' => 4145.64, 'text' => 'Here in the power of Christ I stand.'];
+        $next = ['start' => 4172.84, 'end' => 4177.34, 'text' => 'To the only God, our Saviour, be glory, majesty, power and'];
+        $song = $this->song(3944.07, 4145.64, [$sung, $next],
+            [[3900, 4145.8, self::LOUD], [4145.8, 4146.1, self::SILENT], [4146.1, 4146.15, -40.0], [4146.15, 4146.6, self::SILENT],
+                [4146.6, 4160.9, -30.0], [4160.9, 4162.2, self::SILENT], [4162.2, 4180, -30.0]],
+            timeline: [[3900, 4145, ...self::MUSIC], [4145, 4180, 0.21, 0.68]]);
+        $this->bank($song, 4145.64, [
+            ['start' => 4141.0, 'end' => 4141.9, 'word' => ' power'],
+            ['start' => 4143.6, 'end' => 4144.4, 'word' => ' I'],
+            ['start' => 4144.4, 'end' => 4145.5, 'word' => ' stand.'],
+        ]);
+        $this->bank($song, 4172.84, [
+            ['start' => 4171.98, 'end' => 4172.54, 'word' => ' joy.'],
+            ['start' => 4172.89, 'end' => 4173.31, 'word' => ' To'],
+            ['start' => 4173.59, 'end' => 4173.78, 'word' => ' the'],
+            ['start' => 4173.78, 'end' => 4173.98, 'word' => ' only'],
+        ]);
+        $songCut = app(CueSafeExtractionPlan::class)->forSection($song->fresh())['segments'][0]['end_time'];
+        $talk = ServiceSection::factory()->create(['media_processing_log_id' => $song->media_processing_log_id,
+            'section_type' => ServiceSectionType::ShortTalk, 'start_time' => 4145.64, 'end_time' => 4300.0]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($talk->fresh());
+
+        $this->assertGreaterThan(4145.64 + 0.05, $songCut);
+        $this->assertEqualsWithDelta($songCut, $plan['segments'][0]['start_time'], 0.001);
+        $start = collect($plan['cue_edge_widening'])->first(static fn (array $entry): bool => $entry['edge'] === 'start');
+        $this->assertSame(['section_id' => $song->id, 'reason' => CueSafeExtractionPlan::SONG_END_FADE],
+            array_intersect_key($start['after_song_sound'], ['section_id' => true, 'reason' => true]));
+    }
+
+    /**
      * Canary 12, 1028 §1392 (B1): "Aled," is not decoded, so the cue's opening is not heard. The
      * largest pause in reach (562.67–563.72) sat inside "…up on the | screen"; the silence before
      * the first decoded word ends the song instead.

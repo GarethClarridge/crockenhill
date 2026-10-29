@@ -404,6 +404,35 @@ records.extend(edge_listening_rulings(
      for answer in saved('k16-reword-listening-20261029/answers/rulings').values()],
 ))
 
+# 10-29 late: Song Tail Lines (the song-order lyric extension). 1291's song end was heard alone ("right" keeps
+# it); 1291's reading start "about 18:45" is later than both cuts, an approximate time that stays in the note.
+lyric_tail_questions = load('lyric-tail-listening-20261029/questions.json')
+lyric_tail_answers = saved('lyric-tail-listening-20261029/answers/rulings')
+records.extend(edge_listening_rulings(
+    'lyric-tail-20261029', lyric_tail_questions,
+    [{**answer, 'choice': {'right': 'a'}.get(answer['choice'], answer['choice'].lower())}
+     for answer in lyric_tail_answers.values()],
+))
+# 10-29 late: After The Song (a spoken start follows a song that fades out). Choices are the version letters.
+# 1208's and 1250's moved starts open a later part of the sermon video, not the video: a start ruling here means
+# the video's opening, so those two stay in the plan (1208 either; 1250 "more like 28:59", later than both cuts).
+FADE_INNER_PARTS = {'1208-sermon-start', '1250-sermon-start'}
+fade_questions = [question for question in load('after-song-fade-listening-20261029/questions.json')
+                  if question['id'] not in FADE_INNER_PARTS]
+fade_answers = saved('after-song-fade-listening-20261029/answers/rulings')
+records.extend(edge_listening_rulings(
+    'after-song-fade-20261029', fade_questions,
+    [{**answer, 'choice': answer['choice'].lower()} for question_id, answer in fade_answers.items() if question_id not in FADE_INNER_PARTS],
+))
+for source, questions, answers in (('lyric-tail-20261029', lyric_tail_questions, lyric_tail_answers),
+                                   ('after-song-fade-20261029', fade_questions, fade_answers)):
+    for question in questions:
+        answer = answers.get(question['id'])
+        if answer is not None and answer['choice'] == 'neither' and question['key']['edge'] == 'start':
+            key = question['key']
+            add(source, answer, run=question['run'], edge='start', heard=max(key['times'].values()),
+                output=key['output'], section_id=key['section'], section_type=key['type'], expect='inward')
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {

@@ -691,9 +691,12 @@ class CueSafeExtractionPlan
 
     /**
      * A spoken part starting as a song ends starts no earlier than the song's sound does, where the
-     * song's own end rule found it stopping in silence or at speech: what plays before that is the
-     * song's outro. 1335's sermon opened on 12 s of "Rock of Ages" and 1229's on "Creator God"'s
-     * outro, both joined straight from the reading (operator listening, 2026-10-11).
+     * song's own end rule found it stopping in silence, at speech, or fading out before speech it
+     * knows follows: what plays before that is the song's outro. 1335's sermon opened on 12 s of
+     * "Rock of Ages" and 1229's on "Creator God"'s outro, both joined straight from the reading
+     * (operator listening, 2026-10-11). 1291's reading opened on its song's held last note, which the
+     * decode heard as a pause between words; the song faded out at 1124.62, and the reading belongs
+     * there (operator listening, 2026-10-29: "about 18:45").
      *
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  list<array{start_time: float, end_time: float}>  $sectionSpans  The spans as detection gave them
@@ -717,7 +720,7 @@ class CueSafeExtractionPlan
             $window = app(OutputEdgeWordTimings::class)->timingWindow($cues, $songEnd, $log->duration);
             $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log));
 
-            if (! in_array($decision['reason'] ?? null, ['song_end_silence', 'song_end_speech'], true)
+            if (! in_array($decision['reason'] ?? null, ['song_end_silence', 'song_end_speech', self::SONG_END_FADE], true)
                 || $decision['time'] <= $spans[$index]['start_time'] + self::CUE_BOUNDARY_TOLERANCE
                 || $decision['time'] >= $spans[$index]['end_time']) {
                 continue;

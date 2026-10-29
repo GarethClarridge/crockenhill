@@ -8,10 +8,11 @@
 >
 > **Next:** the K16 `sermon_last_line` reword was measured on the 116 tied ends and **parked** (§5 "10-29
 > (evening)": one gain, one loss, ~1,500 calls to adopt; 1131 stays a recorded miss, to fold into any later K16
-> prompt change). 968, 1184 and 1267 §3355 are heard and settled. Open: **1291** (lyric-tail plan written, §5
-> "10-29 (evening)"; step 1 is a read-only measurement, on the operator's go). Dependent song
-> openings are adopted (`39b518a55`, §5); next there, measure whether a linking sentence that names the next
-> song (title against the catalogue, 1096) can count as an announcement, before any rule. A merged
+> prompt change). 968, 1184 and 1267 §3355 are heard and settled. **1291** (§5 "10-29 (evening)")
+> settled 10-29 late: the song-order lyric path (1120) and `afterSongSound` following a fading song (1291's reading, nine
+> of eleven starts heard right) are committed; 928 and 1250 = speech over a fading song, to measure). Dependent
+> song openings are adopted (`39b518a55`, §5); 1096's title-naming idea is measured (§5, after step 4): naming
+> *another* song of the service (not the own title) fires on 1096 alone; build awaits the operator's go. A merged
 > congregational Amen can remain in an otherwise complete sermon when safe separation is unproved.
 > Then satisfy the [runbook's](HISTORIC-ROUND-RUNBOOK.md) disk, backup, route and canary checks.
 > Recheck actual output media, song acceptance and editorial evidence after the round (§4.3–4.5).
@@ -5869,6 +5870,29 @@ fragment fixed before adoption.
   declined incomplete sentences; (5) the 1073 §1715/§1716 split itself; (6) the register's supersession leaves
   id-less rulings unflagged (canary 15's 1273 start); the replay is unaffected.
 
+**1096 title-naming measured (10-29 late, operator: "move on to 1096"; read-only, no calls;
+`storage/scratch/title-naming-opening-20261029/`, `measure.php` → `measured.json`).** Population: the 28 linking song
+starts step 3 declined (of 1,233 starts; the rule reads only linking sentences, so this is everything it could
+touch); 10 stop at `not_announcement`. Each declined sentence was tested for a contiguous title (catalogue `title` or
+`alternate_title`, "#nnn" and brackets dropped, at least two tokens) of any song in the same service (order of service
+items and resolved sections).
+- **1096's sentence names the *other* song of a back-to-back pair**, not its own: "We're going to sing two songs back
+  to back. Firstly, how can it be the one who died? [§1814 starts] And secondly, I know that my Redeemer lives. Let's
+  stand and sing." §1814 is "Christ is risen, He is risen indeed"; the named song is §1815 (#462). The ruling ("at
+  'let's stand and sing', or after") is met by dropping that one sentence, since "Let's stand and sing." is not linking
+  and the walk stops before it.
+- **Own title is not a usable signal:** it is in 1226's sung control ("And then he is exalted.") and 1259 §3235's
+  sung first line ("Because all heaven declares…"), plus four incomplete sentences (974, 1224, 1285, 1329).
+- **Another song's title separates cleanly once catalogue duplicates are excluded:** raw, it fires on 1096 and 1226;
+  1226 only because the catalogue holds "He is exalted" twice (340, the section's song; 339 "He Is Exalted #485"). With
+  "another song" meaning a different *normalised title*, it fires on **1096 alone** of the 10 (and of the 28).
+- **Candidate (not built; awaits the operator's go):** in `DependentSongOpening::review()`, a linking sentence that
+  contains the normalised title of another song in the same service (not equal to this section's song's title) counts
+  as an announcement, alongside the word list; the decode-match, loop and 30 s guards still apply. It moves one start
+  in the corpus (1096 §1814, to the decoded end of "…Redeemer lives.", then the first-quiet margin), met by the ruling
+  already given, so no listening page is needed unless the cut lands somewhere unheard. Small: one ruling, one case,
+  no break, so per "soft misses aren't worth breaking others" it is worth it only because it breaks nothing.
+
 **Measurement checks.** The existing ruling scorer's 9 cases pass. The recorded song-planner and ruling-register
 hashes remain unchanged across the study. Nine runs' metadata changed during capture; after the seven evidence banks,
 all 16 affected runs (59 outputs) were refreshed. Their baseline cuts, section data and transcript hashes stayed
@@ -6384,6 +6408,124 @@ right 5 of 14 times (misses: announcements, readings over music). So:
    "last lines in order" condition is for, and the measurement must show it holds.
 3. **Listen** (one clip per version, both edges of each moved pair), then adopt with tests, rulings, fixtures,
    full suite and Dusk, on the operator's word.
+
+**1291 step 1 measured (10-29 late, operator: "continue"; read-only, no calls, no writes;
+`storage/scratch/lyric-tail-nudge-20261029/`: `scan.php` → `declined.json`, `order.php` → `order.txt`).**
+The plan above missed that the mechanism exists: `SongLyricEdgeExtension` (09-24, `ExtendSongsOverOwnLyrics`) moves a
+held song edge out over its own sung lines, and its docblock names 1291. On 1291 `SongLyricsOutsideSection` **does** hold
+§3642's end (1 line, "Your goodness will lead me home." 1115.54–1120.08, 2 pairs), but the extension declines it: a single
+line moves the edge only when its *reach* (line end − edge) is ≤ 3 s, and this one reaches 4.54 s although it begins at
+the edge. The docblock says "began within" 3 s; the code measures the reach.
+- **Corpus:** 336 runs with songs, **26 held edges, 22 declined**. 11 have no matched line (an announcement or speech
+  stops the walk first); 11 have one line. A "began within 3 s" nudge would move 7 of them and pair counts cannot separate
+  them: 1291 is right, but **962** §848 ("Oh Lord, teach us to pray…", the leader's prayer, into §922 prayer) and **1326**
+  §4136 ("Well, let's turn to God's word that endures forever.", into the reading) are speech with the same 2 pairs.
+- **Song order separates them** (best-matching catalogue line of the clip's own edge cue vs. the outside line; the
+  outside line must be the *next* lyric line after an end, or the one before a start, and not the same line again):
+  **1291** yes (#9 → #10, "…endless mercy follows me." → "Your goodness will lead me home."), **1120** §1999 "Once In
+  Royal David's City" yes (#28 → #29, "Bright like stars with glory crown", into the reading; unheard); 962 no; 1326 only
+  through repeated lines (the outside line is the clip's own last line spoken again → excluded); 1259, 1270, 1303 §166253
+  no. The four start edges whose outside line is the song's first line (1199, 1242, 1264, 1303 §3862) follow speech in
+  the clip ("Let's stand and sing.", "Amen.") and are not this class.
+- **The plan's "last lines" condition is wrong as written:** 1291's line is lyric #10 of 38 (the song repeats and ends
+  on a tag), so "the song's last line" would exclude 1291 itself. Adjacency in song order is the test.
+- **The reading start is not covered:** the extension moves only the song's edge and leaves the neighbour overlapping
+  (benign by design), so 1291 §3643 would still open on the sung line. The 10-19 ruling ("the end of the song") is about
+  the reading start, so step 2 must also start the next speech section after the absorbed line.
+- **Step 2 candidate (awaits the operator's go):** in the single-line path, test "began within 3 s" instead of reach, only
+  when the line is the adjacent lyric line in song order and not a repeat of the clip's edge line; then start a following
+  speech section after it. Moves 2 of 26 held edges (1291, 1120). Then listen to both edges of both runs (step 3).
+
+**1291 step 2 built (10-29 late, operator: "Ok, do step 2"; uncommitted, not adopted, not applied).**
+`SongLyricEdgeExtension`: the reach ≤ 3 s nudge is unchanged; beside it, a single line that *begins* within 3 s of the
+edge but reaches further moves the edge only when `followsInSongOrder()` holds (the line's best catalogue lines and the
+clip's edge line's best lines are disjoint, and one is the next/previous of the other). On that path only, the non-song,
+undecided section holding the line beyond the old edge starts (or ends) at the new edge; the record gains `in_order`
+and `neighbour`. Every other move and record is unchanged (the 09-24 "neighbour keeps its span" design stands).
+Tests: 1291 red → green (song end and reading start 1120.08); 1326 (own line spoken again) and 962 (clip's edge line
+not a lyric) stay put, and both fail when the guard is forced true. 154 tests across the extension, job, pipeline and
+re-run commands pass; Pint and PHPStan clean.
+**Corpus replay** (`replay.php` → `replay.json`; every run extended in a rolled-back transaction, no calls): the new
+path fires on exactly **1291** (§3642 end 1115.54 → 1120.08; §3643 1120.08; sermon plan's first segment 1114.67 →
+**1120.08**, i.e. inward as ruled) and **1120** (§1999 end 953.32 → 958.76, "Bright like stars with glory crown"; §2000
+starts 958.76; 1120's sermon output does not include that reading, plan unchanged). Four old-path moves also appear
+(909 §320, 917 §434, 1035 §4813, 1145 §2174): today's code makes them too, so the extension has not re-run there since
+their inputs changed (not this change; they land with any re-run).
+**Open for step 3:** hear 1291's song end and reading start at 1120.08 (cue timing: the line ends 1120.08 and "our
+bible reading…" begins 1119.86, so the reading may clip "our") and 1120's song end at 958.76; then the 1291 open-defect
+fixture is recaptured and the rule committed with rulings, on the operator's word.
+**Listening page (10-29 late): "Song Tail Lines"** https://claude.ai/artifact/VqomC4M9B3WgysBYA87M9L (`rulings`, ids
+`1291-s3642-end`, `1291-sermon-start`, `1120-s1999-end`; builder and key `storage/scratch/lyric-tail-listening-20261029/`,
+`questions.json` key `times` a/b and `versions` a/b → now/new; template Three Ends Check, save code untouched). The live
+planners differ from the section bounds: **1291's song clip already ends at 1124.62** (past the sung line, into "our
+bible reading…"), so the change does not move it; asked as a single right/earlier/later check. **1291 sermon start** A
+1114.67 (now) / B 1120.08. **1120 §1999 end** A 952.46 (now) / B 961.27 (8.8 s later; by cue timing B runs 2.5 s into
+"What do you do when you receive good news?").
+**Answered 10-29 (source `lyric-tail-20261029`; `answers/rulings/` in the builder folder):** **1120 B** (961.27, the
+change's end, is right), **1291 song end right** (1124.62, unchanged by the change), **1291 reading start neither**:
+"Still includes some of the song. Should be about 18:45" (≈1125.0). So the change is right at 1120 and half right at
+1291: the reading moved inward but stopped on the cue's end. The sung line actually runs to the song planner's cut;
+the cue times run early ("our" is cued 1119.86, decoded 1126.08). The sermon planner's start sees a word pause
+1119.82–1126.08 ("home." → "Our") and keeps 1120.08 inside it, though that "pause" holds the song's last note.
+**Mechanism:** `CueSafeExtractionPlan::afterSongSound()` (10-12, 1335) already starts a spoken part where the
+preceding song's own end rule finds its sound stopping, but only for `song_end_silence` / `song_end_speech`. 1291's
+song ends `song_end_fade` (speech known to follow; quiet 1124.32–1125.08, cut 1124.62, inside the quiet, before the
+operator's ~1125.0). The 10-12 commit gives no reason for leaving fade out. Measuring every speech start beside a
+song before changing it (`storage/scratch/after-song-fade-20261029/`).
+**Measured (10-29 late; `measure.php` → `fade.json`, live sections without the step 2 change, rolled back, no
+calls).** 174 speech output starts (sermon outputs and talks) sit beside a song: song end rule reason
+`song_end_silence` 89, `song_end_speech` 44, **`song_end_fade` 30**, none 11 (2 runs without a transcript). Of the 30
+fade ends, **11 would move a start later**: 1291 §3643 **+9.95 → 1124.62** (the operator's ~1125.0, *without* step 2's
+neighbour move), 1228 §2814 +10.87, 1326 §4135 +4.90, 1208 §2558 +3.48 (speech cue "Good morning." — clip risk), 1224
+§2764 +2.85, 1307 +1.34, 928 +1.32, 1250 +0.78, 1342 +0.76, 1310 +0.59, 1220 +0.24; the other 19 already start at or
+after the song's cut. Not scored against rulings or heard yet.
+**Built (10-29 late, operator: "Yes, agree. Do those 3 steps"; uncommitted).** (1) `afterSongSound()` accepts
+`SONG_END_FADE`; red-to-green `SongEndEdgesTest::a_spoken_part_after_a_song_that_fades_starts_at_the_songs_cut` (1311
+§4972 fixture shape: the talk started at 4141.0, inside the song; now at the fade cut). Step 2's neighbour move is
+**deleted**: the extension keeps the song-order path (1120 heard right) but never moves the speech section, whose start
+now follows the song's own end rule; its 1291 test asserts the reading keeps 1115.54. Pint, PHPStan clean.
+(3) **Page "After The Song"** https://claude.ai/artifact/DaPdGFdWUou8MrTvEUgg76 (`rulings`, ids
+`<run>-<sermon|sN>-start`; builder and key `storage/scratch/after-song-fade-listening-20261029/`, key `times` a = now
+(fade.json, before the change), b = new (live planner, each equal to the song's cut); largest move first): all 11 moves,
+1291 included (B 1124.62). Cue risks to listen for: 1208 B after "Good morning." (cued 1749.16), 1326 B after "Well,
+I'm just having a quick look round…" (cued 595.96), 1228 B on "Will you turn with me…" (cued at the cut).
+**(2) Ruled-endings replay** (`--parallel --filter=RuledEndings`, log `storage/scratch/after-song-fade-20261029/
+replay-shards.log`): 614 tests, **12 failures, no ruling broken.** 3 are the known 1288 merged-Amen reds; the other 9
+are fixture *fidelity* failures on exactly the moved starts (1291, 1228, 928, 1307, 1250's second segment, 1224 §2764):
+the fixtures recorded the old start. The only start rulings among them: 1291 `inward` from 1114.67 (met by 1124.62) and
+1250's sermon opening `keep` 1349.6 (segment 0, unchanged; the moved start is segment 1, unruled). The other fixtures
+rule the end edge, which this does not touch. Adoption = page answers → recapture those fixtures.
+**After The Song answered 10-29 (11/11; source `after-song-fade-20261029`, `answers/rulings/` in the builder folder).**
+**B (the change) right: 1291, 1228, 1224, 1326, 1307, 1342; either: 1208, 1220, 1310** — 9 of 11 met, 1291's reading
+now at 1124.62 as asked. **928 A** (B is 1.32 s later): the leader starts "I'd like us to turn in our Bibles now to
+Joshua and chapter 8." over the song's fading music; the song rule's "quiet" is a 0.24 s gap in that sentence, B skips
+"now". **1250 neither**: "Both have music. Should be more like 28:59" (≈1739.0, past B 1735.64; "Marlene is going to
+come and do the next reading for us" is spoken over the music). Neither quiet length (928 0.24 s; 1307 0.16 s and
+1220 0.10 s were right) nor the skipped decoded words (`skipped.php`: smeared words over music in all of them, e.g.
+1228 "will you turn with me this morning" at 1.3–1.8 s a word) separates 928. Both misses are speech over a song's
+fading music, which the song end rule counts as song: a separate defect (the song clip carries the leader's words),
+not this change's. Net: nine met, one one-word loss (928), one improved but still open (1250).
+**Adopted (10-29 late, operator: "Adopt (Recommended)").**
+- **Code.** `CueSafeExtractionPlan::afterSongSound()` follows `song_end_fade`; `SongLyricEdgeExtension` gains the
+  song-order single-line path (record `in_order`), with no neighbour move. Tests: the fade case in `SongEndEdgesTest`,
+  1291/1326/962 in `SongLyricEdgeExtensionTest`.
+- **Rulings** (`scripts/rulings/gather.py`): 12 records, sources `lyric-tail-20261029` (1120 B keep 961.27; 1291 song
+  end keep 1124.62; 1291 reading `inward` from 1120.08) and `after-song-fade-20261029` (B keep: 1291, 1228, 1224, 1326,
+  1307, 1342; either: 1220, 1310; 928 A keep 1343.37). They supersede 1120's 10-18 `outward` (953.32) and 1291's
+  10-19 `inward` (1114.67). **1208 and 1250 stay out of the register**: their moved starts open a *later part* of the
+  sermon video (segment 1), and a sermon start ruling means the video's opening, so gathering them superseded
+  canary 13's 1250 opening (1349.6) by mistake; their answers stay here (1208 either; 1250 "more like 28:59").
+- **Fixtures** (`storage/scratch/after-song-fade-fixtures-20261029/`): 8 new datasets `run-*-2026-10-29-fade.json.gz`
+  (9 rulings, each live cut equal to the cut heard); 9 stale files on the moved runs refreshed from `--current`
+  captures (37 entries; prior files in `before/`; run-1250-2026-10-22 was not stale and its 10-06 entry can no longer
+  be captured, so it is untouched). `listening-last-20261019:1291-start` **closed** (open defect → met: 1124.62).
+  Not captured, as the code does not meet them (ratchet, as 1096): 928 A (one word), 1250 (open), and 1120 B, which
+  lands when `ExtendSongsOverOwnLyrics` next runs on 1120 (re-processing on the operator's word).
+- **Validation:** replay 622 tests, 3 failures = the known 1288 merged-Amen reds. Full parallel suite 10,881 tests,
+  the same 3 failures; Dusk 63/63; Pint and PHPStan clean. The container's `/tmp` stayed 1777 through both (suite run
+  as the sail user; the 10-29 morning resets came while the suite ran as root). Logs in the fixtures folder.
+- **Open:** speech over a song's fading music counts as song (928's leader, 1250's "Marlene is going to…"): measure
+  before any rule; the song end rule is where it lives.
 
 **K16 reword on all 116 tied ends (operator: "Yes"; 270 Luna calls in all, one HTTP 520 resumed; `measured.json`).**
 Five ends move; 111 are unchanged. **1131 → 1461.42** (its ruled B) and **1183 → 1916.90** gain their conclusions;

@@ -192,6 +192,69 @@ class SongLyricEdgeExtensionTest extends TestCase
     }
 
     /**
+     * 1291 §3642: the song's next line, begun at the edge, ran 4.5 s into the reading. The reading
+     * keeps its span: its start follows the song's own end rule, not the line's early cue times.
+     */
+    #[Test]
+    public function it_ends_a_song_after_its_next_line_in_order(): void
+    {
+        $section = $this->song(950.5, 1115.54, "The Lord's my shepherd I'll not want\nI will trust in you alone\nFor your endless mercy follows me\nYour goodness will lead me home");
+        $reading = $this->section(ServiceSectionType::BibleReading, 1115.54, 1234.76);
+        $this->transcript([
+            [1098.66, 1108.62, 'And I will trust you to alone, and I will trust you alone.'],
+            [1109.62, 1115.14, 'For your endless mercy follows me.'],
+            [1115.54, 1120.08, 'Your goodness will lead me home.'],
+            [1119.86, 1131.5, 'our bible reading this morning is from Matthew chapter 6'],
+            [1140.86, 1158.28, 'And when you pray, do not be like the hypocrites.'],
+        ], [[0, 1120, 'sung'], [1120, 2000, 'speech']]);
+
+        $this->assertSame(1, $this->extension()->extend($this->run));
+
+        $this->assertEqualsWithDelta(1120.08, (float) $section->fresh()->end_time, 0.01);
+        $this->assertEqualsWithDelta(1115.54, (float) $reading->fresh()->start_time, 0.01, 'The neighbour keeps its span.');
+        $this->assertTrue($section->fresh()->metadata->toArray()[SongLyricEdgeExtension::METADATA_KEY][0]['in_order']);
+    }
+
+    /**
+     * 1326 §4136: the leader spoke the song's last line again to lead into the reading.
+     */
+    #[Test]
+    public function it_leaves_a_song_whose_own_last_line_is_spoken_again_after_it(): void
+    {
+        $section = $this->song(1300.0, 1527.3, "Your word is a lamp unto my feet\nYour word endures forever\nYour word endures forever");
+        $reading = $this->section(ServiceSectionType::BibleReading, 1527.3, 1700.0);
+        $this->transcript([
+            [1520.0, 1527.0, 'Your word endures forever. Your word endures forever.'],
+            [1527.3, 1531.5, 'Well, let\'s turn to God\'s word that endures forever.'],
+            [1538.5, 1542.0, 'to read it again.'],
+        ]);
+
+        $this->assertSame(0, $this->extension()->extend($this->run));
+        $this->assertEqualsWithDelta(1527.3, (float) $section->fresh()->end_time, 0.01);
+        $this->assertEqualsWithDelta(1527.3, (float) $reading->fresh()->start_time, 0.01);
+    }
+
+    /**
+     * 962 §848: the prayer after the song opened on its title; the clip's own last line is
+     * not a line of the song, so nothing shows the prayer's words are the song going on.
+     */
+    #[Test]
+    public function it_leaves_a_single_line_that_does_not_follow_the_clips_own_last_line(): void
+    {
+        $section = $this->song(900.0, 1030.6, "Lord teach us to pray aright\nWith reverence and with fear");
+        $this->section(ServiceSectionType::Prayer, 1030.6, 1200.0);
+        $this->transcript([
+            [1020.0, 1024.0, 'With reverence and with fear.'],
+            [1025.0, 1030.0, 'Indeed.'],
+            [1030.6, 1034.9, 'Oh Lord, teach us to pray, and to pray right.'],
+            [1040.3, 1043.0, 'of this day.'],
+        ]);
+
+        $this->assertSame(0, $this->extension()->extend($this->run));
+        $this->assertEqualsWithDelta(1030.6, (float) $section->fresh()->end_time, 0.01);
+    }
+
+    /**
      * Lines more than 15 s apart are not one run of singing.
      */
     #[Test]
