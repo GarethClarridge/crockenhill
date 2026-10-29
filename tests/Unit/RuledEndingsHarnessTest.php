@@ -135,6 +135,67 @@ class RuledEndingsHarnessTest extends TestCase
         $harness->check(['id' => 'empty', 'rulings' => []]);
     }
 
+    #[Test]
+    public function a_ruling_on_a_later_part_checks_that_parts_start_not_the_videos_opening(): void
+    {
+        $harness = $this->harness();
+        $harness->segments = [['start_time' => 10.0, 'end_time' => 20.0], ['start_time' => 31.0, 'end_time' => 40.0]];
+
+        $harness->check($this->partCapture(31.0));
+
+        $this->assertSame(['part-start'], $harness->checked);
+    }
+
+    #[Test]
+    public function a_later_part_that_cannot_be_found_fails_clearly(): void
+    {
+        $harness = $this->harness();
+        $harness->segments = [['start_time' => 10.0, 'end_time' => 20.0]];
+
+        $this->expectException(AssertionFailedError::class);
+        $this->expectExceptionMessage('part-start: RuntimeException: no segment of the sermon video overlaps §5');
+        $harness->check($this->partCapture(31.0));
+    }
+
+    #[Test]
+    public function a_later_part_that_now_opens_the_video_is_not_judged_by_its_ruling(): void
+    {
+        $harness = $this->harness();
+        $harness->segments = [['start_time' => 31.0, 'end_time' => 40.0]];
+
+        $this->expectException(AssertionFailedError::class);
+        $this->expectExceptionMessage('part-start: RuntimeException: §5 opens the sermon video');
+        $harness->check($this->partCapture(31.0));
+    }
+
+    #[Test]
+    public function a_ruling_on_a_later_part_never_supersedes_the_videos_opening_ruling_or_the_reverse(): void
+    {
+        $harness = $this->harness();
+        $harness->recorded = [
+            ['id' => 'opening', 'run' => 1, 'output' => 'sermon', 'section_id' => null, 'section_type' => null, 'edge' => 'start',
+                'heard' => 10.0, 'expect' => 'keep', 'ruled_time' => null, 'ruled_on' => '2026-10-01', 'ruled_at' => '2026-10-01T10:00:00Z'],
+            ['id' => 'later-part', 'run' => 1, 'output' => 'sermon', 'section_id' => null, 'section_type' => null, 'edge' => 'start',
+                'heard' => 31.0, 'expect' => 'keep', 'ruled_time' => null, 'ruled_on' => '2026-10-02', 'ruled_at' => '2026-10-02T10:00:00Z',
+                'part' => ['section_id' => 5]],
+        ];
+        $fixture = ['run' => ['id' => 1], 'captured_on' => '2026-10-03', 'sections' => []];
+        $opening = ['section_id' => null, 'edge' => 'start', 'heard' => 10.0, 'expect' => 'keep', 'ruled_time' => null, 'part' => null];
+
+        $this->assertSame(['opening'], array_column($harness->latest($fixture, $opening), 'id'));
+        $this->assertSame(['later-part'], array_column($harness->latest($fixture, [...$opening, 'heard' => 31.0, 'part' => ['section_id' => 5]]), 'id'));
+    }
+
+    /** @return array<string, mixed> */
+    private function partCapture(float $cut): array
+    {
+        return ['id' => 'capture', 'sections' => [['id' => 5, 'section_type' => 'sermon', 'start_time' => '30.0', 'end_time' => '40.0']], 'rulings' => [
+            ['id' => 'part-start', 'live' => ['cut' => $cut], 'ruling' => [
+                'output' => 'sermon', 'section_id' => null, 'edge' => 'start', 'expect' => 'keep', 'heard' => $cut, 'part' => ['section_id' => 5],
+            ]],
+        ]];
+    }
+
     /** @return array<string, mixed> */
     private function entry(string $id, ?int $section, string $edge): array
     {
@@ -160,9 +221,30 @@ class RuledEndingsHarnessTest extends TestCase
 
             public ?int $failedSection = null;
 
+            /** @var list<array{start_time: float, end_time: float}> */
+            public array $segments = [['start_time' => 10.0, 'end_time' => 20.0]];
+
+            /** @var list<array<string, mixed>> */
+            public array $recorded = [];
+
             public function check(array $capture): void
             {
                 $this->checkCapture($capture);
+            }
+
+            /**
+             * @param  array<string, mixed>  $fixture
+             * @param  array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null, part: array{section_id: int}|null}  $ruling
+             * @return list<array<string, mixed>>
+             */
+            public function latest(array $fixture, array $ruling): array
+            {
+                return $this->latestRulings($fixture, $ruling);
+            }
+
+            protected function recordedRulings(): array
+            {
+                return $this->recorded;
             }
 
             protected function prepareCapture(array $fixture): MediaProcessingLog
@@ -179,7 +261,7 @@ class RuledEndingsHarnessTest extends TestCase
                     throw new RuntimeException('Missing evidence');
                 }
 
-                return ['segments' => [['start_time' => 10.0, 'end_time' => 20.0]]];
+                return ['segments' => $this->segments];
             }
 
             protected function assertRuledEdge(array $fixture, array $ruling, array $plan): void

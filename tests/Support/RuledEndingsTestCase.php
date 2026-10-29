@@ -119,7 +119,7 @@ abstract class RuledEndingsTestCase extends TestCase
 
     /**
      * @param  array<string, mixed>  $fixture
-     * @param  array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null}  $ruling
+     * @param  array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null, part: array{section_id: int}|null}  $ruling
      * @param  array<string, mixed>  $plan
      */
     protected function assertRuledEdge(array $fixture, array $ruling, array $plan): void
@@ -133,7 +133,11 @@ abstract class RuledEndingsTestCase extends TestCase
             return;
         }
         $this->assertNotEmpty($segments, $fixture['id'].': '.json_encode($plan['metadata'] ?? []));
-        $cut = $ruling['edge'] === 'start' ? reset($segments)['start_time'] : end($segments)['end_time'];
+        $cut = match (true) {
+            $ruling['part'] !== null => $segments[SermonVideoPart::segmentIndex($segments, SermonVideoPart::section($fixture['sections'], $ruling['part']['section_id']))]['start_time'],
+            $ruling['edge'] === 'start' => reset($segments)['start_time'],
+            default => end($segments)['end_time'],
+        };
         if (isset($fixture['expected_range'])) {
             $this->assertGreaterThanOrEqual($fixture['expected_range'][0], $cut);
             $this->assertLessThanOrEqual($fixture['expected_range'][1], $cut);
@@ -230,11 +234,12 @@ abstract class RuledEndingsTestCase extends TestCase
      * The newest rulings on the fixture's edge in tests/Fixtures/Rulings/edge-rulings.json made by the
      * day it was captured: a later listening heard a later cut, which data captured before it may not
      * reproduce. A fixture without a capture date keeps its own ruling. Newest is by the answer's time,
-     * so a decision recorded after a listening the same day replaces it. A section ruling without a
+     * so a decision recorded after a listening the same day replaces it. A ruling on a later part of a
+     * sermon video ({@see SermonVideoPart}) and one on its opening never stand for each other. A section ruling without a
      * section id takes the run's section of its type whose edge is nearest the cut heard, as capture does.
      *
      * @param  array<string, mixed>  $fixture
-     * @param  array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null}  $ruling
+     * @param  array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null, part: array{section_id: int}|null}  $ruling
      * @return list<array{id: string, edge: string, heard: float, expect: string, ruled_time: float|null, points?: list<float>}>
      */
     protected function latestRulings(array $fixture, array $ruling): array
@@ -256,11 +261,11 @@ abstract class RuledEndingsTestCase extends TestCase
             return $sections === [] ? null : (int) $sections[0]['id'];
         };
 
-        $rulings = self::$edgeRulings ??= json_decode((string) file_get_contents(dirname(__DIR__).'/Fixtures/Rulings/edge-rulings.json'), true, flags: JSON_THROW_ON_ERROR)['rulings'];
-        $onEdge = array_filter($rulings, static fn (array $candidate): bool => $candidate['run'] === (int) $fixture['run']['id']
+        $onEdge = array_filter($this->recordedRulings(), static fn (array $candidate): bool => $candidate['run'] === (int) $fixture['run']['id']
             && $candidate['edge'] === $ruling['edge']
             && $candidate['ruled_on'] <= $capturedOn
             && ($candidate['output'] === 'sermon') === ($ruling['section_id'] === null)
+            && ($candidate['part'] ?? null) === $ruling['part']
             && $sectionOf($candidate) === $ruling['section_id']);
         if ($onEdge === []) {
             return $own;
@@ -272,11 +277,21 @@ abstract class RuledEndingsTestCase extends TestCase
     }
 
     /**
+     * The operator's rulings, as gathered into tests/Fixtures/Rulings/edge-rulings.json.
+     *
+     * @return list<array<string, mixed>>
+     */
+    protected function recordedRulings(): array
+    {
+        return self::$edgeRulings ??= json_decode((string) file_get_contents(dirname(__DIR__).'/Fixtures/Rulings/edge-rulings.json'), true, flags: JSON_THROW_ON_ERROR)['rulings'];
+    }
+
+    /**
      * The ruling in the shape of edge-rulings.json; the first fixtures carry an ending's answer
      * and the cut heard, with the output in their id (end-<run>-<sermon|section id>).
      *
      * @param  array<string, mixed>  $fixture
-     * @return array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null}
+     * @return array{section_id: int|null, edge: string, heard: float, expect: string, ruled_time: float|null, part: array{section_id: int}|null}
      */
     protected function ruling(array $fixture): array
     {
@@ -289,6 +304,7 @@ abstract class RuledEndingsTestCase extends TestCase
                 'heard' => (float) $ruling['heard'],
                 'expect' => $ruling['expect'],
                 'ruled_time' => isset($ruling['ruled_time']) ? (float) $ruling['ruled_time'] : null,
+                'part' => isset($ruling['part']) ? ['section_id' => (int) $ruling['part']['section_id']] : null,
             ];
         }
 
@@ -300,6 +316,7 @@ abstract class RuledEndingsTestCase extends TestCase
             'heard' => (float) $ruling['ruled_cut'],
             'expect' => ['right' => 'keep', 'clips_word' => 'outward'][$ruling['answer']],
             'ruled_time' => null,
+            'part' => null,
         ];
     }
 

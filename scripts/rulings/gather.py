@@ -13,6 +13,8 @@ Expectations:
   outward  the cut heard clipped the item: a later cut should open earlier or end later;
   inward   the cut heard took in too much of the neighbouring item: open later or end earlier;
   at       the note names the right time (`ruled_time`).
+A sermon start ruling means the video's opening; one with `part` ({section_id}) means the start of the later part of
+the video that opens on that section (plan §4.1a).
 Answers with no edge truth (can't tell, noise and loudness questions, joins) are left out and counted.
 """
 
@@ -413,19 +415,32 @@ records.extend(edge_listening_rulings(
     [{**answer, 'choice': {'right': 'a'}.get(answer['choice'], answer['choice'].lower())}
      for answer in lyric_tail_answers.values()],
 ))
+
+
+def with_parts(source, questions, inner_parts, answers):
+    """Rulings from a page whose inner_parts questions heard the start of a later part of the sermon video, not its
+    opening: each carries `part`, the section that part opens on, so it never stands for the opening (plan §4.1a)."""
+    first_sections = {question['id']: question['key']['first_section'] for question in questions if question['id'] in inner_parts}
+    collected = edge_listening_rulings(source, questions, answers)
+    for record in collected:
+        question_id = record['id'].split(':', 1)[1]
+        if question_id in first_sections:
+            record['part'] = {'section_id': int(first_sections[question_id])}
+    return collected
+
+
 # 10-29 late: After The Song (a spoken start follows a song that fades out). Choices are the version letters.
-# 1208's and 1250's moved starts open a later part of the sermon video, not the video: a start ruling here means
-# the video's opening, so those two stay in the plan (1208 either; 1250 "more like 28:59", later than both cuts).
+# 1208's and 1250's moved starts open a later part of the sermon video (1250's "more like 28:59", later than both
+# cuts, is approximate and stays in the note; SongEndEdgesTest holds it).
 FADE_INNER_PARTS = {'1208-sermon-start', '1250-sermon-start'}
-fade_questions = [question for question in load('after-song-fade-listening-20261029/questions.json')
-                  if question['id'] not in FADE_INNER_PARTS]
+fade_questions = load('after-song-fade-listening-20261029/questions.json')
 fade_answers = saved('after-song-fade-listening-20261029/answers/rulings')
-records.extend(edge_listening_rulings(
-    'after-song-fade-20261029', fade_questions,
-    [{**answer, 'choice': answer['choice'].lower()} for question_id, answer in fade_answers.items() if question_id not in FADE_INNER_PARTS],
+records.extend(with_parts(
+    'after-song-fade-20261029', fade_questions, FADE_INNER_PARTS,
+    [{**answer, 'choice': answer['choice'].lower()} for answer in fade_answers.values()],
 ))
 for source, questions, answers in (('lyric-tail-20261029', lyric_tail_questions, lyric_tail_answers),
-                                   ('after-song-fade-20261029', fade_questions, fade_answers)):
+                                   ('after-song-fade-20261029', [q for q in fade_questions if q['id'] not in FADE_INNER_PARTS], fade_answers)):
     for question in questions:
         answer = answers.get(question['id'])
         if answer is not None and answer['choice'] == 'neither' and question['key']['edge'] == 'start':
@@ -442,14 +457,15 @@ records.extend(edge_listening_rulings(
 ))
 
 # 10-29 night: Smeared First Words (a speech start back-estimated from its first word heard at speaking pace).
-# Choices are the version letters; all three were "either". 1235's moved start opens the sermon video's second part,
-# not the video, so it stays in the plan (as FADE_INNER_PARTS above).
-SMEARED_INNER_PARTS = {'1235-sermon-start'}
-records.extend(edge_listening_rulings(
-    'smeared-opening-20261029',
-    [question for question in load('smeared-opening-listening-20261029/questions.json') if question['id'] not in SMEARED_INNER_PARTS],
-    [{**answer, 'choice': answer['choice'].lower()} for question_id, answer in saved('smeared-opening-listening-20261029/answers/rulings').items()
-     if question_id not in SMEARED_INNER_PARTS],
+# Choices are the version letters; all three were "either". 1235's moved start opens the sermon video's second part.
+records.extend(with_parts(
+    'smeared-opening-20261029', load('smeared-opening-listening-20261029/questions.json'), {'1235-sermon-start'},
+    [{**answer, 'choice': answer['choice'].lower()} for answer in saved('smeared-opening-listening-20261029/answers/rulings').values()],
+))
+# 10-29 night: Good Morning Start, 1208's second part heard again at the smeared-opening back-estimate ("either").
+records.extend(with_parts(
+    'smeared-1208-20261029', load('smeared-1208-listening-20261029/questions.json'), {'1208-sermon-start'},
+    [{**answer, 'choice': answer['choice'].lower()} for answer in saved('smeared-1208-listening-20261029/answers/rulings').values()],
 ))
 
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
@@ -493,13 +509,17 @@ for ruling_id, ruled_at, run, section_id, edge, heard_range, note in RULED:
                     'heard': heard_range[1] if edge == 'end' else heard_range[0], 'answer': None, 'expect': 'either',
                     'ruled_time': None, 'note': note, 'points': list(heard_range)})
 
-# A later ruling on the same edge was made on a later cut, so it replaces the earlier ones.
+# A later ruling on the same edge was made on a later cut, so it replaces the earlier ones. A later part of a sermon
+# video is its own edge: its start never replaces the video's opening, nor the reverse.
+def edge_of(record):
+    return (record['run'], record['output'], record['section_id'], record['edge'], (record.get('part') or {}).get('section_id'))
+
+
 latest = {}
 for record in sorted(records, key=lambda record: record['ruled_at']):
-    edge = (record['run'], record['output'], record['section_id'], record['edge'])
-    latest[edge] = record['ruled_at']
+    latest[edge_of(record)] = record['ruled_at']
 for record in records:
-    record['superseded'] = record['ruled_at'] < latest[(record['run'], record['output'], record['section_id'], record['edge'])]
+    record['superseded'] = record['ruled_at'] < latest[edge_of(record)]
 
 records.sort(key=lambda record: (record['run'], record['heard'], record['id']))
 summary = {

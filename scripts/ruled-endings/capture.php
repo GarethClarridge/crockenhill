@@ -17,7 +17,8 @@ declare(strict_types=1);
  *
  * An id is either an endings-listening id (end-<run>-<sermon|section id>) or a ruling id from
  * tests/Fixtures/Rulings/edge-rulings.json (plan §4.6; built by scripts/rulings/gather.py), whose
- * record becomes the fixture's ruling. A section ruling with no section id takes the run's section
+ * record becomes the fixture's ruling; one with a `part` captures the start of that later part of the sermon video
+ * ({@see SermonVideoPart}), not the video's opening. A section ruling with no section id takes the run's section
  * of that type whose edge is nearest the cut heard. A guard id (guard-<date>:<run>-s<section id>-<start|end>)
  * is no ruling: it holds an edge a gate found a candidate rule would wrongly move (977 §1005, 10-21)
  * at the cut it has now, with `expect: keep` and its source saying it was not listened to.
@@ -52,6 +53,7 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\SermonVideoPart;
 
 require __DIR__.'/../../vendor/autoload.php';
 $app = require __DIR__.'/../../bootstrap/app.php';
@@ -122,7 +124,8 @@ if ($current) {
     $edgeRulings = $edgeRulings->merge(collect(json_decode((string) file_get_contents(base_path('tests/Fixtures/Rulings/recut-20261019.json')), true)['rulings'])->keyBy('id'));
 }
 
-$cutFor = static function (MediaProcessingLog $log, string $which, string $edge = 'end'): array {
+/** @param  array{section_id: int}|null  $part  A later part of the sermon video, by the section it opens on */
+$cutFor = static function (MediaProcessingLog $log, string $which, string $edge = 'end', ?array $part = null): array {
     if ($which === 'sermon') {
         $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
         $audits = $plan['metadata']['cue_edge_widening'] ?? [];
@@ -134,9 +137,14 @@ $cutFor = static function (MediaProcessingLog $log, string $which, string $edge 
     $audit = $edges === [] ? null : ($edge === 'start' ? $edges[0] : end($edges));
     $cut = match (true) {
         $plan['segments'] === [] => null,
+        $part !== null => (float) $plan['segments'][SermonVideoPart::segmentIndex($plan['segments'],
+            $log->serviceSections()->findOrFail($part['section_id'])->only(['id', 'start_time', 'end_time']))]['start_time'],
         $edge === 'start' => (float) reset($plan['segments'])['start_time'],
         default => (float) end($plan['segments'])['end_time'],
     };
+    if ($part !== null && $cut !== null) {
+        $audit = array_find($edges, static fn ($a) => abs((float) ($a['time'] ?? $a['original_time'] ?? -1.0) - $cut) <= 0.02);
+    }
 
     return ['kind' => 'planned_cut', 'cut' => $cut, 'reason' => $audit['reason'] ?? null, 'segments' => $plan['segments']];
 };
@@ -226,7 +234,7 @@ foreach ($ids as $id) {
     DB::beginTransaction();
     try {
         $log = MediaProcessingLog::findOrFail($runId);
-        $live = $cutFor($log, $which, $edge);
+        $live = $cutFor($log, $which, $edge, $ruling['part'] ?? null);
     } catch (Throwable $exception) {
         if (! $current) {
             throw $exception;
