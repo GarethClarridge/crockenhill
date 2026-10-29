@@ -6,10 +6,10 @@
 > October 16 route list in §4.0, and the dated handoff below are historical measurements. Recount
 > eligible runs, open edges and unassessable rulings on the final code before freezing a new round.
 >
-> **Next:** with the operator's word, reword K16's `sermon_last_line` definition and measure it on
-> the 116 tied answers against the 10-29 rulings (1131 and 1183 lose their conclusions today; §5
-> "10-29 (later)"; measurement script ready, §5 "10-29 (evening)"); 1184's new end heard right; the material cases 968 (now 2672.68 against the
-> ruled 2692.61; settled 10-29 evening) and 1291 (plan written, §5 "10-29 (evening)"). Dependent song
+> **Next:** the K16 `sermon_last_line` reword was measured on the 116 tied ends and **parked** (§5 "10-29
+> (evening)": one gain, one loss, ~1,500 calls to adopt; 1131 stays a recorded miss, to fold into any later K16
+> prompt change). 968, 1184 and 1267 §3355 are heard and settled. Open: **1291** (lyric-tail plan written, §5
+> "10-29 (evening)"; step 1 is a read-only measurement, on the operator's go). Dependent song
 > openings are adopted (`39b518a55`, §5); next there, measure whether a linking sentence that names the next
 > song (title against the catalogue, 1096) can count as an announcement, before any rule. A merged
 > congregational Amen can remain in an otherwise complete sermon when safe separation is unproved.
@@ -6384,3 +6384,48 @@ right 5 of 14 times (misses: announcements, readings over music). So:
    "last lines in order" condition is for, and the measurement must show it holds.
 3. **Listen** (one clip per version, both edges of each moved pair), then adopt with tests, rulings, fixtures,
    full suite and Dusk, on the operator's word.
+
+**K16 reword on all 116 tied ends (operator: "Yes"; 270 Luna calls in all, one HTTP 520 resumed; `measured.json`).**
+Five ends move; 111 are unchanged. **1131 → 1461.42** (its ruled B) and **1183 → 1916.90** gain their conclusions;
+three get shorter against standing rulings: **962** 3798.68 → 3757.10 ("…final hymn.", dropping the Lord's Prayer
+ruled in on 10-28; the planner refuses that plan, as the end falls before the sermon's last part), **1275** 4138.72 →
+4123.78 (ruled right at 4139.01), **968** 2672.36 → 2670.90 (re-splits "…tear you ‖ to pieces."). 962 and 1275's
+answers both say housekeeping intervenes, which may be the added rule sitting next to the housekeeping rule, or
+draw noise; a 6-call re-ask with the original prompt would tell. Operator: hear them first. **Page "Reworded Sermon
+Ends"** https://claude.ai/artifact/4Q2NJw7rhKKVUJ8fJjHbsd (`rulings`, ids `<run>-sermon-end`; builder and key
+`storage/scratch/k16-reword-listening-20261029/`, B from the live planner with the reworded answer in place; new end
+windows on 962, 1183, 1275 decoded with local Whisper only): 1183 (A now / B reworded / C its ruled 1927.94), 1275,
+968, 962. Nothing banked or adopted.
+**Answered 10-29 (source `k16-reword-20261029`):** **1183** "All are fine" (1863.80, 1917.90, 1927.94; replaces its
+10-29 B-only ruling), **1275 either**, **962** "Either fine, but B better" (B is the reword's, which the planner cannot
+cut), **968 A** (the reword's end splits the sentence). Datasets `run-{962,968,1183,1275}-2026-10-29-reword.json.gz`;
+replay on those runs and 1131 10/10. **Score against the rulings:** today meets 1183, 1275, 962, 968 and misses 1131;
+the reword meets 1131, 1183, 1275 and 962 (preferred, if it could be cut) and breaks 968. Net one gain, one loss, one
+preference, for a ~925-call re-ask of every K16 end plus fixture churn. Two defects it exposed exist without it:
+(1) a K16 line that ends mid-sentence with no punctuation (968's "you" before "to pieces.") is not stepped off;
+(2) the sermon planner refuses a K16 end that falls before the sermon's last part instead of ending there (962).
+
+**K16 reword: PARKED (operator 10-29: "I agree with your recommendation").** Today's prompt stays (`PROMPT_VERSION`
+2); nothing banked, no code changed.
+- **Why.** On the 116 tied ends the reword's net is one gain (**1131**, a real miss today), one acceptable-but-preferred
+  end (**962**, which the planner cannot yet cut) and one loss (**968**, a re-split sentence); 111 are unchanged and
+  1183 and 1275 are fine either way. Adoption retires every banked K16 answer, so it would need the ~300 untied ends
+  measured first (~650 calls), then a ~925-call re-ask, a fixture refresh and listening: about 1,500 calls and the
+  fixture churn for one miss in 116 (about 1%). Register "soft misses aren't worth breaking others" applies.
+- **The two defects it exposed occur only under the reword**, measured read-only over today's ends
+  (`storage/scratch/k16-unpunctuated-20261029/`, `scan.php`, `ends.json`):
+  1. *An unpunctuated end line whose sentence closes on the next line* (968's reworded "you" before "to pieces.").
+     Test: the end line lacks final punctuation, and the next line starts lowercase, ends with it, is not after the
+     music and starts before the song. It fires on **0 of 417** current ends and on 968 alone of the 116 reworded.
+     The 49 unpunctuated current end lines are in unpunctuated transcripts whose next line starts a new sentence
+     ("Let's…", "we're going…"); 1004's "…for the glory of your" is a mid-phrase end that text cannot judge (its next
+     line closes nothing). If built: step forward to that next line (968's ruled A is "…to pieces.").
+  2. *The sermon planner refuses a K16 end that falls before the sermon's last part* (962's reworded 3757.10,
+     `PublicationPlanValidator`: "unordered, overlapping or outside source") instead of ending in that part and
+     dropping the later ones. No current end reaches it.
+- **Open:** 1131 stays a recorded miss (ruled B 1461.42, current 1410.28; not in the ratchet). **If a later K16 prompt
+  change is needed for another reason, fold this reword into it** so the re-ask and fixture refresh happen once: the
+  wording is `storage/scratch/k16-reword-20261029/system-prompt.txt`, the 270 answers are in `answers/`, `measure.php`
+  re-scores them offline, and the two guards above come with it.
+- **Recorded:** the four Reworded Sermon Ends answers (source `k16-reword-20261029`), each met by today's code;
+  datasets `run-{962,968,1183,1275}-2026-10-29-reword.json.gz`.

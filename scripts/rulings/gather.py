@@ -396,6 +396,14 @@ records.extend(edge_listening_rulings(
      for question_id, answer in three_ends_answers.items()],
 ))
 
+# 10-29: sermon ends the K16 reword moves (A now, B reworded; 1183 also C, its 10-29 ruled end). 1183's "All are
+# fine" makes all three acceptable; 962's "Either fine, but B better" is two acceptable ends, the preference noted.
+records.extend(edge_listening_rulings(
+    'k16-reword-20261029', load('k16-reword-listening-20261029/questions.json'),
+    [{**answer, 'choice': 'both' if answer['choice'] == 'several' else answer['choice']}
+     for answer in saved('k16-reword-listening-20261029/answers/rulings').values()],
+))
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {
