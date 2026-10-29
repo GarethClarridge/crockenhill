@@ -342,6 +342,9 @@ For the next round, first complete the [video plan §4.1a](HISTORIC-VIDEO-DEFECT
 Its combined measurement supplies current membership and prerequisite routes; older round lists
 are not a fresh census. The staged canary in §3 must check actual encoded transitions and internal
 sermon joins for affected paths, as well as the planned timestamps and pause/resume behaviour.
+For the representative canary's local acceptance journey and agent-first checking, follow the
+[post-round audit §0](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md#sequence-and-confidence-report).
+
 
 1. Freeze exact membership in the snapshot; settle transcript and structure dependencies before
    cutting; retain or exclude unresolved cases explicitly rather than widening the batch.

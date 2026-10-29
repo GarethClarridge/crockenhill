@@ -18,6 +18,7 @@ song digital-zero bar, run 937's retirement).
   plan's D1 is "what a sermon's media contains" (§5 here).
 
 **Sources.**
+- [Log 10-29]: [execution record through 10-29](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md).
 - [Plan]: the current [historic video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md).
 - [Log 10-16]: the [execution log for 2026-10-03 to 10-16](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md): Part 1 is the plan as it stood on 2026-10-16, Part 2 the session notes of 10-10 to 10-16, both word for word.
 - [Ensemble]: [ensemble detection](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md) §0, decisions 1–23.
@@ -57,7 +58,7 @@ song digital-zero bar, run 937's retirement).
 | C3 | Custody follows the disk: when the sermon disk is historic staging or quarantine, new sermons and song clips are quarantined and name that disk, whatever the lane (`MediaAssetPath::holdingDisk`). | 10-15 | [Round] §12 |
 | C4 | The five stray thumbnail objects written to the production bucket on 10-15 stay where they are. | 10-15 | [Round] §12 |
 | C5 | Service artifacts live on the internal disk and are rsynced to Sonnics after every batch or round. | 09-28 | [Runbook] §8 |
-| C6 | Temp-file cleanup is paused locally (`MEDIA_PAUSE_TEMP_FILE_CLEANUP=true`) so restaged sources survive; unset it after the historic repairs. | 09-23 | [Plan] §4.2 |
+| C6 | Temp-file cleanup is paused locally (`MEDIA_PAUSE_TEMP_FILE_CLEANUP=true`) so restaged sources survive; unset it after the historic repairs. | 09-23 | [Plan] §4.6 |
 
 ## 3. Detection and structure
 
@@ -83,27 +84,29 @@ song digital-zero bar, run 937's retirement).
 | D18 | An `other` order-of-service item two sections share (slide deck, "Reading" placeholder) is a flag, not `duplicate_oos_item`. That flag keeps blocking the cut until its section is reviewed. | 10-14, 10-15 | [Round] §12 |
 | D19 | The recompose guard admits a round's failed validation when the banked draws, with their answers, compose valid under the running rules (re-check, not an exception). | 10-15 | [Round] §12 |
 | D20 | The staleness check ignores a section type that the run's own projection wrote onto the item. | 10-15 | [Round] §12 |
-| D21 | **Split sermons are joined:** 1073 and 1268 publish only part of their sermon, the rest `other`. Built in `77d880b44`; application to current runs remains subject to the next round and its acceptance. | 10-14; status 10-29 | [Round] §12; [Plan] §4.0 |
-| D22 | 954's "Report from Men's Event" is a talk. The detection-only item-type fix was built in `affa64e11`; application and output acceptance remain separate. | 10-14; status 10-29 | [Round] §12; [Plan] §4.0 |
+| D21 | **Split sermons are joined:** 1073 and 1268 publish only part of their sermon, the rest `other`. Built in `77d880b44`; application to current runs remains subject to the next round and its acceptance. | 10-14; status 10-29 | [Round] §12; [Log 10-29] §4.0 |
+| D22 | 954's "Report from Men's Event" is a talk. The detection-only item-type fix was built in `affa64e11`; application and output acceptance remain separate. | 10-14; status 10-29 | [Round] §12; [Log 10-29] §4.0 |
 | D23 | Speech with no transcribed line is marked as an unobservable window and asked about, without holding (F11, "mark + ask"). Uncovered sound that decoded to nothing is marked (I1). | 10-05 | [Boundary] §6 |
 
 ## 4. Questions, review and listening
 
+Agent-first checking is the operator direction of 2026-10-29; the [audit §0](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md#agent-first-execution-and-escalation) owns its execution and escalation procedure.
+
 | ID | Ruling | Date | Source |
 |---|---|---|---|
-| Q1 | One standard pattern: each question declares its consequence once, and every gate reads it. **Not built** ([Plan] §4.3). | 10-05 | [Boundary] §8.2 |
+| Q1 | One standard pattern: each question declares its consequence once, and every gate reads it. **Recorded as not built on 10-16; current implementation to verify** ([Plan] §4.2). | 10-05 | [Boundary] §8.2 |
 | Q2 | **Hold or ask, by the mistake the output could contain.** Hold when it might include something it shouldn't; ask when it is right but might omit something at its edge. | 10-05 | [Boundary] §8.2 |
 | Q3 | Nothing with an open question goes public, on either path. | 10-05 | [Boundary] §8.2 |
 | Q4 | A question is judged against the output it doubts: text questions hold text, label questions ask, cut-content questions hold. | 10-05 | [Boundary] §8.8 |
 | Q5 | No review state means nothing to hide: a sermon with no pipeline run or sections is public as before. | 10-05 | [Boundary] §8.8 |
 | Q6 | A title variant is not a question. Normalise titles against the catalogue before composing. | 10-06 | [Boundary] §8.9 |
 | Q7 | One question per clip: merge disputes that settle the same decision over one stretch. | 10-06 | [Boundary] §8.9 |
-| Q8 | **Held sermons are cut with `--held-section`.** The hold stays; a release page then has the operator confirm each defect is gone. The operator approved the 62-run cohort listed in [Plan] §4.0 decision 2, with a dry run per run and the recorded duplicate exclusions and routing. | 10-13; cohort approved 10-16 | [Round] §5 R4; [Runbook] §4.2; operator: "Recut the 62 held sermons" |
+| Q8 | **Held sermons are cut with `--held-section`.** The hold stays; a release page then has the operator confirm each defect is gone. The operator approved the 62-run cohort listed in [Log 10-29] §4.0 decision 2, with a dry run per run and the recorded duplicate exclusions and routing. | 10-13; cohort approved 10-16 | [Round] §5 R4; [Runbook] §4.2; operator: "Recut the 62 held sermons" |
 | Q9 | **A looped pre-recorded segment is a flag to listen to, never a trim.** A reading may repeat its first and last verse. | 10-14 | [Round] §12 |
 | Q10 | Listening pages: ask which text matches, show service time, play at 3× by default, never scroll sideways, and build from the last working page. | 10-07 to 10-11 | [Runbook] §5.3 |
 | Q11 | Explain the evidence before asking for a decision. | 07-05 | notes |
-| Q12 | **Hold and review the known-bad endings:** runs 1224, 1111, 1198, 962, 1005, 1240 and 1271. Keep or apply content-defect holds and review against the source; a re-cut alone does not clear them. The operator confirms each ending defect is resolved before its hold is cleared. Holds applied and verified on 10-16 to sections 846, 1242, 1935, 165128, 146083, 175519 and 3397. Source listening and operator confirmation remain outstanding. | 10-16 | Operator: "Hold and review the known bad endings"; [Plan] §4.0 decision 5 |
-| Q13 | **A listening ruling is evidence, not absolute truth.** Some are mistakes; some knowingly accepted an imperfect cut (a whispered extra word judged not to matter). When a ruling contradicts a design decision, or blocks a fix that follows one, ask the operator to clarify or put the old and new cuts on a listening page; don't revert the fix or re-baseline the fixture silently. Re-heard answers supersede the older ruling in the register. | 10-26 | Operator: "we shouldn't take my rulings as absolute truth … If my rulings contradict my design decisions then ask me to clarify or listen again." [Plan] §5 "The guard's moves heard again" |
+| Q12 | **Hold and review the known-bad endings:** runs 1224, 1111, 1198, 962, 1005, 1240 and 1271. Keep or apply content-defect holds and review against the source; a re-cut alone does not clear them. The operator confirms each ending defect is resolved before its hold is cleared. Holds applied and verified on 10-16 to sections 846, 1242, 1935, 165128, 146083, 175519 and 3397. Later listening may settle individual cases; reconcile current dispositions in the audit rather than treating the original cohort as wholly unheard. | 10-16 | Operator: "Hold and review the known bad endings"; [Log 10-29] §4.0 decision 5 |
+| Q13 | **A listening ruling is evidence, not absolute truth.** Some are mistakes; some knowingly accepted an imperfect cut (a whispered extra word judged not to matter). When a ruling contradicts a design decision, or blocks a fix that follows one, ask the operator to clarify or put the old and new cuts on a listening page; don't revert the fix or re-baseline the fixture silently. Re-heard answers supersede the older ruling in the register. | 10-26 | Operator: "we shouldn't take my rulings as absolute truth … If my rulings contradict my design decisions then ask me to clarify or listen again." [Log 10-29] §5 "The guard's moves heard again" |
 | Q14 | Use 3× playback for triage, then normal speed for final judgments about a word edge, fade or joined audio. Record whether acceptance came from operator listening, model/text review or mechanical checks; text evidence alone does not establish how a cut sounds. | 10-29 | Operator agreement to plan review, 10-29 |
 
 ## 5. Sermon composition
@@ -114,7 +117,7 @@ song digital-zero bar, run 937's retirement).
 | K2 | **Amended:** also the prayer directly before the sermon, even with a song between it and the reading. Gaps of up to 15 s between selected parts, with no other section in them, play straight through, and each part keeps its own sound treatment. | 10-11, 10-13 | [Cut] §5 |
 | K3 | Including or excluding the preacher's prayer at the start is always acceptable (ER1). | 09-29 | [Ensemble] 9 |
 | K4 | **Closing prayers are actively preferred in sermons.** | 09-30 | [Ensemble] 18 |
-| K5 | A non-matching reading stays joined to the sermon (the nearest one, across a hymn if need be). | 09-14 | [Plan] §4.3 |
+| K5 | A non-matching reading stays joined to the sermon (the nearest one, across a hymn if need be). | 09-14 | [Log 10-29] §4.3 |
 | K6 | Every reading directly before the sermon is cut with it, except a carol service's lessons (December, four or more readings), plus passage matches further back. **Amended:** a passage match takes the readings read back to back with it (1270's Job 11, 1302's Deuteronomy 24 and Matthew 19; `3189dc6a3`). An earlier reading of the sermon's chapter across a song stays out: 1059's Luke 23:1-25 and 1033's Luke 2:1-7 are recapped by the sermon itself. | 10-13, 10-23 | [Round] §6, §11; operator 10-23 |
 | K9 | Pattern B: a recording that opens with the sermon (first section, ≤ 5 s in) publishes that sermon. | 10-13 | [Round] §11 |
 | K10 | Pattern C: a reading the sermon stops for and resumes after stays inside it. Prayers, and parts preaching different passages, stay questions. | 10-13 | [Round] §11 |
@@ -123,8 +126,8 @@ song digital-zero bar, run 937's retirement).
 | K13 | A sermon part whose speech stands < 20 dB above its pauses is held, never dropped. | 10-10 | [Boundary] §6.3.8 |
 | K14 | **Use the longer recording for the service, but never let its sermon replace a better recording's** (higher resolution, then bitrate; the held sermon ≥ 95% of the length). | 10-15 | [Round] §12 |
 | K15 | Two answers that share a seam both keep it: the seam stays in both clips. | 10-14 | [Round] §12 |
-| K16 | **A sermon ends with its own complete concluding thought and closing prayer where present, before the next song's music.** A bare song announcement, housekeeping and the congregation's separate answering Amen are optional to omit. The shorter sermon ending is preferred, but a substantive concluding application must not be cut merely because it also introduces the song. Reading lyrics aloud alone does not establish that they conclude the sermon. Do not split a sentence or the preacher's Amen to achieve a shorter cut. This narrows the 10-16 tie rule rather than restoring it: the question is whether a line is still the sermon, not whether an introduction relates the song to it. Notices or housekeeping before a song still end the sermon at its own last line. The model is asked twice, and a third time when the two answers differ in judgement, sermon line or video line; the line two answers name stands, else the middle of three, else the earlier. **Heard 10-29 (11 tied cut-aways):** the current prompt, which defines `sermon_last_line` as before "any introduction or announcement of the song", loses the conclusion in 1131 and 1183. **A rewording was measured on all 116 tied ends and parked (10-29 evening):** it mends 1131 (1183 is fine either way on a second hearing) but re-splits 968's sentence, and adopting it re-asks every K16 end; 1131 stays a recorded miss, to be folded into any later K16 prompt change (plan §5, 10-29 evening). A line left open on a clause before the song's recorded start steps back to the line before (1001). Banked answers need not be asked again wholesale. | 10-16; amended 10-28 and 10-29 | [Plan] §5, 10-28 sermon-ending work and 10-29; operator 10-29: "a substantive concluding application must not be cut merely because it also introduces the song … only keep if it's fundamentally part of the sermon that happens to mention a song" |
-| K17 | **Speech left unowned beside the reading before a sermon is not a reason to hold the sermon.** When a song trim leaves speech next to the reading, `structure_sermon_adjacent_speech_unowned` becomes a note on the sermon, not a hold: it is almost always an announcement, which K1 rightly excludes (7 of 7 heard). Speech left beside the **sermon** itself still holds it (3 heard: an announcement, the sermon's own words, a late start). | 10-25 | Operator: "stop now". [Plan] §5 "10-25 (later)" A4 |
+| K16 | **A sermon ends with its own complete concluding thought and closing prayer where present, before the next song's music.** A bare song announcement, housekeeping and the congregation's separate answering Amen are optional to omit. The shorter sermon ending is preferred, but a substantive concluding application must not be cut merely because it also introduces the song. Reading lyrics aloud alone does not establish that they conclude the sermon. Do not split a sentence or the preacher's Amen to achieve a shorter cut. This narrows the 10-16 tie rule rather than restoring it: the question is whether a line is still the sermon, not whether an introduction relates the song to it. Notices or housekeeping before a song still end the sermon at its own last line. The model is asked twice, and a third time when the two answers differ in judgement, sermon line or video line; the line two answers name stands, else the middle of three, else the earlier. **Heard 10-29 (11 tied cut-aways):** the current prompt, which defines `sermon_last_line` as before "any introduction or announcement of the song", loses the conclusion in 1131 and 1183. **A rewording was measured on all 116 tied ends and parked (10-29 evening):** it mends 1131 (1183 is fine either way on a second hearing) but re-splits 968's sentence, and adopting it re-asks every K16 end; 1131 stays a recorded miss, to be folded into any later K16 prompt change ([Log 10-29] §5, 10-29 evening). A line left open on a clause before the song's recorded start steps back to the line before (1001). Banked answers need not be asked again wholesale. | 10-16; amended 10-28 and 10-29 | [Log 10-29] §5, 10-28 sermon-ending work and 10-29; operator 10-29: "a substantive concluding application must not be cut merely because it also introduces the song … only keep if it's fundamentally part of the sermon that happens to mention a song" |
+| K17 | **Speech left unowned beside the reading before a sermon is not a reason to hold the sermon.** When a song trim leaves speech next to the reading, `structure_sermon_adjacent_speech_unowned` becomes a note on the sermon, not a hold: it is almost always an announcement, which K1 rightly excludes (7 of 7 heard). Speech left beside the **sermon** itself still holds it (3 heard: an announcement, the sermon's own words, a late start). | 10-25 | Operator: "stop now". [Log 10-29] §5 "10-25 (later)" A4 |
 
 ## 6. Edges and cutting
 
@@ -143,15 +146,15 @@ song digital-zero bar, run 937's retirement).
 | E11 | **Finished runs are re-cut** wherever the replayed plan differs from the cut at all, with no tolerance; song and talk clips too. | 10-15 | [Round] §12 |
 | E12 | A clip with no recorded cut is re-cut, not reused. All 155 pre-fix runs go into the re-cut round, and its fresh comparison decides. | 10-16 | [Round] §12 |
 | E13 | Use VideoToolbox (host ffmpeg service) for section cuts. | 10-13 | [Round] §2 |
-| E14 | **Music ruling 2:** a song edge that runs ≥ 15 s into verified digital zero (every frame `-inf`) moves to where the zeros begin, with no hold. Song starts additionally follow E18; song ends and the 15 s dropout/whole-song policy remain unchanged. | 09-25; clarified 10-16 | [Music] §12; [Plan] §4.0 decision 4 |
+| E14 | **Music ruling 2:** a song edge that runs ≥ 15 s into verified digital zero (every frame `-inf`) moves to where the zeros begin, with no hold. Song starts additionally follow E18; song ends and the 15 s dropout/whole-song policy remain unchanged. | 09-25; clarified 10-16 | [Music] §12; [Log 10-29] §4.0 decision 4 |
 | E15 | **Video whole or not at all:** release the whole video when ≥ 75% has usable picture, otherwise hide it and release audio only. Never trim dead stretches; flag "has video issues". | 09-22 | notes; `release_usable_share` |
 | E16 | Whole-recording cards count as no video; 1225's partial video is shown. | 09-14 | [Plan] §4.3 |
 | E17 | A concatenated recording can contain a song: keep a song section the evidence supports, and demote only join fragments. | 09-14 | [Plan] §4.3 |
-| E18 | **Song starts:** remove a leading prefix of ≥ 2 s of verified digital zero, keeping 0.3 s before the first finite audio sample, however quiet or brief. Preserve song ends, fades, interior gaps, content holds and explicit operator answers. All 15 proposed starts were accepted before implementation was authorised. No dispatch or release is authorised by this rule. | 10-16 | Operator: "All of these are fine", then "Ok, do that"; [Plan] §4.0 decision 4 |
-| E19 | **Add the 39 missed v9 runs to the re-cut round.** Exact membership and routing are listed in [Plan] §4.0 decision 1; 974 uses `reExtract` under X7. This settles cohort inclusion; the remaining pre-dispatch checks still apply. | 10-16 | Operator: "Add the 39 runns"; [Plan] §4.0 decision 1 |
-| E20 | **Dead feed inside a talk is cut out:** where a sermon or short talk's source has *both* no audio (≤ −80 dB, ≥ 15 s, the `DeadFeedInsideSection` measure) *and* dead picture (frozen or black) over the same stretch, that stretch is excised from the cut, so the talk is composed of the spans either side. Sound-only dropouts under live picture stay in, flagged as now; dead picture over live sound stays under E15. Talks only: songs keep E14/E18. Class on 10-18: 1322 only (2511–2584 s); 988 and 1148 are sound-only and stay. Narrows E15, which was ruled for dead picture with the sermon still audible. No dispatch or release is authorised by this rule. | 10-18 | Operator: "we should probably cut out those seconds", then "Only where there's no audio or video"; [Plan] §4.0 |
+| E18 | **Song starts:** remove a leading prefix of ≥ 2 s of verified digital zero, keeping 0.3 s before the first finite audio sample, however quiet or brief. Preserve song ends, fades, interior gaps, content holds and explicit operator answers. All 15 proposed starts were accepted before implementation was authorised. No dispatch or release is authorised by this rule. | 10-16 | Operator: "All of these are fine", then "Ok, do that"; [Log 10-29] §4.0 decision 4 |
+| E19 | **Add the 39 missed v9 runs to the re-cut round.** Exact membership and routing are listed in [Log 10-29] §4.0 decision 1; 974 uses `reExtract` under X7. This settles cohort inclusion; the remaining pre-dispatch checks still apply. | 10-16 | Operator: "Add the 39 runns"; [Log 10-29] §4.0 decision 1 |
+| E20 | **Dead feed inside a talk is cut out:** where a sermon or short talk's source has *both* no audio (≤ −80 dB, ≥ 15 s, the `DeadFeedInsideSection` measure) *and* dead picture (frozen or black) over the same stretch, that stretch is excised from the cut, so the talk is composed of the spans either side. Sound-only dropouts under live picture stay in, flagged as now; dead picture over live sound stays under E15. Talks only: songs keep E14/E18. Class on 10-18: 1322 only (2511–2584 s); 988 and 1148 are sound-only and stay. Narrows E15, which was ruled for dead picture with the sermon still audible. No dispatch or release is authorised by this rule. | 10-18 | Operator: "we should probably cut out those seconds", then "Only where there's no audio or video"; [Log 10-29] §4.0 |
 | E21 | **"Either is fine" means either cut is right — not any time between them, and neither by default.** A cut between two acceptable cuts can split a sentence (introductory sentences in or out are fine; split sentences are not). No tie-break defaults to the longer cut: preferences are to be automated as rules learned from the answers, never recorded as one-off choices. *Amended 10-26; was (10-21): "Where both edges are acceptable, the longer one is better … Scoring and any tie between acceptable cuts follow it."* No dispatch or release is authorised by this rule. | 10-21, 10-26 | Operator 10-21: "In general where both are acceptable the longer option is better" (Held-word Endings page). Operator 10-26: "Either is fine means either is fine, not 'any time between these is fine' … I don't think we should necessarily default to the longest. But I worry that simply preferring B is the kind of one off ruling we're trying to avoid. The aim is to make logic that will automate my preferences." |
-| E22 | **A song after a sermon starts no earlier than the sermon's last word:** where the K16 answer keeps the hymn introduction with the sermon, the song starts where the sermon ends, never inside its words. Mechanism: a word window's opening margin is not a pause while another transcript line is still being said there (`CueSafeExtractionPlan::withoutClippedOpening`); the closing margin stays heard (1200 §2509). The ruled edges it moved (961, 1221, 1055) were heard again: as good or better. | 10-26 | Operator on run 1216's "How Deep": B "starts the song mid sentence [of] the introduction. If it skipped the intro completely that would be better"; the start at 69:44.8 (sermon's end) heard "The fix is right". [Plan] §5 "Run 1216 joins" |
+| E22 | **A song after a sermon starts no earlier than the sermon's last word:** where the K16 answer keeps the hymn introduction with the sermon, the song starts where the sermon ends, never inside its words. Mechanism: a word window's opening margin is not a pause while another transcript line is still being said there (`CueSafeExtractionPlan::withoutClippedOpening`); the closing margin stays heard (1200 §2509). The ruled edges it moved (961, 1221, 1055) were heard again: as good or better. | 10-26 | Operator on run 1216's "How Deep": B "starts the song mid sentence [of] the introduction. If it skipped the intro completely that would be better"; the start at 69:44.8 (sermon's end) heard "The fix is right". [Log 10-29] §5 "Run 1216 joins" |
 
 ## 7. Audio
 
@@ -160,7 +163,7 @@ song digital-zero bar, run 937's retirement).
 | A1 | Normalise each part separately, every speech part to −16 LUFS. | 10-08 | [Boundary] §6.3 |
 | A2 | Noise reduction follows the pause level: strong above −30, gentle above −60, otherwise none; per-recording override. | 10-08, 10-09 | [Boundary] §6.3.5 |
 | A3 | Hum filter, de-esser, high-pass and levelling stay off; music gets loudness only; MP3 at 48 kbps, 48 kHz. | 10-08, 10-09 | [Boundary] §6.3.5 |
-| A4 | **The video's true-peak limit (−0.5 dBTP: treatment ceiling −1.5 plus 1.0 tolerance) is a target, not a requirement.** A video true peak over it no longer holds a sermon for listening; it stays measured and reported, and large overshoots stay a treatment defect to investigate. Not covered: integrated-loudness misses and the public MP3's own ceiling (+1.0 dBTP). | 10-25 | Operator: "target" (10 of 10 heard "sounds fine", overshoots 0.1–4.4 dB). [Plan] §5 "10-25 (later)" B8 |
+| A4 | **The video's true-peak limit (−0.5 dBTP: treatment ceiling −1.5 plus 1.0 tolerance) is a target, not a requirement.** A video true peak over it no longer holds a sermon for listening; it stays measured and reported, and large overshoots stay a treatment defect to investigate. Not covered: integrated-loudness misses and the public MP3's own ceiling (+1.0 dBTP). | 10-25 | Operator: "target" (10 of 10 heard "sounds fine", overshoots 0.1–4.4 dB). [Log 10-29] §5 "10-25 (later)" B8 |
 
 ## 8. Songs
 
@@ -173,9 +176,9 @@ song digital-zero bar, run 937's retirement).
 | S5 | The hymn workbook's held-out half stays unopened until song acceptance measures it; once measured, it is spent. | 09-25, 10-14 | [Songs] §7 |
 | S6 | **Song acceptance has no numeric bar.** Rates are reported as measured; every wrong binding gets a fix or leave verdict with a reason. | 10-14 | [Songs] §7 |
 | S7 | 2020–2022 have no workbook; stage 2 adds a 40-service listening sample for those years, reported separately. | 10-14 | [Songs] §9 |
-| S8 | **A looped song transcript is a transcription fault, not a reason to hold the clip.** `song_looped_transcript` stops holding a song for approval. A loop's gaps still count for nothing as boundary evidence (`SongLoopedTranscript::blocksFor`). Not covered: a sermon or talk transcript loop, which is the published text itself (`transcript_repetition_suspect`), and speech hidden under a loop (`song_speech_under_loop`). | 10-24 | [Plan] §5 "10-24 (later)" |
-| S9 | **A sung item may publish itself from 55 s, not 90 s.** `short_song_clip` holds a song only under 55 s (`song_minimum_automatic_duration_seconds`). Fragments under 60 s are still diagnosed and held by `SongSectionWithoutSong`. | 10-25 | Operator: "from the listening it looks like it should be 55s" (10 of 10 whole at 58–81 s). [Plan] §5 "10-25 (later)" A3 |
-| S10 | **Leave run 1295's incomplete "Only By Grace" held; no further repair is planned.** Do not merge its fragments (3768/3769) or pursue the 3769 re-cut merely to remove the feed dropout. The limited listener benefit does not justify more work; prioritise restoring run 1216's sermon opening. Revisit only if someone specifically wants this song. Existing source evidence and the adopted prayer transcript remain retained. | 10-26 | Operator: "Agree", accepting "keep it held and move on" after discussing listener value. [Plan] §5, "Only By Grace disposition" |
+| S8 | **A looped song transcript is a transcription fault, not a reason to hold the clip.** `song_looped_transcript` stops holding a song for approval. A loop's gaps still count for nothing as boundary evidence (`SongLoopedTranscript::blocksFor`). Not covered: a sermon or talk transcript loop, which is the published text itself (`transcript_repetition_suspect`), and speech hidden under a loop (`song_speech_under_loop`). | 10-24 | [Log 10-29] §5 "10-24 (later)" |
+| S9 | **A sung item may publish itself from 55 s, not 90 s.** `short_song_clip` holds a song only under 55 s (`song_minimum_automatic_duration_seconds`). Fragments under 60 s are still diagnosed and held by `SongSectionWithoutSong`. | 10-25 | Operator: "from the listening it looks like it should be 55s" (10 of 10 whole at 58–81 s). [Log 10-29] §5 "10-25 (later)" A3 |
+| S10 | **Leave run 1295's incomplete "Only By Grace" held; no further repair is planned.** Do not merge its fragments (3768/3769) or pursue the 3769 re-cut merely to remove the feed dropout. The limited listener benefit does not justify more work; prioritise restoring run 1216's sermon opening. Revisit only if someone specifically wants this song. Existing source evidence and the adopted prayer transcript remain retained. | 10-26 | Operator: "Agree", accepting "keep it held and move on" after discussing listener value. [Log 10-29] §5, "Only By Grace disposition" |
 | S11 | Prefer keeping an acceptable spoken song introduction over a rule that might remove singing. The proposed dependent-opening announcement-word rule needs corpus measurement and listening, especially mixed speech/lyric case 1174; matching decoded words does not prove delivery as speech. Keep full musical introductions and complete sung lines. | 10-29 | Operator agreement to plan review, 10-29 |
 
 ## 9. Talks and readings
@@ -213,7 +216,7 @@ song digital-zero bar, run 937's retirement).
 | R6 | Never run tests in the round clone. | 10-15 | [Runbook] §1 |
 | R7 | Fix everything on the fix-round list (items 1–20) before the next run. | 10-12 | [Log 10-16] Part 2 |
 | R8 | **Weekly processing takes over when the historic import is done**; services after 2026-08-23 wait for it. The definition of "done" is proposed in [Programme] §0.4. | 10-16 | operator, 10-16; [Plan] §4.2 |
-| R9 | **Fix the stale-clip cause before the re-cut round.** Complete [Round] §9.1 step 1, test it and include it in the new freeze before dispatch; existing residue clean-up remains in [Plan] §4.1. Cause fix committed in `29126fb8a`; isolated section-sync tests reverified 10-17: 40 tests, 177 assertions passed. Running clone revision not verified by this check; do not alter the current round. | 10-16; status 10-17 | Operator: "Fix the stale clips before the round"; [Plan] §4.0 decision 7 and §4.1 item 3 |
+| R9 | **Fix the stale-clip cause before the re-cut round.** Complete [Round] §9.1 step 1, test it and include it in the new freeze before dispatch; existing residue clean-up remains in [Plan] §4.1. Cause fix committed in `29126fb8a`; isolated section-sync tests reverified 10-17: 40 tests, 177 assertions passed. Running clone revision not verified by this check; do not alter the current round. | 10-16; status 10-17 | Operator: "Fix the stale clips before the round"; [Log 10-29] §4.0 decision 7 and §4.1 item 3 |
 | R10 | **Recompose the 12 runs with duplicate section pointers in the final round** (980, 1073, 1074, 1138, 1159, 1198, 1259, 1260, 1261, 1265, 1269, 1301), so their items re-sync through the projection; a Tier C cut alone does not re-sync. Repair through the pipeline, not by hand. | 10-21 | Operator: "Yes, recompose them"; [Plan] §4.1 item 4 |
 | R11 | **1309 §3922 ends at 284.9 s** (283.8 and 284.9 both fine; E21), banked as an operator edge. **1378 §4618 is two songs**, "What love could remember" then "When I Was Lost", changing in the 4356.4–4361.2 silence; split pending. A published song's edge may be set (its clip refreshes in place); a published sermon's may not. | 10-21 | Operator listening, Final open questions; [Plan] §4.1 |
 | R12 | **Structure reviews answered as proposed:** 1355 [4472, 4473], 973 [190537, 190538], 1287 [3604, 3605], 1288 [3617, 3618, 3619, 3621], 1327 [4152, 4153], 1366 [4571, 4572]; and 1065 [1683, 1684] (operator: "yes"). A reading running into the sermon may be reviewed into it. | 10-21 | Operator: "All as proposed"; [Plan] §4.1 |
@@ -250,302 +253,7 @@ song digital-zero bar, run 937's retirement).
 
 ## Appendix — the decision record of 3 September 2026 (word for word)
 
-Headings are nested one level deeper; nothing else changed. Its D1–D7 are summarised above as D1–D3
-and X1; its §4–§6 open items were settled or carried into the plan.
-
-## Historic import — decision record, 3 September 2026
-
-**Status:** Historical decision record. D1, D2/D3, D4, D5 and D7 were implemented
-and applied; later execution and review superseded its D6 and §4 status. See §6
-for what landed. The complete dated execution context is in the
-[archived video log](../archived-plans/HISTORIC-VIDEO-PILOT-TO-BULK-EXECUTION-LOG-2026-08-29-TO-2026-09-11.md);
-current containment and acceptance work is in the
-[focused video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md).
-
-Working tree was clean when these decisions were taken (`9f3f61cc2`). No code
-changed in the session that produced them; the implementation followed in the
-next one.
-
----
-
-### 1. Corrections to the existing record
-
-Three things previously believed turned out to be wrong. Check these before
-acting on any older note.
-
-**#935 was not a broken or unreadable source.** Its structure projection returned
-`other, other` with the notes *"fragmentary opening audio"*, *"unidentifiable
-service audio"*, and that was read as a source defect. It was not: run **#936
-processed the same recording 52 minutes later and completed** — twenty sections,
-a real sermon (*Serving God by his grace*, 2593.8–3789.0 s), sermon #876, not
-degraded. #935 was a **transient detector misread**.
-
-**The no-sermon rate is 2 of 53, not 3.** Across every historic run that produced
-a projected structure, only **#978** (`2024-02-11-evening`) and **#959**
-(`2023-07-16-morning`) lack a sermon section. #935 is out for the reason above.
-Of the two, #959 is already retired pending Phase 8, so **#978 is the only live
-case**.
-
-**Five of the six failed runs are stale attempts, not open questions.**
-
-| run | identity | why it is stale |
-|---|---|---|
-| #931, #934, #935 | `2024-01-14-morning` | all superseded by **#936**, which completed |
-| #937 | `2020-03-22-morning` | dead duplicate of **#938**, which completed 32 min later (same 1929 s, same 10.98 GiB) |
-| #959 | `2023-07-16-morning` | retired by operator decision 2026-09-01, deferred to Phase 8 |
-
----
-
-### 2. Decisions
-
-#### D1 — The detector may propose sermon-absence; the operator confirms it
-
-**Decided: detector proposes, operator confirms.**
-
-`OpenAiServiceStructureService`'s prompt already licenses this — *"A service has
-exactly ONE primary sermon unless one is genuinely absent"* — and
-`ServiceStructureMode` is `primary`, making the structure authoritative. But the
-projection has no structured way to *say* a sermon is absent; on #978 the finding
-landed in free-text `notes` (*"No conventional sermon, Bible reading or second
-song is present in the transcript"*) where nothing reads it. Meanwhile
-`SermonCandidateConfidenceService` decides from RMS speech segments alone and
-never consults the structure, so the run fails on
-`candidate_exceeds_maximum_duration` — a content fact discovered through the
-wrong instrument.
-
-**This overrules a claim recorded in the code.** `HistoricRunExclusion`'s
-docblock states *"'this recording holds no sermon' cannot be detected at all — it
-needs someone to watch the recording — so it is written here and nowhere else."*
-That was true when written, before the LLM-first structure pipeline went
-`primary`. #978 falsifies it. Update the docblock rather than leaving a
-contradiction in the tree.
-
-Confirmation is required rather than trusting the detector outright **because
-#935 exists**: transient misreads happen, and an unconfirmed verdict must surface
-as a review item rather than silently producing a sermon-less service.
-
-Implies:
-- A structured sermon-absence assertion in the projection schema
-  (`OpenAiServiceStructureService`, `ServiceStructure`), carrying what stood in
-  the sermon's place.
-- `ExtractSermon` / `SermonCandidateConfidenceService` honour it: the run
-  completes and keeps its sections instead of failing.
-- The service is held unconfirmed until the operator approves the occasion.
-- **Exclusion is the wrong instrument for #978** — `historic-import:exclude-run`
-  is terminal and would discard work we want to keep. Its seven sections and
-  church service 551 stay.
-
-#### D2 / D3 — A fixed `ServiceOccasion` enum, rendered publicly once confirmed
-
-**Decided: fixed enum, shown on the public service page only after confirmation.**
-
-Seed values: mission/guest presentation, carol service, baptism, communion,
-church anniversary, gift day. Free text was rejected — no filtering, no
-validation, and drift across spellings of the same occasion.
-
-The public page `church/services/{date}/{service}` already exists, already lists
-items, and already does not require a sermon. Gating the label on operator
-confirmation keeps the standing rule intact: **no unconfirmed model output
-reaches a public surface.** (This is why the service `summary` is stored but
-never rendered there — see `resources/views/church/services/show.blade.php`.)
-
-Also in scope, independent of the enum:
-`ChurchServiceArchiveSeoPresenter::detailDescription()` hardcodes *"The order of
-service, sermon, songs and readings for the…"*, which is simply wrong for a
-service with no sermon. One conditional.
-
-#### D4 — Retire all five stale runs
-
-**Decided: retire #931, #934, #935, #937 and #959** with operator notes, via
-`historic-import:retire-run`.
-
-They need truthful terminal dispositions for the Phase 8 exit gate regardless.
-Between them they pin ~1.3 GiB. **Verify on implementation whether retirement
-clears `Failed`** — `HistoricReviewSourceReclaimer::isEligibleRun()` excludes
-`Failed` *before* checking obligations, so a run that stays failed keeps pinning
-its source no matter what else is settled. #959 is superseded today and still
-pins 0.13 GiB, which suggests superseding alone is not enough.
-
-#### D5 — Retarget `structure_missing_preached_reading` to a missing reference
-
-**Decided: raise the review only when the sermon has no Scripture reference at
-all.**
-
-The flag is mis-targeted. It fires on "no `bible_reading` section within the
-900 s pairing window before the sermon", raised by
-`DetectServiceStructure::withSermonFlagged()` only after a **dedicated second
-detector pass** specifically re-asking about the reading
-(`readinglessSermonStart()`). `SermonAutoExtractionPolicy` already lists it in
-`NON_DISQUALIFYING_REVIEW_FLAGS`, with the comment that it *"questions what
-surrounds the sermon, not the sermon's own boundaries"* — the sermon extracts
-correctly either way.
-
-Yet it sets `needs_manual_review`, pinning ~2.2 GiB per run. **6 of the 8 flagged
-sermons already carry a `sermon_reference`** taken from the preaching itself
-(Philippians 1:3-8, Luke 20:41-44, Malachi 3:13-18, Acts 16:16-34,
-Revelation 1:1-8, Titus 3:1-8). Only §645 (#940) and §742 (#952) have none, and
-only those two give a reviewer anything to supply.
-
-Deleting the flag outright was rejected: #940 and #952 would then publish with no
-Scripture reference and nothing asking anyone to supply one.
-
-Effect: class goes 8 → 2; **#958, #966 and #979 release outright.**
-
-Rule this follows: *review earns its cost when the pipeline made a choice, not
-when it noticed a fact* — same basis as the `sermon_boundary_conflicting_evidence`
-deletion in `9f3f61cc2`.
-
-#### D7 — Instrument the staging-guard leak; do not chase it
-
-**Decided: add logging, leave the static baseline absorbing it.**
-
-Log depth and the live `historic_staging` disk root on every
-activate/deactivate across `Queue::before`, `Queue::after`,
-`Queue::exceptionOccurred` and `within()`'s own pair, so the next occurrence
-names its own path. It strands nothing today (the static baseline in `bfba2895a`
-makes the identity check immune) but fired **6 times in 3 runs in ~10 minutes on
-2026-09-03**, so it is frequent enough that evidence will arrive quickly.
-
-Escalate to a real repro only if it ever lands a run's durable output under a
-batch root it should not be under.
-
----
-
-### 3. Deferred
-
-**D6 — when pass 2 dispatches, and at what size.** Explicitly not decided.
-Inputs, measured 2026-09-03:
-
-- **19 slots free now.** `380 GiB free − 290 GiB Phase 8 output − 48.0 GiB
-  pinned = 42 GiB ÷ 2.2 GiB per unreviewed run`. The plan's older ~42 figure
-  predates op4 retaining source.
-- **Only 18 of 41 obligated runs still hold any bytes.** The other 23 ran under
-  operations 2 and 3, before retention landed; reviewing them frees nothing.
-- **The payoff is wildly uneven.** #970 (1 decision) 6.66 GiB, #982 (1) 6.51,
-  #974 (1) 4.92 — **three decisions release 18.1 GiB, 38% of everything
-  pinned**. Six runs / 15 decisions release 84%.
-- `HistoricStagingHeadroom` models only transient bytes and has no term for
-  cumulative durable output, so it **fails closed mid-pass rather than warning**.
-
-Worked queue, ordered by GiB released per decision:
-<https://claude.ai/code/artifact/9ec4d473-a34a-4996-a178-a9bddcfcc55b>
-(source: `storage/scratch/pass2-review-queue.html`).
-
----
-
-### 4. Operator items — only a person can settle these
-
-- **Confirm #978's occasion** once D1/D2 land: `2024-02-11-evening`, a London
-  City Mission "Operation Forgiveness" presentation evening.
-- **Work the review queue.** 41 obligated runs / 74 decisions. Irreducible
-  classes: `childrens_talk_speaker_review` (12, mandatory by design),
-  `unmatched_song_section` and `song_title_marker_mismatch` (identification).
-- **#959** (`2023-07-16-morning`, 405 s against a 64.8-min morning median) is on
-  the open-decisions list from 2026-09-01 as a children's talk. D4 retires the
-  run; whether the *identity* is reprocessed or excluded at Phase 8 is still open.
-
-### 5. Still open, not decided
-
-- **#937's `rms_generation` failure** — *"File size exceeds maximum allowed
-  size"* on a 10.98 GiB source. D4 retires the run as a duplicate, but the cap
-  itself is unexamined and will recur on the next oversized source.
-
----
-
-### 6. What was implemented, 2026-09-03
-
-Every decided item landed. D6 was not touched, and §4's operator items are still
-a person's to settle.
-
-#### D1 — sermon-absence assertion
-
-`sermon_absence` is a nullable object in the projection schema, carried as
-`App\Data\ServiceSermonAbsence` (occasion + explanation) on `ServiceStructure`
-and persisted with the rest of the structure. `ServiceStructure::fromSections()`
-drops any assertion sitting beside a detected sermon section — the sections are
-the detector's own timed reading and they win — and
-`MediaProcessingLog::assertedSermonAbsence()` reads back through the same
-reconciliation so a stray assertion can never stop a real extraction.
-
-`ExtractSermon` stands down before resolving a plan when the assertion is
-present, so `SermonCandidateConfidenceService` is never consulted about a
-question RMS duration cannot answer. The run then takes
-`ProcessingRunOrchestrator::concludeWithoutSermon()`, which dispatches the
-custody tail that still applies — `PromoteHistoricAssets` (a sermon-less service
-still has song videos and byte accounting) then `CleanupTemporaryFiles`, which
-completes the run.
-
-The service is held unconfirmed by a fifth review-source retention reason,
-`sermon_absence_unconfirmed`, so the source survives for someone to watch.
-`HistoricRunExclusion`'s docblock now separates *this service held no sermon*
-(detectable, and not an exclusion) from *this recording holds no sermon* (still
-only establishable by a person, and still what that class records).
-
-#### D2/D3 — `ServiceOccasion`
-
-A fixed enum with the six seed values, stored on `church_services.occasion` with
-`occasion_confirmed_at` beside it. The projector writes the proposal and never
-touches a confirmation; `ChurchService::confirmedOccasion()` is what public
-readers call, and the service page renders the label only through it.
-`services:confirm-occasion` is the operator's instrument — dry-run by default,
-`--occasion=none` is a real answer, and confirming releases the retention
-obligation. `detailDescription()` now takes whether the page actually shows a
-sermon rather than asserting one unconditionally.
-
-Both columns travel in the historic normal-output contract (version 5 → 6): the
-confirmation is a decision about what a public page may say, which is what the
-service manifest carries.
-
-#### D4 — the five stale runs
-
-Retired, with notes: #931, #934, #935 (superseded by #936), #937 (dead duplicate
-of #938) and #959 (already retired 2026-09-02, unchanged).
-
-The verification the decision asked for found **two** blockers, not one.
-`HistoricReviewSourceReclaimer::isEligibleRun()` tested `Failed` before
-obligations, so a retired run could never be released by settling anything else;
-`Failed` is now allowed for a retired run, which is terminal by operator
-decision. And `reviewSourceRetentionReasons()` read a retired run's *withdrawn*
-sections as live obligations — it now returns none for a retired run, with
-`scopeWithUnresolvedReviewObligation()` matching.
-
-A third finding: `apply()` skipped any run with `superseded_at` set, so #931,
-#934 and #935 — superseded by the projector, not by an operator — could never be
-given a disposition at all. The retirement *record* is now what makes a run
-retired; the supersession timestamp it already had is preserved.
-
-#### D5 — `structure_missing_preached_reading`
-
-`SectionReviewFlagPolicy` demotes the flag when the sermon carries a
-`sermon_reference`, so detection and reconciliation agree by construction.
-`services:recompute-section-review-flags`, scoped to the six affected services,
-took the class from 8 to 2 exactly as predicted: §645 (#940) and §742 (#952)
-keep it, and **#958, #966 and #979 released outright**.
-
-#### D7 — staging-guard instrumentation
-
-Every activate/deactivate records the depth it moved to, which of the four call
-sites moved it, the job, and the live `historic_staging` root. A root still
-carrying a batch directory at depth zero is the leak itself, so
-`HistoricStagingGuard::leakedActivationEvidence()` detects it and the registry
-logs that case as a warning carrying both paths; balanced transitions stay at
-debug.
-
-#### Released bytes
-
-2.63 GiB became reclaimable across four runs — #935 (1.19) and #959 (0.13) from
-D4, #958 (0.63) and #979 (0.68) from D5. The scheduled
-`media:cleanup-temp-files` sweep releases it; nothing was deleted by hand.
-
-#### Still owed
-
-- **#978 cannot be confirmed yet.** Its stored structure predates the schema and
-  carries no assertion, and the run is still failed at `manual_review_required`.
-  It has to be reprocessed under the new pipeline before the occasion is a
-  question anyone can answer — an LLM and FFmpeg run, so an operator decision.
-- **26 further stale review rows** are sitting in
-  `services:recompute-section-review-flags`'s unscoped dry run (12 inferred song
-  matches above the write-back threshold, 12 songs with a stale
-  `needs_manual_review`, 2 others). They are pre-existing drift unrelated to D5
-  and were deliberately left alone; the command is idempotent and safe to run
-  unscoped whenever they are looked at.
+The historical decision record and its implementation journal are preserved in the
+[pre-consolidation register snapshot](../archived-plans/HISTORIC-RULINGS-REGISTER-SNAPSHOT-2026-10-29.md#historic-import--decision-record-3-september-2026).
+Current rulings remain in §§1–12 above; superseded rulings stay in §13. Historical open items
+are not a second worklist.

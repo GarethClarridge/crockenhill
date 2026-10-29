@@ -8,8 +8,8 @@ executable active plans only; completed or superseded decision records live in
 `docs/archived-plans/`.
 
 The OoS email-parser redesign is archived and the shared semantic parser is the sole weekly/
-historic implementation. The historic plan now opens with a short execution brief; its long IC1–
-IC3 narrative is evidence, not backlog.
+historic implementation. The historic programme and video plan are current worklists; their completed execution
+journals are archived evidence, not backlog.
 
 ## Deploy-time actions
 
@@ -19,13 +19,29 @@ touched `.env` or production data. It is a running list, not a complete audit.
 
 ## How to use this index
 
-**Historic video (reconciled 2026-10-29):** start at the current handoff atop the
-[historic video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md), then its pre-freeze checklist (§4.1a), latest §5 record and
-acceptance work (§4.3–4.5). Its §3 counts and early §4.0 route list are dated evidence. Every ruling in force is in the
-[rulings register](HISTORIC-IMPORT-DECISIONS-2026-09-03.md); how a round runs is in the
-[round runbook](HISTORIC-ROUND-RUNBOOK.md). The boundary consistency, cut redesign and follow-up round
-plans were archived on 2026-10-16 beside the
-[10-03 to 10-16 execution log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md).
+**Historic work (consolidated 2026-10-29):** start with the
+[video worklist](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md) for the next local
+round, or the [programme §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16)
+for production convergence. The six documents have distinct responsibilities:
+
+| Document | Owns |
+|---|---|
+| This index | Navigation and ownership, no execution checklist |
+| [Programme](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Cross-source convergence, production census/apply, release policy and IC8 |
+| [Video worklist](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md) | Current processing work, dependencies and acceptance status |
+| [Round runbook](HISTORIC-ROUND-RUNBOOK.md) | Local round execution, isolation, watching and recovery |
+| [Rulings register](HISTORIC-IMPORT-DECISIONS-2026-09-03.md) | Binding operator rulings and supersession |
+| [Output audit](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md) | Quality checks, samples, agent-first review and acceptance ledger |
+
+The specialist [song measurement protocol](HISTORIC-SONG-ACCEPTANCE-MEASUREMENT-2026-10-11.md)
+continues to own its units and sampling contract. Complete pre-consolidation snapshots are in
+`../archived-plans/` with dated headers and links back to their active owners. Historical session
+notes, old counts and superseded “next” instructions are evidence, never a second backlog.
+
+**Keep this structure:** update current status in place; record each procedure once and link to it;
+link completed work to durable evidence; archive detailed execution journals. When retiring an
+old checkbox, cite its closure or carry it as explicitly unverified—do not silently drop it.
+Do not append another dated handoff below an obsolete one.
 
 - The historic import has **one** plan. Its §2 decision record, §3 safety model and §4 finding
   dispositions are binding; the archived predecessors hold finding/decision evidence only.

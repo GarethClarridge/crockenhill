@@ -35,6 +35,62 @@ or assembled, with minimal additional operator listening. Deliver an evidenced e
 coverage record and repair recommendations. This planning task authorises no processing,
 publication, production writes or new provider calls.
 
+## 0. Wider release confidence and who does the checks (2026-10-29)
+
+**Operator direction:** prefer Codex/Claude doing the checks over manual operator work wherever
+the available tools and evidence support it. Completing the processing checklist produces a
+release candidate, not accepted content. The following are investigation questions, not seven
+newly confirmed defect classes. They organise the existing acceptance work; they do not create
+another audit framework or replace the song protocol's measurements.
+
+| Question | Agent-led check and evidence required | Existing owner |
+|---|---|---|
+| What did we fail to produce? | Make the source-first outline before opening pipeline labels, reconcile expected talks, readings, songs and sermon parts with actual outputs, and inspect omitted intervals and substantial `other` sections. Include apparently clean services and the no-independent-OoS group. A file inventory derived from detected sections cannot establish that detection was complete; a planned item is not proof it was performed. | Passes B/C; §7 completeness/alignment |
+| Does the assembled sermon preserve its argument? | Check every assembled join against source and actual output for skipped premises, missing introductions, repetition and incorrect ordering. Assess the complete argument, not just fluent local transitions. Complete the existing five-service whole-output sample across eras, including repaired/previously held content, with both MP3 and video covered. | Passes B/C; §7 complete media |
+| Are agreeing checks repeating one inherited error? | Record the ancestry of service transcript, derived sermon text, structure and analysis. Independently select source interior windows before seeing labels; compare with final outputs, including omitted material. Use existing independent evidence first and authorised fresh media verification where needed. A second model reading the same transcript is not independent evidence of what was spoken. | Pass C and §5 apparent-pass sample |
+| Are descriptions true of the final recording? | Ground displayed titles, references, series, summaries and points in source evidence; distinguish a quoted objection from the preacher's claim and an incidental reference from the main passage. Verify named speakers or honest unknown wording, partial-recording disclosure, and thumbnail identity. Compare final stored/displayed fields with final media: preserved incumbent metadata and fresh banked analysis can differ after a rerun. Format validation, a valid Bible reference and analysis completion do not establish truth. | Pass B; §7 editorial fields |
+| Are the complete files sound, and are those the files delivered? | Fully decode final outputs; compare source channels with MP3/video audio, check synchronisation and inspect interiors as well as edges. Exercise playback, seeking, joins, resume, download and replacement freshness through the real server, including representative mobile/browser coverage. Verify destination object identity after promotion. Hashes and plausible durations do not prove content quality; local acceptance alone does not prove destination delivery. | Passes A/C; §7 delivery; programme §8 observation |
+| Do the outputs fit production's existing archive? | Compare production-only and local identities, including duplicate content under different dates/titles, morning/evening conflicts, existing richer metadata and service/media relationships. Produce explicit create/enrich/leave-alone dispositions and rehearse on a production copy. Local completeness cannot establish production convergence. | Programme plan §0.4 production census and §7 rounds |
+| Does release behave correctly on every surface? | Exercise the decided audience policy for sermons, songs, talks and services through listings, search, sitemaps, feeds, downloads and direct media URLs. Test bulk-release chronology, feed episode identity, old links, archive navigation and partial-recording wording outside the page. Record environment and access context; confirm destination behaviour in the authorised release window. These bulk effects are hypotheses to test, not confirmed bugs. | §7 delivery; programme §8 release policy |
+
+### Agent-first execution and escalation
+
+- Codex/Claude own evidence retrieval, inventories, source-first semantic review, metadata comparisons,
+  mechanical media checks, browser journeys, reconciliation and the concise findings report. Use
+  existing tools, fixtures and reports; no new general audit subsystem. Do not turn an automatable
+  comparison into an operator checklist or send a bulk listening page by default.
+- Reuse applicable operator rulings and hash-valid evidence. Inspect apparently clean cases as well
+  as flagged ones, under §5's declared sampling rules. Keep challenge cases separate from population
+  estimates. Changed artifacts invalidate only dependent checks, but those checks must be repeated.
+- State the modality actually used: text, fresh transcription, decoded media, frames, browser or
+  operator hearing. An agent may settle an audible question only with a capability that actually
+  examines the relevant audio; text-only tools must leave it unassessable. Normal-speed audible
+  judgment remains required by Q14. Existing expressly human listening gates are retained; agents
+  prepare their evidence and minimise the unanswered questions rather than silently waiving them.
+- Escalate only consequential uncertainty left after evidence retrieval and supported verification,
+  plus decisions reserved to the operator. Supply the precise question, why it remains unresolved,
+  shortest useful source/output excerpts, existing ruling if any, and a recommended disposition.
+  Cosmetic issues and accepted source limitations are recorded without manufacturing another round.
+- This assigns responsibility, not new execution authority: fresh transcription/provider work and
+  production mutations retain their existing authorisation rules. Signed release remains an operator
+  act. No findings are accepted or holds cleared by this documentation update.
+
+### Sequence and confidence report
+
+Keep the pre-freeze checklist bounded. During the authorised staged canary, take one representative
+service through the complete local acceptance journey above before bulk expansion; mark production
+and unavailable checks pending rather than calling the journey complete. Prepare the production
+census early, independently of local cut repair. After the round, finish current-output checks and
+editorial/song acceptance, reconcile production identities and rehearse a small era release before
+the separately authorised destination release and observation window.
+
+Report four distinct results: processing complete, content accepted, delivery verified, and release
+authorised. `HistoricProcessingResultReadinessService` checks operational/structural conditions and
+inventory consistency; it is not a semantic, audible or browser acceptance certificate. For each
+dimension give eligible/checked/unassessable counts, current artifact hashes, residual limitations
+and disposition. A green regression suite, empty queue or absence of alerts alone cannot establish
+release confidence. This section records a review direction, not a fresh corpus or production census.
+
 ## 1. Timing and frozen inputs
 
 Start after Claude records closure and the final backup. Do not query mutable processing state
@@ -78,8 +134,8 @@ after checking their contracts. Avoid a second general processing framework. Bui
 packet from data every run records, not from historic-only staging, so the same packet and rubric
 can check weekly runs after the take-over (§4.2); historic work exists to improve routine processing.
 
-This audit and the ruled-evidence capture (historic plan §4.6: 883 rulings, 168 captured, fixtures
-in `storage/scratch/rulings-capture-20261022/`) are siblings. The capture scores *where edges fall*
+This audit and the maintained ruled-evidence capture (video plan §4.6) are siblings. The old
+883-ruling/168-capture counts were superseded by later full capture and scoring. The capture scores *where edges fall*
 against rulings; this audit judges *whether the result makes sense*. Share their inputs, and do
 not re-derive an edge question the capture already answers. Any new extractor or
 validator needs tests for timestamp mapping, missing evidence, duplicated outputs and stale hashes;
@@ -163,52 +219,18 @@ Actual session capabilities above are the execution constraint; no Haiku integra
 
 ### Calibration evidence and scope of wider use
 
-The initial 24-case calibration is retained below as the clearance test, not a gate that the wider
-discovery workflow has passed. Luna/medium detected 5 of 8 registered material defects. A two-case
-Sol/high pilot did not resolve the two selected song-boundary misses: the text did not establish
-the actual audible content. Repeated model escalation cannot reconstruct missing evidence.
+The 24-case calibration did **not** establish cheap-only clearance: Luna/medium found 5 of 8
+registered material defects, and stronger text review could not settle two audible boundary misses.
+The operator approved wider lead discovery with verification, not automatic acceptance of passes.
+The 20-service pilot found four supported material issues through Luna and an independently found
+missing sermon opening (1027); the affected-class check and disjoint follow-up remain open.
 
-The subsequent 20-service batch supports narrower use: Luna raised 30 flags on 17 services;
-Sol supported 4 material and 16 minor findings, left 8 unresolved, rejected 1 and honoured 1 accepted
-exception. Independent source-first reviews of all 3 apparent passes found run 1027's omitted
-sermon opening. Its affected-class check covered only those 20 services. Run 1167's independent
-sentence-omission finding was downgraded to a minor thematic song handover after severity review.
-Results and hashes: `storage/scratch/overnight-20261023/audit/luna-batch20/batch-report.json`;
-the [historic plan's execution record](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md)
-contains the calibration and pilot history. These observations establish useful lead discovery,
-not a corpus defect rate or reliable cheap-only clearance.
-
-**Next batch completed — 2026-10-23:** `luna-batch50-02` froze 50 previously unpacketed
-services from Pass A, with membership seed `20261023`, packet hashes and the unchanged v2 rubric.
-Twenty-five fresh Luna/medium workers reviewed two services each, at most three active together,
-preserving source-first outlines before opening delivered evidence. Coverage: **54,658 source
-cues, 213 outputs**. Luna raised **39 flags on 29 services**; the other **21 are apparent passes**,
-not certified clean. Targeted Sol/high verification and coordinator editorial grouping produced
-**5 supported material, 16 minor, 13 evidence-unresolved, 3 rejected and 2 accepted-exception**
-dispositions. Four unresolved leads remain potentially material; the other nine are minor.
-Thirty-nine services have unassessable notes, including withheld items and transcription gaps;
-this is not a count of defective services.
-
-The five supported material findings are wrong named-preacher attribution on **967 and 975**,
-omitted foundational readings on **1066 (2 Chronicles 1) and 1148 (Revelation 5)**, and a final
-song retaining complete sentences of the following prayer on **932**. Exact replacement identities
-and repair edges still need their normal evidence checks. Potentially consequential transcript
-leads on **991, 1280, 1283 and 1323** await bounded new media evidence; repeated review of their
-correlated text cannot settle the spoken words. Existing start/closing-prayer acceptances on
-932 and 1379 were retained. A proposed cropped song opening on 1199 remains unresolved because
-the excluded words may be a permitted spoken introduction rather than singing.
-
-Artifacts: `storage/scratch/overnight-20261023/audit/luna-batch50-02/batch-report.json`,
-`coverage.json`, `findings.json`, `sol-verification.json`, effective citation checks, input/result
-hashes and the resumable queue. Citation corrections preserve raw answers separately; all effective
-citations validate. The corpus apparent-pass ledger is
-`storage/scratch/overnight-20261023/audit/apparent-pass-ledger.json`: population and hash records
-are saved, but final strata, selection and blind review remain pending wider coverage. No per-batch
-sample or automatic credit for pilot checks is claimed. All 50 service reviews explicitly screened sermon
-openings; this does not complete the independent corpus-wide affected-class check or its disjoint
-follow-up. Separate pending media records enumerate **213 decode checks and 48 assembled joins**
-for this batch. No decode, fresh transcription, repair, publication or production write occurred.
-Account usage and execution timestamps are recorded with the batch; no reset was redeemed.
+The later 50-service batch and partial next batch bring dated discovery coverage to 94 services.
+Exact findings, flags and modality limitations are preserved in the
+[audit evidence snapshot](../archived-plans/HISTORIC-POST-ROUND-AUDIT-EVIDENCE-2026-10-29.md#calibration-evidence-and-scope-of-wider-use)
+and `storage/scratch/overnight-20261023/audit/`. These are discovery observations, not a corpus
+failure rate. Current checkpoint and unfinished membership remain below; §7 tracks unresolved
+leads. Revalidate packet/output hashes before reusing any review after processing.
 
 **Original calibration contract (retain for future model/rubric comparisons):**
 
@@ -329,8 +351,8 @@ Deliver:
 2. Machine-readable coverage and findings with reproducible packet/sample identities.
 3. Small regression fixtures for newly confirmed classes when repairs are undertaken.
 
-Feed results into historic-plan §4.3's coverage/alignment matrix and §4.5's editorial/acceptance
-work; preserve rulings under §4.6. The song protocol remains authoritative for its measurement.
+Update this document's §7 acceptance ledger and the video plan's §4.5 status; preserve rulings
+under its §4.6. The song protocol remains authoritative for its measurement.
 Browser/access checks use the existing staging and production acceptance lane. This audit's source
 sample supplements, and does not silently replace, the predeclared release-membership sample.
 
@@ -371,3 +393,74 @@ All 27 flags now have a recorded disposition; unresolved evidence remains unreso
 deviations in 1147/1152 (packet metadata opened before outline preservation, delivered data afterward)
 are retained in coverage, rather than represented as fully blind source-first reviews.
 <!-- LUNA-CONTINUATION:END -->
+
+## 7. Acceptance ledger and reconciled obligations (2026-10-29)
+
+This is the single output-acceptance worklist, consolidating video-plan §§4.3/4.5. Procedures are
+in §§0–6 above; production authority belongs to the programme. Reconciliation used later dated
+records, not fresh corpus checks. “Revalidate” means closure was not established, not that the
+old case remains a confirmed defect. All counts below labelled historical must be recounted.
+
+| Work remaining | Completion evidence / scope |
+|---|---|
+| Source-to-output completeness and alignment | Every eligible MP3/video pair and clip mapped to source identity/hash and ordered executed spans, final hashes and stored object identity; expected talks/readings/songs, Scripture enrichment and downstream artifacts accounted for. Include each source audio channel and exact/near-duplicate searches by hashes, fingerprints and transcript similarity without first matching date/title/reference. |
+| Independent review and populations | §5 apparent-pass sample and missing-opening class check/disjoint follow-up; fresh release-membership sample across eras, partial/composite/split sources and repaired/previously held services. Declare seed, selection probabilities, denominators and limits before inspection. Separately draw 15 held runs across all dimensions so clearing one hold does not certify the rest. Keep targeted challenge cases separate from estimates. No general historic held-out set survives (H9); the song protocol has its own frame/contamination rules. |
+| Coverage and lineage | Per dimension: exact eligible membership/hash, checked/unassessable counts and reasons, instrument/version, thresholds, date, input/output hashes, lineage, limitations and disposition. Split mixed/partial populations; report no-independent-OoS services separately (152 was the old count), with era boundaries informed by observed codec/channel transitions. Distinguish intended from performed content. |
+| Complete media and delivery | Pass A full decode, every assembled join, corpus alignment, §0's five complete-service journeys and representative browser/codec/channel/mobile coverage; playback, middle/end/join seeking, resume, downloads and old-cache replacement. Repeat representative delivery/object checks in the authorised destination observation window. |
+| Controlled variations and recovery | Preserve the original variation contract: leading silence shifts times but not identity/order; split/rejoin preserves inventory; missing OoS increases uncertainty without invented content; wrong planned song produces disagreement; equal-duration recuts replace all dependent artifacts; one-channel/cancellation-prone audio preserves speech or flags inability. Test interruption at extraction, replacement upload, row linking and verdict preparation for consistent generations and effective holds. The 09-14 equal-duration fix and later held-reprocessed cases are completed evidence, not proof all interruption paths passed. |
+| Detector/transcript evaluation | Source-adjudicated positives, negatives, false negatives and unassessable results, uncertainty and review burden against predeclared criteria. Reconcile H10's 90 transcript-negative runs and H10b's dated 208-window queue with later answers; do not repeat already valid listening. Independently verify recovered service/sermon text, short-loop candidates and fluent meaning errors. Each class in `resources/detector-classes.json` needs regression evidence and a tested response or explicit decision not to automate; mock tests do not establish model quality. |
+| Song acceptance and current policy | Complete the [song protocol](HISTORIC-SONG-ACCEPTANCE-MEASUREMENT-2026-10-11.md): stage 2/M2/M4 and replacement of stale stage-1 results where bindings changed. Verify starts/tails, clean negatives, retained singing and adjoining speech against real output. Refresh existing candidates inside their owning staging context; policy decisions and holds must describe current artifacts. |
+| Final editorial fields | Ground title, slug, reference, series, speaker, songs, talk type, occasion, summary and points in evidence, checking meaning-changing transcript errors. Compare displayed incumbent fields with current banked analysis and final media; a fresh analysis need not overwrite populated fields. Named speakers require verification; unresolved identities use honest wording under P3. |
+| Speaker proposals and unresolved identity | Reuse the 19 confirmations in `storage/scratch/preacher-proposals-20261017/answers/rulings/`; verify which have been applied before proposing changes. Preserve three can't-tell answers and the rejected 2026-03-29 visiting-speaker inference. Verify all current named assignments, including previously unchecked sermons 845/850; old 423-default/16-named and 13-model-attribution counts are dated, not current membership. Speaker automation remains disabled; no retraining is authorised here. |
+| Thumbnails and partial recordings | After editorial QA, explicitly generate deferred thumbnails for exact release membership on the correct holding disk; verify frame within current spans, image quality and current text, including existing thumbnails. P5 disclosure must work on pages, feeds and downloads as applicable. The 10-29 code review found podcast summary wording absent and MP3 tags unchecked; verify/build/test before releasing partial recordings. |
+| Exposure and release handoff | Asset inventory, Scripture outcomes, quarantine visibility and notification containment verified; deliver accepted membership/holds to programme §§0.4/7/8 for production reconciliation, Bundle A, hymn convergence, signed release, observation and rollback. Do not duplicate the programme procedure here. |
+
+### Named residue requiring current-evidence reconciliation
+
+These old explicit cases must receive a traceable current disposition before their affected items
+are accepted. They are not automatic instructions to rerun old repairs or clear holds. Follow
+section identity through re-detection; an old section ID may now name different content.
+
+- **September song queue:** the 27 boundary candidates plus §3869; §988/§1475, §2897 and §1457;
+  72 deterministic identity cases and three fallback suggestions; 31 pending hint disagreements;
+  run 1287 §3596 / OoS item 11981 / song #797. Reconcile against later matching, accepted rulings
+  and actual output, then retain only unresolved residue. Preserve the original scope in the
+  [10-29 video snapshot §4.3](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#43-acceptance-evidence-still-owed).
+- **Q12 ending cohort:** reconcile later listening/hold dispositions for 1224, 1111, 1198, 962,
+  1005, 1240 and 1271; the register’s original 10-16 instruction is not a claim that all remain unheard.
+- **Transcript/hold cases:** 929/1008/1068/1187/1317 and §3869/§988 were contained in September;
+  later recovery may have changed their disposition. Reconcile rather than assume they still need
+  repair. Verify the standing hold instructions for 945 §669 and 1342 §4319 against current state.
+- **Audit discovery leads:** the current hash check governs reuse of 1011's cropped hymn evidence;
+  1027's missing opening triggered the corpus-wide check. Preserve 967/975 attribution leads,
+  1066/1148 omitted-reading leads, 932's prayer tail, 1096's conclusion/song-binding findings and
+  1147's prayer-request discussion until adjudicated against current artifacts. Media uncertainties
+  on 991/1280/1283/1323 and 1199 remain unresolved by text agreement. The frozen findings JSON,
+  not this abbreviated list, is the exhaustive ledger.
+
+### Reconciled closures and relocated work
+
+- Three duplicate/date adoptions were completed and their identity holds released in the 10-18
+  record. Video §4.4 now asks only current-membership verification; unrelated quality holds remain.
+- The 883/168-ruling capture backlog was superseded by full 10-23 capture/scoring and later updates;
+  video §§4.1a/4.6 own current ratchet/unassessable work. A prior failing count is not today's backlog.
+- Review-state re-derive/recompute/backfill/demotion was applied 10-25. Do not repeat it from the
+  superseded “apply next” instruction; current-output song policy checks remain above.
+- Access/content policy was decided 10-17. Programme §8 owns production enforcement and release.
+- Q1 review UI/consequences, weekly parity, weekly regression evidence and published-clip audit live
+  in video §4.2; source-master custody and post-release repair in §4.6; legacy transcription in
+  programme §6. None is silently closed by removing a duplicate checkbox.
+- Existing “not a defect” rulings are in the register: apply them instead of asking again. Only a
+  new, consequential uncovered case needs a new operator disposition.
+
+### Stopping rule
+
+Close acceptance only when every applicable row has current evidence, explicit coverage and
+limitations; expected omissions are reconciled; cheap instruments have covered their eligible
+membership; required independent samples, whole-output/media/delivery checks and controlled
+variations are complete; detector/song criteria are reported without retrospective threshold
+changes; and residual material uncertainty is contained or explicitly disposed of. Deferred or
+inapplicable subsets need scoped reasons. Follow §0's agent-first escalation and retain expressly
+human listening requirements. This is bounded confidence in these artifacts, not proof that unknown
+classes cannot remain. Record completion in place; put detailed execution results in hash-bound
+artifacts or a dated archive rather than extending this document with a session diary.
