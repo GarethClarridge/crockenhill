@@ -4,20 +4,65 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services\ChurchService;
 
+use App\Data\ChurchServiceTranscript;
+use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\DependentSongOpening;
 use App\Services\ChurchService\OutputEdgeDecodeWindow;
 use App\Services\ChurchService\OutputEdgeWordTimings;
+use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
+use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
-use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 class WideOutputEdgeWindowsTest extends TestCase
 {
     use DatabaseTransactions;
+
+    #[Test]
+    #[DataProvider('followOnWindows')]
+    public function a_follow_on_window_reaches_the_first_standalone_sentence_within_its_cap(array $cues, float $duration, ?float $expectedEnd): void
+    {
+        $log = MediaProcessingLog::factory()->make(['duration' => $duration, 'rms_log_path' => null]);
+
+        $window = app(DependentSongOpening::class)->window($log, $cues, 100.0);
+
+        if ($expectedEnd === null) {
+            $this->assertNull($window);
+
+            return;
+        }
+        $this->assertSame(100.0, $window['start']);
+        $this->assertSame($expectedEnd, $window['end']);
+    }
+
+    public static function followOnWindows(): array
+    {
+        $cues = [
+            ['start' => 100.0, 'end' => 102.0, 'text' => "And we're going"],
+            ['start' => 102.0, 'end' => 104.0, 'text' => 'to sing.'],
+            ['start' => 104.0, 'end' => 108.0, 'text' => "Let's stand."],
+            ['start' => 108.0, 'end' => 140.0, 'text' => 'Praise the Lord.'],
+        ];
+
+        return [
+            'multi-cue announcement and first standalone sentence' => [$cues, 500.0, 109.0],
+            'recording ends first' => [$cues, 108.5, 108.5],
+            'the standalone sentence exceeds the cap' => [[
+                ['start' => 100.0, 'end' => 104.0, 'text' => 'And sing.'],
+                ['start' => 104.0, 'end' => 130.0, 'text' => 'Praise the Lord.'],
+            ], 500.0, 115.0],
+            'standalone instruction needs no follow-on decode' => [[
+                ['start' => 100.0, 'end' => 104.0, 'text' => "So let's stand and sing."],
+            ], 500.0, null],
+        ];
+    }
 
     #[Test]
     #[DataProvider('measuredWindows')]
@@ -259,10 +304,10 @@ class WideOutputEdgeWindowsTest extends TestCase
     {
         $log = $this->runWithLevels();
         $log->putServiceTranscriptPath('service-transcripts/preparation.json');
-        Storage::disk('local')->put('service-transcripts/preparation.json', json_encode(\App\Data\ChurchServiceTranscript::fromCues([
+        Storage::disk('local')->put('service-transcripts/preparation.json', json_encode(ChurchServiceTranscript::fromCues([
             ['start' => 99.0, 'end' => 101.0, 'text' => 'The mercy of God.'],
         ], 500, 'mock')->toArray(), JSON_THROW_ON_ERROR));
-        $windows = app(\App\Services\ChurchService\PrepareOutputEdgeWordTimings::class)->windows($log->fresh(), [['start_time' => 100.0, 'end_time' => 400.0]]);
+        $windows = app(PrepareOutputEdgeWordTimings::class)->windows($log->fresh(), [['start_time' => 100.0, 'end_time' => 400.0]]);
         $this->assertCount(2, $windows);
         $this->assertSame([[98.0, 102.0], [85.0, 115.0]], array_map(static fn (array $window): array => [$window['start'], $window['end']], array_values($windows)));
     }
@@ -273,9 +318,9 @@ class WideOutputEdgeWindowsTest extends TestCase
         $log = $this->runWithLevels();
         $cues = [['start' => 99.0, 'end' => 101.0, 'text' => 'Mercy and grace.']];
         $log->putServiceTranscriptPath('service-transcripts/cached-sentence.json');
-        Storage::disk('local')->put('service-transcripts/cached-sentence.json', json_encode(\App\Data\ChurchServiceTranscript::fromCues($cues, 500, 'mock')->toArray(), JSON_THROW_ON_ERROR));
+        Storage::disk('local')->put('service-transcripts/cached-sentence.json', json_encode(ChurchServiceTranscript::fromCues($cues, 500, 'mock')->toArray(), JSON_THROW_ON_ERROR));
         foreach ([[80.0, 100.0], [100.0, 200.0]] as [$start, $end]) {
-            \App\Models\ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => \App\Enums\ServiceSectionType::Prayer,
+            ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Prayer,
                 'start_time' => $start, 'end_time' => $end]);
         }
         $evidence = app(OutputEdgeWordTimings::class);
@@ -288,7 +333,7 @@ class WideOutputEdgeWindowsTest extends TestCase
         $planner = app(CueSafeExtractionPlan::class);
         $placed = $planner->wordPauseEdge($log, $cues, 100.0, 'start');
         $this->assertNotNull($placed);
-        $check = app(\App\Services\ChurchService\SpokenEdgeSentenceCheck::class);
+        $check = app(SpokenEdgeSentenceCheck::class);
         $oldIdentity = $check->identityFor($log, $cues, $placed['words'], $placed['window'], 100.0, 'start', $placed['time']);
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, (new \ReflectionMethod($check, 'kind'))->invoke($check, $oldIdentity), ['identity' => $oldIdentity,
             'agreed' => true, 'decision' => 'keep', 'words_to_move' => '']);

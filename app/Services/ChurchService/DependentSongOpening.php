@@ -1,0 +1,168 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\ChurchService;
+
+use App\Exceptions\OutputEdgeTimingsMissing;
+use App\Models\MediaProcessingLog;
+
+/** Follow-on evidence for the linking announcements left at song starts (10-29 study). */
+class DependentSongOpening
+{
+    private const LINKING = ['and', 'but', 'or', 'because', 'then'];
+
+    /**
+     * As {@see Structure\SongSpeechEdges}: a song left this short is a fragment (1073 §1715, a 4 s
+     * play-through split from its song), and dropping its announcement would leave a sub-second output.
+     */
+    private const MINIMUM_REMAINING_SECONDS = 30.0;
+
+    /**
+     * Cue times select text only; they never authorise a cut. Keep a sentence spanning several cues,
+     * and recognise stops inside a cue. A sentence without a stop is not a droppable sentence.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @return list<array{start: float, end: float, text: string, complete: bool}>
+     */
+    public function sentences(array $cues, float $cut): array
+    {
+        $sentences = [];
+        $current = null;
+        foreach ($cues as $cue) {
+            if ($cue['start'] < $cut - 0.3 || $cue['start'] > $cut + 40.0) {
+                continue;
+            }
+            foreach (preg_split('/(?<=[.!?])\s+|(?<=[.!?]["”\x27])\s+/u', trim($cue['text'])) ?: [] as $piece) {
+                $current ??= ['start' => $cue['start'], 'end' => $cue['end'], 'text' => '', 'complete' => false];
+                $current['text'] = trim($current['text'].' '.$piece);
+                $current['end'] = $cue['end'];
+                if (preg_match('/[.!?]["”\x27]?$/u', $piece) === 1) {
+                    $current['complete'] = true;
+                    $sentences[] = $current;
+                    $current = null;
+                }
+            }
+        }
+        if ($current !== null) {
+            $sentences[] = $current;
+        }
+
+        return $sentences;
+    }
+
+    /** @param array{start: float, end: float, text: string, complete: bool} $sentence */
+    public function linking(array $sentence): bool
+    {
+        return in_array(TranscriptCueEvidence::tokens($sentence['text'])[0] ?? '', self::LINKING, true);
+    }
+
+    /**
+     * Decode through the first standalone sentence, to the same 0.8 s pause and 15 s cap as edge
+     * evidence. Starting at the current cut keeps this evidence separate from its old timing window.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @return array{start: float, end: float, window_rule: string}|null
+     */
+    public function window(MediaProcessingLog $log, array $cues, float $cut): ?array
+    {
+        $sentences = $this->sentences($cues, $cut);
+        if ($sentences === [] || ! $this->linking($sentences[0])) {
+            return null;
+        }
+        $target = $cut;
+        foreach ($sentences as $sentence) {
+            $target = max($target, $sentence['end']);
+            if (! $this->linking($sentence)) {
+                break;
+            }
+        }
+        $windows = app(OutputEdgeDecodeWindow::class);
+        $levels = $windows->levels($log);
+        $bounds = $levels === null ? null : $windows->bounds($levels['samples'], $levels['threshold'], $target, $log->duration);
+        $end = min($log->duration ?? INF, $cut + 15.0, max($target + 0.5, $bounds['end'] ?? $target + 1.0));
+        if ($end <= $cut) {
+            return null;
+        }
+
+        return ['start' => $cut, 'end' => $end, 'window_rule' => 'dependent-song-opening-pause-0.8-cap-15-v1'];
+    }
+
+    /**
+     * Missing, looping or non-matching evidence is a soft miss. Only the complete transcript
+     * sentence's exact decoded words can move a cut; cue ends never supply a timing.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @return array{time: float, dropped: list<string>, stopped: string, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, window: array{start: float, end: float, window_rule: string}|null}
+     */
+    public function review(MediaProcessingLog $log, array $cues, float $cut, float $until): array
+    {
+        $window = $this->window($log, $cues, $cut);
+        $result = ['time' => $cut, 'dropped' => [], 'stopped' => 'not_linking', 'word_before' => null, 'word_after' => null, 'window' => $window];
+        if ($window === null) {
+            return $result;
+        }
+        try {
+            $words = app(OutputEdgeWordTimings::class)->read($log, $window)['words'];
+        } catch (OutputEdgeTimingsMissing) {
+            return [...$result, 'stopped' => 'missing_decode'];
+        }
+        $tokens = [];
+        foreach ($words as $index => $word) {
+            foreach (TranscriptCueEvidence::tokens($word['word']) as $token) {
+                $tokens[] = ['token' => $token, 'index' => $index];
+            }
+        }
+        $sentences = $this->sentences($cues, $cut);
+        $normal = array_map(static fn (array $sentence): array => TranscriptCueEvidence::tokens($sentence['text']), $sentences);
+        foreach ($sentences as $position => $sentence) {
+            $result['stopped'] = 'not_linking';
+            if (! $this->linking($sentence)) {
+                break;
+            }
+            $result['stopped'] = 'incomplete_sentence';
+            if (! $sentence['complete']) {
+                break;
+            }
+            $expected = $normal[$position];
+            $result['stopped'] = 'transcript_loop';
+            if (($normal[$position - 1] ?? null) === $expected || ($normal[$position + 1] ?? null) === $expected) {
+                break;
+            }
+            $result['stopped'] = 'not_announcement';
+            if (array_intersect($expected, ['sing', 'sang', 'sung', 'singing', 'stand', 'standing', 'song', 'hymn', 'chorus', 'number', 'chosen', 'played']) === []) {
+                break;
+            }
+            $matches = [];
+            for ($at = 0; $at + count($expected) <= count($tokens); $at++) {
+                if (array_column(array_slice($tokens, $at, count($expected)), 'token') !== $expected) {
+                    continue;
+                }
+                $first = $tokens[$at]['index'];
+                $last = $tokens[$at + count($expected) - 1]['index'];
+                if (($tokens[$at - 1]['index'] ?? null) === $first || ($tokens[$at + count($expected)]['index'] ?? null) === $last
+                    || $words[$first]['start'] < $result['time'] - 0.3 || $words[$last]['end'] <= $result['time']
+                    || $words[$last]['end'] > $window['end'] || $words[$last]['end'] <= $words[$last]['start']) {
+                    continue;
+                }
+                $matches[] = [$first, $last];
+            }
+            $result['stopped'] = count($matches) > 1 ? 'ambiguous_decode' : 'decode_mismatch';
+            if (count($matches) !== 1) {
+                break;
+            }
+            [, $last] = $matches[0];
+            $result['stopped'] = 'span_end';
+            if ($words[$last]['end'] > $until - self::MINIMUM_REMAINING_SECONDS) {
+                break;
+            }
+            $result['time'] = $words[$last]['end'];
+            $result['word_before'] = $words[$last];
+            $result['word_after'] = $words[$last + 1] ?? null;
+            $result['dropped'][] = $sentence['text'];
+            $result['stopped'] = 'transcript_end';
+        }
+
+        return $result;
+    }
+}

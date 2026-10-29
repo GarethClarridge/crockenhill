@@ -30,7 +30,15 @@ class PrepareOutputEdgeWordTimings
      */
     public function prepare(MediaProcessingLog $log, array $spans, ?ChurchServiceTranscript $transcript = null): array
     {
-        $windows = $this->windows($log, $spans, $transcript);
+        return $this->prepareWindows($log, $this->windows($log, $spans, $transcript));
+    }
+
+    /**
+     * @param  array<string, array{start: float, end: float, window_rule?: string}>  $windows
+     * @return array{windows: int, decoded: int, compute_seconds: float}
+     */
+    public function prepareWindows(MediaProcessingLog $log, array $windows): array
+    {
         $pending = [];
         foreach ($windows as $kind => $window) {
             try {

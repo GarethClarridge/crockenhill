@@ -361,6 +361,28 @@ for source in ('sermon-end-no-song-20261028', 'sermon-own-last-line-20261028', '
         source, load(f'{source}/questions.json'), list(saved(f'{source}/answers').values()),
     ))
 
+# 10-29: song starts the dependent-opening rule moves (A "now", B "new"), 1311's ruled start against the start
+# now, and starts the rule leaves alone, heard alone ("right" keeps the start heard). 1096's "later" opens later
+# than heard; its note names two places and stays in the note.
+leaning_questions = load('dependent-opening-listening-20261029/questions.json')
+leaning_answers = saved('dependent-opening-listening-20261029/answers/rulings')
+# A page version is A or B by its order on the page; a lone version is B, the cut heard.
+leaning_letters = {q['id']: dict(zip(q['key']['times'], ('a', 'b') if len(q['key']['times']) == 2 else ('b',)))
+                   for q in leaning_questions}
+records.extend(edge_listening_rulings(
+    'leaning-openings-20261029',
+    [{**q, 'key': {**q['key'], 'times': {leaning_letters[q['id']][name]: time for name, time in q['key']['times'].items()}}}
+     for q in leaning_questions],
+    [{**answer, 'choice': {**leaning_letters[question_id], 'either': 'both', 'right': 'b'}.get(answer['choice'], answer['choice'])}
+     for question_id, answer in leaning_answers.items()],
+))
+for question in leaning_questions:
+    answer = leaning_answers.get(question['id'])
+    if answer is not None and answer['choice'] in ('later', 'earlier'):
+        add('leaning-openings-20261029', answer, run=question['run'], edge='start', heard=question['key']['times']['now'],
+            output='section', section_id=question['key']['section'], section_type='song',
+            expect='inward' if answer['choice'] == 'later' else 'outward')
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {

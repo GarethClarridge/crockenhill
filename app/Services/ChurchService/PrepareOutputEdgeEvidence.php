@@ -71,6 +71,23 @@ class PrepareOutputEdgeEvidence
             $summary['exposed_edges'] = $this->prepare->prepare($run, $followup);
             $run->refresh();
         }
+        $cues = app(OutputEdgeWordTimings::class)->cues($run);
+        $dependent = app(DependentSongOpening::class);
+        $windows = [];
+        foreach ($run->serviceSections()->where('section_type', ServiceSectionType::Song)->orderBy('start_time')->get() as $section) {
+            $plan = $this->cutPlans->forSpans($run, [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]], songEnds: true);
+            foreach ($plan['segments'] as $span) {
+                $window = $dependent->window($run, $cues, (float) $span['start_time']);
+                if ($window !== null) {
+                    $evidence = app(OutputEdgeWordTimings::class);
+                    $windows[$evidence->kind($evidence->identity($run, $window))] = $window;
+                }
+            }
+        }
+        if ($windows !== []) {
+            $summary['dependent_openings'] = $this->prepare->prepareWindows($run, $windows);
+            $run->refresh();
+        }
         // Asked of the cuts the decoded words place, so only once they are decoded.
         $summary['sentence_check'] = $this->sentenceCheck->prepare($run, $composition['selected_section_ids']);
         $run->refresh();

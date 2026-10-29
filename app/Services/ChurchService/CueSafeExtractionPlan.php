@@ -438,6 +438,27 @@ class CueSafeExtractionPlan
         if ($songEnds) {
             $spans = $this->atSongChangeDip($log, $cues, $sectionSpans, $spans, $audit, $levels);
             $spans = $this->atSongChangeDip($log, $cues, $sectionSpans, $spans, $audit, $levels, start: true);
+            foreach ($spans as $index => &$span) {
+                $cut = (float) $span['start_time'];
+                $dependent = app(DependentSongOpening::class)->review($log, $cues, $cut, (float) $span['end_time']);
+                if ($dependent['window'] === null) {
+                    continue;
+                }
+                $entry = ['span_index' => $index, 'edge' => 'start', 'original_time' => $cut, 'time' => $cut,
+                    'seconds_added' => 0.0, 'seconds_moved' => 0.0, 'reason' => 'song_start_dependent',
+                    'text_disagreement' => false, 'dependent_opening' => $dependent];
+                if ($dependent['time'] > $cut) {
+                    $decision = $this->afterDroppedWordSounds(['time' => $dependent['time'],
+                        'chosen_pause' => ['start' => $dependent['time'], 'end' => min((float) $span['end_time'], $dependent['word_after']['start'] ?? $dependent['window']['end'])],
+                        'word_before' => $dependent['word_before'], 'word_after' => $dependent['word_after']], $levels);
+                    if ($decision['time'] < $span['end_time']) {
+                        $span['start_time'] = $decision['time'];
+                        $entry = [...$entry, ...$decision, 'seconds_added' => $decision['time'] - $cut, 'seconds_moved' => $decision['time'] - $cut];
+                    }
+                }
+                $audit[] = $entry;
+            }
+            unset($span);
         } else {
             $spans = $this->withDeadFeedOpeningCheck($log, $cues, $spans, $audit);
         }

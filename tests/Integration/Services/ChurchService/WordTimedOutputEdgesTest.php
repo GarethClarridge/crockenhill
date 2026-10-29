@@ -8,6 +8,7 @@ use App\Data\ChurchServiceTranscript;
 use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\DependentSongOpening;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
 use App\Services\ChurchService\Structure\DeadFeedInsideSection;
@@ -468,6 +469,47 @@ class WordTimedOutputEdgesTest extends TestCase
         $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 1290.0, 'end_time' => 1505.0]]);
 
         $this->assertGreaterThanOrEqual(1505.99, $plan['segments'][0]['end_time']);
+    }
+
+    #[Test]
+    #[DataProvider('dependentAnnouncements')]
+    public function a_song_drops_only_a_matching_non_looping_linking_announcement(string $text, string $decoded, int $droppedWords, bool $bankFollowOn = true, float $end = 4900.0): void
+    {
+        $cue = ['start' => 100.0, 'end' => 110.0, 'text' => $text];
+        $log = $this->log($cue);
+        $timing = [['start' => 100.0, 'end' => 100.2, 'word' => 'And']];
+        $this->bank($log, $cue, $timing);
+        $words = [];
+        foreach (explode(' ', $decoded) as $i => $word) {
+            $words[] = ['start' => 100.0 + $i * 0.2, 'end' => 100.2 + $i * 0.2, 'word' => $word];
+        }
+        $window = app(DependentSongOpening::class)->window($log, [$cue], 100.2);
+        if ($bankFollowOn && $window !== null) {
+            $evidence = app(OutputEdgeWordTimings::class);
+            $identity = $evidence->identity($log, $window);
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => $words]);
+        }
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 100.0, 'end_time' => $end]], songEnds: true);
+
+        $this->assertEqualsWithDelta(($droppedWords === 0 ? 100.2 : 100.0 + $droppedWords * 0.2), $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    public static function dependentAnnouncements(): array
+    {
+        return [
+            '1023 announcement followed by standalone instruction' => ["And we're going to sing. Let's stand and sing.", "And we're going to sing. Let's stand and sing.", 5],
+            'a chain ends at the first standalone sentence' => ['AND sing. Then stand. Praise the Lord.', 'and sing. then stand. Praise the Lord.', 4],
+            '1226 sung line' => ['And then he is exalted. The king is exalted on high.', 'And then he is exalted. The king is exalted on high.', 0],
+            '1042 transcript loop' => ["And then we'll sing. And then we'll sing.", "And then we'll sing. And then we'll sing.", 0],
+            'decoder does not match' => ['And then sing.', 'Thank you.', 0],
+            'missing decode is a soft miss' => ['And then sing.', 'And then sing.', 0, false],
+            'announcement words are whole words' => ['And a songbird sings.', 'And a songbird sings.', 0],
+            '1096 title without announcement word' => ['And secondly I know my Redeemer lives.', 'And secondly I know my Redeemer lives.', 0],
+            'cannot consume the whole span' => ['And then sing.', 'And then sing.', 0, true, 100.6],
+            '1073 play-through fragment keeps under 30 s' => ['And then sing.', 'And then sing.', 0, true, 125.0],
+            'unfinished sentence' => ['And then sing', 'And then sing', 0],
+        ];
     }
 
     /**

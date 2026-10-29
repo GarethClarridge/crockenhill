@@ -5643,7 +5643,7 @@ builder `storage/scratch/start-margin-listening-20261027/`). The three starts th
 against a ruling or with none: 1023 §1361 (A ruled / B now 24:48.42 / C 24:49.15), 1348 §4399 (B 55:04.86 /
 C 55:05.30), 1225 §165330 (B 41:21.64 / C 41:21.85). The rule is built only if the answers back C.
 
-#### 10-27 night: start margin built; dependent song openings — plan (step 1 done 10-28; step 2 revised, not built)
+#### 10-27 night: start margin built; dependent song openings — plan (steps 1–2 and step 3 measurement done; listening with Claude, not adopted)
 
 **Start margin answered and built (uncommitted).** Song Start Margin answers: 1023 §1361 **C**, 1348 §4399
 **either**, 1225 §165330 **either** (source `start-margin-20261027`, three rulings; they supersede the
@@ -5685,7 +5685,7 @@ placed from decoded words:
   the leaning sentence's end was never decoded. Where it was, sung words are drawn out (1226's "exalted" 1.38 s,
   1311's "sing." 9.04 s) and spoken ones are not (1096, 1270, 1283: medians 0.24–0.33 s, maxima ≤ 1.06 s).
 
-**Plan (planned, not built; one step at a time, each stopping for the operator):**
+**Plan (step 3 measured below; listening with Claude, not adopted; each step stops for the operator):**
 1. **Evidence: decode past the cut.** For a song start whose transcript after the cut opens with a linking word,
    bank a follow-on decode window from the cut to the first sentence end that does not open with one, by the
    same pause rule and 15 s cap as `OutputEdgeDecodeWindow`. Local Whisper only; no paid calls. Bank for the
@@ -5735,6 +5735,145 @@ do not recover the expected text (1042 and 1104 decode "Thank you"; 1311's repea
   is 19 hand-picked edges, so step 3 measures it across the corpus before anything is adopted.
 - **Of the 13 candidates without words**, nine have no saved placement reason and five were stopped by lyric
   overlap or missing lyrics (one is in both); none has a follow-on decode yet (`handoff.md`).
+
+**Step 2 built (10-29, Codex; uncommitted, not adopted).** Scratch evidence and candidate measurement:
+`storage/scratch/dependent-opening-step2-20261029/` (`current-candidates.json`, `manifest.json`, `decodes/`,
+`candidate-measure.csv`, `measured-candidates.json`, `summary.json`). All 32 starts were re-taken from the current
+planner before the change. Of the original 19, only 1023 changed: 1488.42 → 1489.15. All 32 follow-on windows
+were decoded with local Whisper only, including the 13 previously missing candidates; receipts retain clip
+hashes and request options. The absolute word timings are banked as separate, version/model-bound edge-word
+artifacts; neither transcripts, output files, statuses nor rulings were changed.
+
+`DependentSongOpening` selects complete transcript sentences, requires an announcement word and exact normalised
+decoded words, rejects consecutive repeated sentences, and repeats only across linking announcements. Missing or
+non-matching evidence leaves the start alone. `CueSafeExtractionPlan` applies the existing first-quiet margin
+after the last dropped sentence and retains the span-end bound; explicit operator cuts remain last.
+`PrepareOutputEdgeEvidence` prepares these follow-on windows at current song cuts before sentence checks.
+The two new announcement regression cases failed before the rule; all ten announcement/guard cases pass with it.
+
+**Candidate measurement, not the step 3 whole-corpus scan:** 11 starts move, all among the original 19; none of
+the additional 13 moves. Moves: 948 §711 +6.70 s, 1273 §3421 +8.40, 1023 §1361 +6.60, 1073 §1715 +5.44,
+1174 §2332 +7.70, 1220 §2707 +3.118, 1241 §2998 +5.04, 1270 §3385 +6.70, 1348 §4397 +3.94,
+939 §173071 +5.98, 981 §1052 +2.26. The CSV records the dropped text, decoded text and stopping condition for
+every candidate. 1226 stays put; 1042's loop stays put; 1104 and 1311 do not match. Soft misses include
+1234 (`sing` / decoded `seek`) and 1283 (transcript `And after`, decode `After`). No duration test was added.
+
+**Correction to the step 1 claim that neither sung line has an announcement word:** 1241's transcript and decode
+both contain “because Christ is our solid rock, on which we **stand**.” `stand` is explicitly in the agreed list,
+so the proposed rule moves this known sung line. This is a demonstrated limitation of the proposed criterion,
+not evidence approving that cut. Keep it on the step 3 listening page alongside the already-required mixed
+1174 and unrecovered 1042/1104/1311; do not adopt this rule or refresh acceptance fixtures before that review.
+1273's follow-on decode also hears “Before we do that, we're going to sing again” before its matching linking
+sentence, despite the cue-based candidate scan excluding that earlier cue: the listening comparison must show
+the whole current opening. Whole-corpus measurement, active-ruling scoring and the listening page remain step 3.
+
+**Validation (10-29):** 136 focused cases pass (132 in the edge/preparation run, plus four new window cases;
+the complete window test file passes 38/38). PHPStan: zero errors; Pint and diff whitespace checks pass.
+The full parallel suite completed 10,834 tests with four failures, all on the already-recorded sermon-end
+defects: three captures of 1288's merged Amens (3755.31 vs ruled 3754.30) and one of 968's split sentence
+(2670.90 vs ruled 2692.61). A targeted replay of those runs confirms four failures and one pass. These are
+sermon plans, which do not run the new song-start branch; their separate plans above remain open. Full output
+is retained in the step 2 scratch folder (`full-suite.log`, `known-sermon-failures.log`). No acceptance fixtures
+were changed and no output was re-extracted. Step 3 measurement follows below; listening and adoption remain pending.
+
+**Step 3 measured (10-29, Codex; listening page left to Claude at the operator's request).** Results and
+reproducible inputs are in `storage/scratch/dependent-opening-step3-20261029/`. The comparison uses the current
+`forSection` planner, including explicit operator edges, with only `DependentSongOpening::review` disabled for
+**now** and enabled for **new**. HTTP is blocked in the scans; database transactions are rolled back. The rule,
+rulings and acceptance fixtures were not changed, and no output was re-extracted.
+
+**Scope and coverage.** The live inventory has 1,262 historic song sections; 29 belong to superseded runs and
+are excluded explicitly. All **1,233 authoritative song outputs on 301 runs** were attempted. **1,220 are
+measurable**. These are exactly the still-authoritative members of the earlier 1,224-output corpus: the four
+on superseded run 1378 are retired. The remaining **13 cannot reach the new rule**, because the current baseline
+planner lacks edge word timings: six newly detected sections on 1051 (2) / 1098 (4), and seven on failed runs
+1143 (5) / 1145 (2). `coverage-gaps.csv` lists each section and exact missing window; they are not counted as rule
+refusals or as successfully measured cuts. Every comparable member of the earlier corpus is covered.
+
+**39 linking openings: 11 move, 28 stay.** The 11 moves are exactly the candidate moves listed under step 2;
+there are no additional moves elsewhere in the corpus, no changed song ends or segment shapes. Eight moves
+exceed 5 s; the largest is 1273's 8.40 s. `moved-starts.csv` records every old/new boundary, dropped text,
+decoded text and ruling score. `declined-starts.csv` records all 28 refusals and their text/words: **10 without
+an announcement word, 7 decode mismatches, 4 transcript loops, 7 incomplete transcript sentences**.
+
+The seven incomplete openings were missed by the original punctuation-based candidate inventory: 974 §997,
+991 §1174, 1112 §3739, 1224 §2765, 1285 §3575, 1298 §175943, 1329 §4175. All seven follow-on windows were decoded
+and banked using **local Whisper only**, with source/clip hashes, request options and receipts in `decodes/`
+and `decode-banking.json`. No linking candidate remains without follow-on evidence. Their transcript sentences
+have no evidenced complete stop, so the current rule declines them even where the new decode recovers a spoken
+introduction. No new sentence rule was added to turn those soft misses into cuts.
+
+**Active-ruling score.** The latest ruling on each resolved current song start is used, following the replay's
+section mapping, timing tolerances, quiet-only allowance and discrete `either` points. **219 starts have active
+rulings: now meets 207, new meets 204.** The three new disagreements are exactly the three moved ruled edges:
+**981 §1052**, **1023 §1361**, **1273 §3421**. Their previous cuts remain acceptable evidence; the 10-27 policy
+permits improving the optional introduction, but only the next listening answers may supersede those rulings.
+The other **12 disagreements already exist in now and are unchanged by this rule**; they are listed separately
+in `summary.json` and `active-ruling-scores.csv`. No older ruling was silently dropped or rewritten to pass.
+
+**Claude handoff.** `claude-listening-handoff.json` contains the full measured context and a recommended
+**19-output queue**: all 11 moves (therefore every moved ruled edge, every >5 s move, 1174 and 1241), the three
+unrecovered current openings (1042 / 1104 / 1311), four decline-reason samples and sung control 1226. It includes
+the now/new segment boundaries, dropped text, decoded words, active rulings and transcript context. The
+**1241 sung-line risk**, **1174 mixed sentence**, and **1273's earlier decoded standalone introduction** are
+explicit flags. No listening page, listening questions or answers were created. Claude owns the page; the
+operator's answers and step 4 adoption remain pending.
+
+**Listening page (10-29, Claude): "Leaning Song Openings"** https://claude.ai/artifact/TGXPo9a1yq2vB1ET4U9ZCE,
+`rulings` collection, ids `<run>-<section>-start`; builder and key `storage/scratch/dependent-opening-listening-20261029/`
+(`build.php`, `questions.json` with `times`). 18 of the 19 queued: 10 moves as A = now / B = new (choices `now`,
+`new`, `either`, `neither`, `unsure`); 1311 as A = its 10-08 ruled 1255.6 / B = now 1254.18 (`ruled` / `now`); seven
+unchanged openings as one clip (`right`, `later`, `earlier`, `unsure`). **1073 §1715 is left off:** that output is a
+5.8 s play-through fragment (§1715, 2694.66–2698.66) split from the song's §1716 (2710–2888.66), and the rule would
+cut it to 0.34 s. That is a split-section defect, not a listening question, but step 4 needs a guard or the
+fragment fixed before adoption.
+
+**Answered 10-29 (18/18; `answers/rulings/` in the builder folder).**
+- **Moves: 10 of 10 accept the rule's cut.** B (new) on 939, 948, 981, 1023, 1174, 1241, 1270, 1273, 1348; either on
+  1220 (two points, 649.58 and 652.70). No A. The three ruled edges (981, 1023, 1273) are superseded by B.
+  **1241 is spoken, not sung:** the risk named in step 2 does not hold here, so no lyric guard is needed for it.
+  **1174 B:** the mixed sentence is an announcement; no lyric-tail guard (per step 2, one comes only if this said wrong).
+- **Left alone: 5 right** (1059, 1104, 1226, 1244, 974), so the sung control, a loop, an incomplete sentence and a
+  decode mismatch all stay. **1311 either:** ruled 1255.6 and now 1254.18 are both acceptable, which resolves that
+  existing disagreement. **1042 unsure** ("can't really tell from this clip"): no ruling, still open.
+- **1096 later:** "Should start either at 'let's stand and sing', or after that." This is the expected soft miss: "And
+  secondly, I know that my Redeemer lives." names the song with no announcement word. Two acceptable points (start of
+  "Let's stand and sing." and after it). It is a mechanism candidate, not a one-off: a linking sentence that names the
+  song (title match against the catalogue) as an announcement. Not measured or built.
+
+**Step 4 adopted (10-29, operator: "Yes, do all that"; Claude).**
+- **1073 guard.** `DependentSongOpening::MINIMUM_REMAINING_SECONDS` (30 s, as `SongSpeechEdges`): the rule never
+  moves a start that would leave under 30 s of its span (stop `span_end`). Red-to-green as the data case
+  "1073 play-through fragment keeps under 30 s" in `WordTimedOutputEdgesTest`; the provider already held 1023's
+  opening, the 1226 sung line, the 1042 loop and a non-matching decode. None of the ten heard moves is near the
+  bound. The §1715/§1716 split itself stays a separate defect.
+- **Rulings.** `gather.py` reads the page (source `leaning-openings-20261029`): 17 rulings (1042's "can't tell"
+  left out); 1096's "later" is `inward` from 1252.29. They supersede 981 (`wider-decode`), 1023 (`start-margin`),
+  1104 and 1273 (canary 13's §3421 entry). Canary 15's id-less 1273 pair start stays unflagged in the register,
+  but the replay maps it to §3421 by nearest section, and the 10-29 answer is newer, so it no longer applies.
+- **Fixtures** (`storage/scratch/leaning-fixtures-20261029/`, capture copy with HTTP and OpenAI blocked): 16 new
+  datasets `run-*-2026-10-29-leaning.json.gz`, each live cut equal to the cut heard. 1096 is not captured: the
+  code does not meet its ruling (ratchet). All 22 existing files on the ten moved runs (58 unique entries) were
+  recaptured `--current` and refreshed from the committed files (`refresh.py`; prior files in `before/`).
+  Replay over the 19 runs' fixtures: 45/45.
+- **Validation.** Pint and PHPStan clean. Full parallel suite: 10,861 tests, 4 failures, the same four recorded
+  sermon-end defects as before (1288's merged Amens ×3, 968's split sentence); no song start fails. Dusk 63/63
+  (one upload test first failed on the container's `/tmp` reverting to 0700 root, the known fault; restored to 1777
+  and the whole suite re-run). Logs in the fixtures folder.
+- **Still open after this plan:** (1) the ten accepted starts change on their outputs only at the next
+  re-extraction, on the operator's word; (2) 1096, title-naming opening, ruled `inward` but not met (not in the
+  ratchet): measure "a linking sentence naming the next song" before any rule; (3) 1042 unanswered (needs a longer
+  clip); (4) 13 outputs without edge word timings (1051, 1098 new sections; 1143, 1145 failed runs) and the seven
+  declined incomplete sentences; (5) the 1073 §1715/§1716 split itself; (6) the register's supersession leaves
+  id-less rulings unflagged (canary 15's 1273 start); the replay is unaffected.
+
+**Measurement checks.** The existing ruling scorer's 9 cases pass. The recorded song-planner and ruling-register
+hashes remain unchanged across the study. Nine runs' metadata changed during capture; after the seven evidence banks,
+all 16 affected runs (59 outputs) were refreshed. Their baseline cuts, section data and transcript hashes stayed
+unchanged. A final input-state check covers all 301 runs with no remaining drift. `scan-final.jsonl`,
+`run-evidence-final.json`, `provenance.json`, `state-check-final.json` and `summary.json` retain the evidence.
+No additional application-code change was needed for step 3, so the step 2 test results above still describe
+the implementation; its four separate sermon-end failures are not resolved by this measurement.
 
 #### 10-27 night: the suite's failures triaged and fixed (operator: "We should fix the test failures first")
 
