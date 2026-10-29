@@ -19,9 +19,9 @@ touched `.env` or production data. It is a running list, not a complete audit.
 
 ## How to use this index
 
-**Historic video (2026-10-16):** start at the
-[historic video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md): current state (§3),
-the re-cut round and its pending decisions (§4.0), then the remaining work. Every ruling in force is in the
+**Historic video (reconciled 2026-10-29):** start at the current handoff atop the
+[historic video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md), then its latest §5 record and
+acceptance work (§4.3–4.5). Its §3 counts and early §4.0 route list are dated evidence. Every ruling in force is in the
 [rulings register](HISTORIC-IMPORT-DECISIONS-2026-09-03.md); how a round runs is in the
 [round runbook](HISTORIC-ROUND-RUNBOOK.md). The boundary consistency, cut redesign and follow-up round
 plans were archived on 2026-10-16 beside the
@@ -114,13 +114,13 @@ every ruling in force; the [round runbook](HISTORIC-ROUND-RUNBOOK.md) is the pro
 authorises a dispatch, a provider call or a release.
 
 The [post-round audit work package](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md)
-(planned 2026-10-22) supplies agent-led semantic and artifact review after closure. It starts with
-a bounded Luna/optional Haiku calibration and feeds the existing acceptance plan; it does not
-block round closure or authorise release.
+has 94 completed discovery reviews and 26 unfinished members in its current batch as of 10-24.
+Its aggregate findings require the 10-24 source-evidence correction and packet-hash refresh after
+subsequent re-cuts. It feeds acceptance; it does not authorise release.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
-| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Programme authority; video handover reconciled 2026-10-04.** Latest canary Tier C round parked; mount failures and two failed extractions remain. Content acceptance/public release remain NO-GO. See the recorded shutdown, not older repair-readiness rows, for resume state. | Preserve the queue and investigate the recorded shutdown/mount failures under the frozen-code contract. For separately authorised code work, start boundary-consistency S1/S2 regressions; later fixes require the next freeze/canary. Neither path is authorised to dispatch by this index. |
+| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Programme authority; video handoff reconciled 2026-10-29.** The 10-21/22 round is closed; later rule changes have not reached the full corpus. Content acceptance and release remain NO-GO. | Settle the named material edge cases, remeasure exact membership on final code, then freeze and preflight the next round. Complete current-output audit and editorial QA before production convergence and signed era release. Weekly processing follows historic completion. |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |
@@ -152,7 +152,7 @@ block round closure or authorise release.
 | Newcomer photographs/consent, weekly editor, Christianity Explored decision | N3/N4/O18 only |
 | GA4 console access and key-event choice | GA6 |
 | Real OBS recordings + LocalVocal sidecars and preferred format | OBS Phase 0/1 |
-| Historic operator inputs: review video worksheet exceptions/freeze; recover current-era sources after remeasurement; decide only the genuinely irreducible residue after the post-video census; approve era releases and §8.4 policy | Only the historic programme; see the incremental convergence plan §0 and §10 |
+| Historic operator inputs: review consequential unresolved media questions; recover current-era sources after remeasurement; decide irreducible residue after the post-video census; approve exact era releases and verify the already-decided §8.4 access policy on production | Only the historic programme; see the incremental convergence plan §0 and §10 |
 
 ## Recently archived or superseded
 

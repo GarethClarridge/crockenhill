@@ -1,6 +1,22 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-> **Status — 2026-10-23, round closed.** The final round ran overnight 10-21/22; step 5's 61 answers led to four
+> **Current handoff — 2026-10-29.** The 10-21/22 round closed. Historic outputs remain
+> quarantined; no release batch is authorised. The K16 sermon-end and Amen step-back changes of
+> 10-28 are committed but have not been applied across the corpus. The October 16 counts in §3,
+> October 16 route list in §4.0, and the dated handoff below are historical measurements. Recount
+> eligible runs, open edges and unassessable rulings on the final code before freezing a new round.
+>
+> **Next:** reconcile K16 with the 10-29 ruling that retains a complete substantive conclusion;
+> test disagreement between fresh `sermon_last_line` answers; settle the material cases 968 and
+> 1291, review dependent song openings without risking sung lyrics, and hear 1267 §3355. A merged
+> congregational Amen can remain in an otherwise complete sermon when safe separation is unproved.
+> Then satisfy the [runbook's](HISTORIC-ROUND-RUNBOOK.md) disk, backup, route and canary checks.
+> Recheck actual output media, song acceptance and editorial evidence after the round (§4.3–4.5).
+> Weekly processing resumes only after the historic import is done (register R8); preparation may
+> run meanwhile. The [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16)
+> owns production census, convergence and signed release.
+
+> **Historical handoff — 2026-10-23 to 10-28; superseded by the brief above.** The final round ran overnight 10-21/22; step 5's 61 answers led to four
 > fixes and six re-cuts (1269, 1288, 1090, 1310), all heard "right"; 1363's "Rejoice" and 1310's "Purify My Heart"
 > approved, quarantined; the round closed under runbook §8 (§5, "10-22 (later): the round closed"). Nothing is
 > public. `partial_recording` is deployed (`3498602e7`, migrated on production 10-22 21:57 UTC). The ruled evidence
@@ -119,7 +135,7 @@ measurements, hashes, repair sessions and superseded conclusions. Do not copy
 those histories back here; link to the relevant anchor when they explain a new
 decision.
 
-## 3. Current measured state
+## 3. Measured state on 2026-10-16 (historical baseline; remeasure before a round)
 
 **Measured 2026-10-16, read-only, local Sail database and quarantine.** Readiness ran per run inside a
 rolled-back transaction (`storage/scratch/review-20261016/readiness.php`, output `readiness.json`).
@@ -207,7 +223,7 @@ coverage matrix, the H-numbered harness steps, and the bold group labels inside 
 [09-12 to 09-23 log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md),
 not to this plan. The class-to-detector binding is data, in `resources/detector-classes.json`.
 
-### 4.0 The re-cut round (set up 2026-10-16; processed 10-16 to 10-18; not closed)
+### 4.0 The 2026-10-16 re-cut round (historical execution record; later rounds closed 10-22)
 
 **Purpose:** re-cut every run whose replayed plan differs from its cut on current code (register
 E11, E12), so the edge fixes of 10-12 and the dead-feed rule (E10) reach the media.
@@ -2191,6 +2207,23 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
 
 ### 4.5 Prove acceptance, then converge and release
 
+**10-29 listener and release priorities (operator agreement; update the checkboxes below as work
+lands).** A complete sermon argument, its own final sentence and its closing prayer matter more
+than removing every brief answering Amen or optional announcement. K16's 10-28 `sermon_last_line`
+change needs an explicit check that a substantive conclusion is not lost merely because it also
+introduces the song. Record an acceptable extra Amen as such when separating it risks clipping
+the preacher. For song starts, preserve musical introduction and sung words; a possible dependent
+spoken opening stays as it is until the proposed announcement-word rule survives corpus replay and
+listening, especially mixed case 1174. Keep the incomplete 1295 song held as ruled (S10).
+
+Before exact release membership is approved, check that partial-recording disclosure reaches
+listeners on the website and through any feed/download that carries the recording. Verify named
+preachers; replace unsupported "Visiting Speaker" claims with honest unknown-speaker wording when
+identity cannot be established. Prioritise substantial omissions, wrong identity, and meaning
+errors over cosmetic edges. For final edge/fade/join acceptance, listen at normal speed and record
+the source of each verdict (operator hearing, model/text or mechanical evidence). Historic work
+finishes before weekly processing resumes (R8); this editorial priority does not change that order.
+
 Done (detail in the [10-03 to 10-16 log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md), Part 1 §4.5):
 
 - [x] Terminal dispositions for 1004, 1143 and 1145 (09-19): 1004 repaired by a fresh
@@ -2264,9 +2297,10 @@ Open:
 - [ ] Re-evaluate previously uncorroborated services and disagreements against the
   full-grade video evidence.
 - [ ] Resolve surviving proposals by class where a safe deterministic rule exists.
-- [ ] Retrain speaker identification on the historic video corpus (disabled
-  deliberately; operator ruling 2026-09-14), then re-attribute the 422 default
-  preachers, or accept "Visiting Speaker" explicitly for the release batch.
+- [ ] Verify speaker identities with suitable evidence (automatic identification remains disabled
+  deliberately; register P3). Retrain on the historic corpus only if it helps resolve the default
+  preachers. Do not label a person "Visiting Speaker" without evidence that they were visiting;
+  use honest unknown-speaker wording for unresolved identities before release.
   Independently verify the 16 existing non-default assignments; neither deferral
   nor retraining exempts them. Keep reserved evaluation recordings out of speaker
   training, including alternate encodes of those recordings.
@@ -2313,9 +2347,9 @@ Open:
   rollback process if it fails.
 - [ ] At IC8, retire the remaining one-shot historic-import surface and the inert
   cost-accounting residue together.
-- [ ] Settle the programme plan's deferred release policy
-  ([§8.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#8-release-policy)) before large
-  releases.
+- [ ] Verify the programme plan's **decided** access/content policy
+  ([§8.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#8-release-policy),
+  register G10–G11) on production before any release, including direct song-media access.
 
 ### 4.6 Lasting evaluation and long-term custody (added 2026-10-16)
 

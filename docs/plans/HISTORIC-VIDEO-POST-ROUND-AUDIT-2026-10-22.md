@@ -1,6 +1,24 @@
 # Historic video post-round audit
 
 **Status — 2026-10-24: initial 70-service discovery completed; luna-batch50-03 at 24/50 reviewed, stopped_at_usage_limit. See live checkpoint below.**
+**Reconciliation required before the next audit batch (2026-10-29):** the discovery report is a
+dated lead ledger, not a current defect count. Its run 1011 `supported_material` song-opening
+omission was superseded by the 10-24 source-level check: the earlier apparent sung lines came
+from near-silent bleed, and the clip starts when usable sound returns. Record an accepted source
+limitation in the findings/aggregate, preserving the original claim and its correction. The 13
+stale `song_videos` bindings found in the 10-24 class scan were cleared after a backed-up repair;
+do not count the old bindings as current defects. The 10-24 re-cuts changed song clips on 17 runs
+and re-encoded 16 sermon videos; their saved packets/reviews require output-hash comparison and
+affected re-review before they can support current-output acceptance. Do not infer that the other
+audit packets remain current without checking their hashes against later processing.
+
+The next audit checkpoint should state, separately: services reviewed; material findings still
+supported on the present artifact; accepted source limitations; unresolved media questions;
+packets invalidated by changed hashes; and apparent passes awaiting independent sampling.
+Preserve the 94 completed discovery records and resume only the 26 unfinished members of
+`luna-batch50-03` where their input hashes remain valid. The missing-sermon-opening class check,
+disjoint follow-up, full decode and assembled-join checks remain open. For final audible edge
+decisions use normal speed and identify whether the verdict came from operator listening or text.
 The operator approves wider Luna lead discovery with evidence-based verification despite the
 failed calibration gate for cheap-only clearance. Pass A checked the expected files, streams and
 recorded durations, but full decode validation remains undone. The pilot produced five supported

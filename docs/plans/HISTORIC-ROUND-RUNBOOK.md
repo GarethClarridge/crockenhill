@@ -232,6 +232,11 @@ Every dispatch is a dry run without `--execute` and is bounded by `--max`.
 - **Held sermons.** A run parked on a sermon content hold is cut with
   `sermons:re-extract <processing-id> --held-section=<§> [--dry-run]`. The hold stays, and the
   operator confirms on a release page afterwards (2026-10-13).
+- **Section clips alone.** For a named finished run whose song or talk clip needs a new cut but
+  whose sermon does not, `sections:recut <processing-id> --dry-run` checks eligibility and
+  `sections:recut <processing-id>` dispatches candidate preparation. It does not re-cut the
+  sermon; use the full route when sermon media or composition also changes. Bind this exception
+  to the round's reviewed membership and verify the resulting clip hash and hold state.
 - **Weekly runs cannot enter a round snapshot.** They retry through `UnifiedMediaProcessor::retry`
   (the admin Retry path).
 
@@ -322,6 +327,9 @@ Start autotick with `ROUND_SNAPSHOT=<snapshot>` and an explicit run list (for ex
 - Build each listening page from the last working one (`build.py` clones it). Pills wrap, so the
   page never scrolls sideways.
 - Ask which text matches, show service time, and play at 3× by default.
+- Use normal speed for the final audible judgment about a word edge, fade or join. Record whether
+  acceptance came from operator hearing, model/text review or mechanical evidence; text alone
+  does not establish audible quality (register Q14).
 - One question per clip.
 - Rulings live in the page's database (`rulings`) and survive a republish. Export them with
   `ArtifactData list`.
@@ -332,10 +340,13 @@ Start autotick with `ROUND_SNAPSHOT=<snapshot>` and an explicit run list (for ex
 
 1. Freeze exact membership in the snapshot; settle transcript and structure dependencies before
    cutting; retain or exclude unresolved cases explicitly rather than widening the batch.
+   Include every eligible sermon output in the K16 check, including runs whose last selected
+   section is a prayer: the 10-28 sermon-section-only batch missed such runs (video plan §5).
 2. Queues empty (queued, reserved, delayed); every worker started after the last code commit;
    staging and temp mounts readable and writable; free space for the batch on `/Volumes/Staging`
    and at least 10 GB on the internal disk (service artifacts live there); the previous batch
-   backed up.
+   backed up. Measure free space and the proposed backup's size on Sonnics immediately before
+   the freeze. A prior binlog purge or Docker cleanup is not proof of current headroom.
 3. Reuse the canary's evidence for paths it covered; check representative first outputs of any
    path it did not; stop expansion on a new regression or an unassessable result. Outputs stay
    quarantined pending the plan's §4.5.
