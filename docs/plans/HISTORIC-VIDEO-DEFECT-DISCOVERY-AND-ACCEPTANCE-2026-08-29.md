@@ -1812,6 +1812,22 @@ It does not authorise dispatch, paid calls or release. Keep fixes within the sha
    from a required boundary. Update expectations only where that policy supports them; otherwise
    retain the defect and resolve it. Do not delete tests or blanket-skip the failures. Run focused
    tests, PHPStan, Pint and the full parallel suite on final code; Dusk for browser-affecting changes.
+   **Reconciled 10-29; awaiting a re-hearing.** All three reds reduce to one ruling, 1288's sermon
+   end `amen-k16-listening-20261028` B (keep 3754.30); the live cut is A, 3755.31. On 10-28 "Either is
+   fine" was offered and B chosen, so K16's permission to keep the answering Amen does not by itself
+   make A acceptable. Operator: "Re-hear 1288 first". **Page "Amen Heard Again"**
+   https://claude.ai/artifact/8Q6zy3feYUAEfg9Ze4zfmN (`rulings`, id `1288-sermon-end`; builder and key
+   `storage/scratch/amen-1288-relisten-20261029/`, the 10-28 clips unchanged).
+   **Answered 10-29: B again** — "It's not the second Amen that's the problem." Gathered (source
+   `amen-1288-relisten-20261029`, keep 3754.30; supersedes the 10-28 B, same expectation). The three
+   tests stay red as a **real defect, not a policy question**, and the 10-28 merged-Amen diagnosis is
+   wrong. The wide decode has the congregation's "Amen." 3754.50–3755.06 and **"So" at 3755.31 with
+   zero length**; levels are quiet (−53 dB) at 3755.19 and loud (−28 dB) from **3755.26**. The cut
+   (`word_pause`) is `pause()`'s `clamp(original, pause.start, pause.end)`: the K16 end lies later, so
+   the cut is clamped to the pause's far end, the next word's *decoded* start, and A carries ~50 ms of
+   "So". **Mechanism class (unmeasured):** an end clamped to `word_after.start`, or a start clamped to
+   `word_before.end`, sits on a decoded word boundary instead of inside the pause, so a late-decoded
+   onset (or early-decoded end) leaks into the clip. Next: measure the class read-only before any rule.
 3. **Measure the combined result before freezing.** Recount eligible runs, open and unassessable
    rulings on final code. Compare current outputs with proposed plans across the eligible corpus,
    including every changed edge, internal join, refused plan and conflicting ruling. Use the

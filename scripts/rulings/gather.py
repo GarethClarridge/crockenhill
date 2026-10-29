@@ -468,6 +468,13 @@ records.extend(with_parts(
     [{**answer, 'choice': answer['choice'].lower()} for answer in saved('smeared-1208-listening-20261029/answers/rulings').values()],
 ))
 
+# 10-29 night: Amen Heard Again, 1288's sermon end re-asked once K16 let the answering Amen remain (plan §4.1a step 2).
+# B again: "It's not the second Amen that's the problem." (A carries the onset of "So let's sing…").
+records.extend(edge_listening_rulings(
+    'amen-1288-relisten-20261029', load('amen-1288-relisten-20261029/questions.json'),
+    list(saved('amen-1288-relisten-20261029/answers/rulings').values()),
+))
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {
