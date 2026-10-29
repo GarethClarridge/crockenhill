@@ -1854,6 +1854,21 @@ It does not authorise dispatch, paid calls or release. Keep fixes within the sha
    The Next Word"** https://claude.ai/artifact/8sq6bC4EP16CR9fnjdX6r7 (`rulings`, ids
    `<run>-sermon-end`, `1303-s3860-end`; builder and key `storage/scratch/word-boundary-listening-20261029/`,
    times a = now, b = quietest point). Build and adoption wait for the answers.
+   **Answered 10-29 night: all four B** (source `word-boundary-20261029`): "'Right' might be a bit of an
+   overstatement, but they're significantly better. I don't really see you can get much better than
+   this as there isn't really a pause between words." Recorded as `keep` (the best available cut);
+   928's is an earlier part's end (`part` §512, never the video's close: `SermonVideoPart` now binds an
+   end to the last segment overlapping its section and fails if that is the video's last). They
+   supersede 1288's B 3754.30 and 1340's 3271.76. **Adopted (operator: "do all that"):**
+   `beforeNextWordSound()` runs after `beforeNextLine()` on every spoken end; sermon plans read the
+   levels for it (`$levels` is null there unless song ends are planned). Red-to-green
+   `RuledEndingsRegressionTest::an_end_on_the_next_words_onset_moves_into_the_quiet_before_its_sound`
+   (1288 → 3755.19; guard 1202, a 1.5 dB dip, heard right at 1600.66, stays). Corpus replay
+   (`word-boundary-edges-20261029/replay.php`): exactly 928, 1288, 1303 §3860, 1340; failed plans
+   unchanged at 125. Fixtures (`storage/scratch/word-boundary-fixtures-20261029/`): 7 stale files on the
+   moved runs refreshed from `--current` captures (prior files in `before/`); 4 new
+   `run-*-2026-10-29-onset`. Ruled endings 675/675; full parallel suite 10,905 tests, no failures (163
+   notices and 1 skip, as before); Dusk 63/63; Pint and PHPStan clean.
 3. **Measure the combined result before freezing.** Recount eligible runs, open and unassessable
    rulings on final code. Compare current outputs with proposed plans across the eligible corpus,
    including every changed edge, internal join, refused plan and conflicting ruling. Use the

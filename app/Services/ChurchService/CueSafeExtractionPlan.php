@@ -131,6 +131,20 @@ class CueSafeExtractionPlan
     private const OBSERVED_GAP = 0.1;
 
     /**
+     * An end on the next word's decoded onset moves into a quiet this many decibels under the sound
+     * beside the cut: a decode dates a word from its first clear sound, so its onset is already
+     * heard there (1288, 928, 1340, 1303; operator 10-29). Ends whose words run together dip
+     * 12.6 dB or less and have no quiet to end in; the four heard ones dip 21.7 dB or more.
+     */
+    private const ONSET_DIP_DECIBELS = 20.0;
+
+    /** How far before such an end its quiet is looked for. */
+    private const ONSET_DIP_REACH = 0.25;
+
+    /** Decibels over the speech threshold at which the next word's sound counts as up at the cut. */
+    private const ONSET_HEARD_ABOVE = 10.0;
+
+    /**
      * A gap this long after a long word is observed whatever that word was: 1250 §4911's held
      * "all" before 6.9 s of outro. Shorter gaps after a smeared word are not (1304's "Music" ran
      * to 0.02 s before "In", 1108's "you" to 0.44 s before "Aled").
@@ -398,6 +412,7 @@ class CueSafeExtractionPlan
                             if ($besideSong && $thoughtComplete) {
                                 $decision = $this->beforeNextLine($decision, $cues, $songIntroduction, $this->withWindow($words, $window));
                             }
+                            $decision = $this->beforeNextWordSound($decision, $levels ?? $this->levels($log));
                         }
                         $span[$key] = $decision['time'];
                         $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $movedFrom ?? $original,
@@ -694,6 +709,48 @@ class CueSafeExtractionPlan
             && $heard['start'] > (float) $word['end'] + 0.001 && $heard['start'] < $decision['time'] - 0.001), 'start');
 
         return $starts === [] ? $decision : [...$decision, 'time' => min($starts), 'next_word_heard_at' => min($starts)];
+    }
+
+    /**
+     * An end placed on the next word's decoded onset (another decode's next word, the next line's
+     * heard first word, or the far side of its pause) ends in the quiet before that word's sound,
+     * when the levels show one: the sound already up at the cut, and a point within
+     * {@see self::ONSET_DIP_REACH} before it at least {@see self::ONSET_DIP_DECIBELS} under the
+     * loudest there. 1288's sermon ended on the decoded start of "So let's sing…" (3755.31) with
+     * "So" sounding from 3755.26; it ends in the quiet at 3755.19, after the congregation's Amen
+     * (operator 10-29: "It's not the second Amen that's the problem"; heard with 928, 1340 and 1303,
+     * "significantly better"). Never before the last kept word's decoded end.
+     *
+     * @param  array<string, mixed>  $decision
+     * @param  array{threshold: float, samples: list<array{time: float, rms: float}>}|null  $levels
+     * @return array<string, mixed>
+     */
+    private function beforeNextWordSound(array $decision, ?array $levels): array
+    {
+        $time = (float) $decision['time'];
+        $onOnset = static fn (string $key): bool => isset($decision[$key]) && abs((float) $decision[$key] - $time) <= 0.001;
+        $nextWord = $decision['word_after'] ?? null;
+        $placedOnOnset = $onOnset('next_word_heard_at')
+            || ($onOnset('next_line_bound') && ! $onOnset('next_line_starts_at'))
+            || (is_array($nextWord) && abs((float) $nextWord['start'] - $time) <= 0.001);
+        if ($levels === null || ! $placedOnOnset) {
+            return $decision;
+        }
+
+        $lastWord = $decision['word_before'] ?? null;
+        $from = max($time - self::ONSET_DIP_REACH, is_array($lastWord) ? (float) $lastWord['end'] : -INF);
+        $beside = array_values(array_filter($levels['samples'], static fn (array $sample): bool => $sample['time'] >= $from - 0.001 && $sample['time'] <= $time + 0.001));
+        $rms = static fn (array $sample): float => is_finite($sample['rms']) ? $sample['rms'] : -999.0;
+        if ($beside === [] || $rms(end($beside)) < $levels['threshold'] + self::ONSET_HEARD_ABOVE) {
+            return $decision;
+        }
+
+        $quietest = array_reduce($beside, static fn (array $carry, array $sample): array => $rms($sample) < $rms($carry) ? $sample : $carry, $beside[0]);
+        if (max(array_map($rms, $beside)) - $rms($quietest) < self::ONSET_DIP_DECIBELS) {
+            return $decision;
+        }
+
+        return [...$decision, 'time' => (float) $quietest['time'], 'before_next_word_sound' => ['placed_time' => $time, 'quiet_rms' => $rms($quietest)]];
     }
 
     /**

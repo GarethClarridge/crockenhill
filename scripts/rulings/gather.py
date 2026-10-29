@@ -475,6 +475,19 @@ records.extend(edge_listening_rulings(
     list(saved('amen-1288-relisten-20261029/answers/rulings').values()),
 ))
 
+# 10-29 night: Before The Next Word, four ends moved off the next word's decoded onset into the quiet before its sound
+# (plan §4.1a step 2). All B; operator: "'Right' might be a bit of an overstatement, but they're significantly better.
+# I don't really see you can get much better than this as there isn't really a pause between words." 928's end is the
+# reading's, before the sermon video jumps to the sermon: an earlier part's end (§512), never the video's close.
+word_boundary = edge_listening_rulings(
+    'word-boundary-20261029', load('word-boundary-listening-20261029/questions.json'),
+    [{**answer, 'choice': answer['choice'].lower()} for answer in saved('word-boundary-listening-20261029/answers/rulings').values()],
+)
+for record in word_boundary:
+    if record['run'] == 928:
+        record['part'] = {'section_id': 512}
+records.extend(word_boundary)
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {

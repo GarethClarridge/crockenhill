@@ -169,6 +169,23 @@ class RuledEndingsHarnessTest extends TestCase
     }
 
     #[Test]
+    public function a_ruling_on_an_earlier_parts_end_checks_that_end_and_never_the_videos_close(): void
+    {
+        $harness = $this->harness();
+        $harness->segments = [['start_time' => 10.0, 'end_time' => 34.0], ['start_time' => 50.0, 'end_time' => 60.0]];
+        $capture = $this->partCapture(34.0);
+        $capture['rulings'][0]['ruling']['edge'] = 'end';
+
+        $harness->check($capture);
+        $this->assertSame(['part-start'], $harness->checked);
+
+        $harness->segments = [['start_time' => 10.0, 'end_time' => 34.0]];
+        $this->expectException(AssertionFailedError::class);
+        $this->expectExceptionMessage('part-start: RuntimeException: §5 closes the sermon video');
+        $harness->check($capture);
+    }
+
+    #[Test]
     public function a_ruling_on_a_later_part_never_supersedes_the_videos_opening_ruling_or_the_reverse(): void
     {
         $harness = $this->harness();

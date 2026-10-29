@@ -336,6 +336,30 @@ class RuledEndingsRegressionTest extends RuledEndingsTestCase
         $this->assertLessThanOrEqual(4119.58, $cut, 'not inside "Let": '.$audit);
     }
 
+    /**
+     * 1288's sermon ended where another decode put the start of "So let's sing…" (3755.31), but the
+     * sound of "So" is up from 3755.26 after a quiet at 3755.19 (−53 dB under −25 dB): the end
+     * carried the onset ("It's not the second Amen that's the problem", operator 10-29). It ends in
+     * that quiet, after the congregation's Amen (heard 10-29 with 928, 1340 and 1303: "significantly
+     * better"). 1202's end also sits on the next word's decoded start, but its words run together
+     * (a 1.5 dB dip), so there is no quiet to end in and it stays where it was heard right.
+     */
+    #[Test]
+    #[TestWith(['run-1288-2026-10-28-amen', 3755.19, true])]
+    #[TestWith(['run-1202-2026-10-23', 1600.66, false])]
+    public function an_end_on_the_next_words_onset_moves_into_the_quiet_before_its_sound(string $capture, float $expected, bool $moves): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(base_path("tests/Fixtures/RuledEndings/{$capture}.json.gz"))), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
+        $ends = array_values(array_filter($plan['metadata']['cue_edge_widening'], static fn (array $edge): bool => $edge['edge'] === 'end'));
+        $audit = json_encode(end($ends), JSON_THROW_ON_ERROR);
+
+        $this->assertEqualsWithDelta($expected, end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE, $audit);
+        $this->assertSame($moves, isset(end($ends)['before_next_word_sound']), $audit);
+    }
+
     #[Test]
     public function a_smeared_prayer_opening_does_not_pull_a_song_end_into_its_outro(): void
     {

@@ -72,21 +72,16 @@ queue and route state are in the archive; a historical “final” label is not 
    is protected by `SongEndEdgesTest`. Include all of these in final replay and encoded canary checks.
    The 17 still-open fixture entries from `storage/scratch/open-defect-fix-20261029/` need dispositions
    in step 3; the 86 newly guarded passing entries must remain guarded.
-2. **1288 — real defect; candidate measured, not adopted.** The operator chose B (3754.30) again
-   on “Amen Heard Again”: “It's not the second Amen that's the problem.” Three tests remain red.
-   The later measurement corrected the initial clamp diagnosis: `beforeWordHeardElsewhere()`
-   stops at another decode's next-word onset, 3755.31, carrying about 50 ms of “So”.
-   - Read-only measurement: `storage/scratch/word-boundary-edges-20261029/` (`boundary.json`,
-     `candidates.json`). Three paths can put an end at a decoded onset. Of 2,024 plans / 3,618
-     final edges, 711 touch a boundary; 11 ends have next-word sound already up before the cut.
-     Leak duration alone does not distinguish heard-right from heard-wrong cases; starts are
-     not covered by the candidate.
-   - Candidate: an end on a decoded onset with a ≥20 dB dip in the preceding 0.25 s ends at the
-     quietest point. Four moves: 928 internal reading end 1866.19 → 1866.11; 1288 3755.31 →
-     3755.19; 1340 3272.00 → 3271.89; 1303 §3860 1129.90 → 1129.84.
-   - [Before The Next Word](https://claude.ai/artifact/8sq6bC4EP16CR9fnjdX6r7) awaits answers;
-     builder/evidence: `storage/scratch/word-boundary-listening-20261029/`. Build/adoption waits
-     for those answers. No test waiver or assumption that K16 permits the leaking sound.
+2. **1288 — resolved; next-word-sound rule adopted (10-29 night).** “Amen Heard Again” confirmed a
+   real defect (B again: “It's not the second Amen that's the problem.”): `beforeWordHeardElsewhere()`
+   stopped 1288's end on the decoded onset of “So” (3755.31), carrying ~50 ms of it. Measured
+   read-only over 2,024 plans; the dip before the onset, not the leak, separates the cases.
+   `CueSafeExtractionPlan::beforeNextWordSound()`: an end on a decoded next-word onset with the
+   sound already up and a ≥20 dB dip in the preceding 0.25 s ends at that dip's quietest point.
+   [Before The Next Word](https://claude.ai/artifact/8sq6bC4EP16CR9fnjdX6r7): all four B, operator:
+   “significantly better … there isn't really a pause between words” (keep: 928 internal reading end
+   1866.11, `part` §512; 1288 3755.19; 1340 3271.89; 1303 §3860 1129.84). Corpus replay moves exactly
+   those four. 1288's three tests are green; full suite 10,905 passed, Dusk 63/63. Starts excluded.
 3. **Measure the combined result on final code.** Recount eligible runs and open/unassessable
    rulings; compare current executed cuts with proposed plans, including internal joins, refusals,
    changed edges and conflicting rulings. Use existing replay/capture tools; write-capable planners

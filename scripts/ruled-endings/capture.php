@@ -17,8 +17,8 @@ declare(strict_types=1);
  *
  * An id is either an endings-listening id (end-<run>-<sermon|section id>) or a ruling id from
  * tests/Fixtures/Rulings/edge-rulings.json (plan §4.6; built by scripts/rulings/gather.py), whose
- * record becomes the fixture's ruling; one with a `part` captures the start of that later part of the sermon video
- * ({@see SermonVideoPart}), not the video's opening. A section ruling with no section id takes the run's section
+ * record becomes the fixture's ruling; one with a `part` captures that inner join of the sermon video (a later
+ * part's start or an earlier part's end, {@see SermonVideoPart}), not the video's opening or close. A section ruling with no section id takes the run's section
  * of that type whose edge is nearest the cut heard. A guard id (guard-<date>:<run>-s<section id>-<start|end>)
  * is no ruling: it holds an edge a gate found a candidate rule would wrongly move (977 §1005, 10-21)
  * at the cut it has now, with `expect: keep` and its source saying it was not listened to.
@@ -139,7 +139,7 @@ $cutFor = static function (MediaProcessingLog $log, string $which, string $edge 
     $cut = match (true) {
         $plan['segments'] === [] => null,
         $part !== null => (float) $plan['segments'][SermonVideoPart::segmentIndex($plan['segments'],
-            $log->serviceSections()->findOrFail($part['section_id'])->only(['id', 'start_time', 'end_time']))]['start_time'],
+            $log->serviceSections()->findOrFail($part['section_id'])->only(['id', 'start_time', 'end_time']), $edge)][$edge === 'start' ? 'start_time' : 'end_time'],
         $edge === 'start' => (float) reset($plan['segments'])['start_time'],
         default => (float) end($plan['segments'])['end_time'],
     };

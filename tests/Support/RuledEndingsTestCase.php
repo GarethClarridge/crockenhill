@@ -134,7 +134,7 @@ abstract class RuledEndingsTestCase extends TestCase
         }
         $this->assertNotEmpty($segments, $fixture['id'].': '.json_encode($plan['metadata'] ?? []));
         $cut = match (true) {
-            $ruling['part'] !== null => $segments[SermonVideoPart::segmentIndex($segments, SermonVideoPart::section($fixture['sections'], $ruling['part']['section_id']))]['start_time'],
+            $ruling['part'] !== null => $segments[SermonVideoPart::segmentIndex($segments, SermonVideoPart::section($fixture['sections'], $ruling['part']['section_id']), $ruling['edge'])][$ruling['edge'] === 'start' ? 'start_time' : 'end_time'],
             $ruling['edge'] === 'start' => reset($segments)['start_time'],
             default => end($segments)['end_time'],
         };
