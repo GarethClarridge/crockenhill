@@ -53,6 +53,7 @@ use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Tests\Support\RuledEndingsTestCase;
 use Tests\Support\SermonVideoPart;
 
 require __DIR__.'/../../vendor/autoload.php';
@@ -334,7 +335,8 @@ foreach ($ids as $id) {
     $fixture = [
         'id' => $id,
         'ruling' => $ruling,
-        'open_defect' => $current && $ruling['expect'] !== 'keep',
+        // A ruling the live cut already meets is checked; only a cut that fails it is held as open.
+        'open_defect' => $current && $ruling['expect'] !== 'keep' && ($live['cut'] === null || ! RuledEndingsTestCase::cutMeetsRuling($ruling, $live['cut'])),
         'live' => $live + $capturedCode(),
         // Rulings made by this date heard cuts this data can reproduce; later ones may not.
         'captured_on' => now()->toDateString(),

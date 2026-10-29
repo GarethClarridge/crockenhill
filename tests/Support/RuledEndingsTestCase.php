@@ -213,6 +213,27 @@ abstract class RuledEndingsTestCase extends TestCase
     }
 
     /**
+     * Whether a cut meets a ruling by the tolerances {@see self::assertRuledEdge()} applies, without its
+     * silence allowance (which needs the capture's levels). capture.php marks a capture an open defect
+     * only when its live cut fails this, so a met `either` or `outward` ruling is checked, not skipped.
+     *
+     * @param  array{edge: string, heard: float|int, expect: string, ruled_time?: float|int|null, points?: list<float|int>}  $ruling
+     */
+    public static function cutMeetsRuling(array $ruling, float $cut): bool
+    {
+        $outward = $ruling['edge'] === 'end' ? $cut - $ruling['heard'] : $ruling['heard'] - $cut;
+
+        return match ($ruling['expect']) {
+            'keep' => abs($cut - $ruling['heard']) <= self::RIGHT_TOLERANCE,
+            'either', 'between' => array_any($ruling['points'] ?? [], static fn (float|int $point): bool => abs($cut - $point) <= self::RIGHT_TOLERANCE),
+            'outward' => $outward > self::MOVED,
+            'inward' => $outward < -self::MOVED,
+            'at' => isset($ruling['ruled_time']) && abs($cut - $ruling['ruled_time']) <= self::RULED_TIME_TOLERANCE,
+            default => false,
+        };
+    }
+
+    /**
      * Whether an edge moved only through silence: every level between the two times, which the
      * fixture's windows must cover, is at least SILENCE_BELOW_SPEECH under the recording's speech
      * threshold. A move across a dead feed changes nothing anyone hears (1012's start, 10-22).

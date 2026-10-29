@@ -186,6 +186,26 @@ class RuledEndingsHarnessTest extends TestCase
         $this->assertSame(['later-part'], array_column($harness->latest($fixture, [...$opening, 'heard' => 31.0, 'part' => ['section_id' => 5]]), 'id'));
     }
 
+    #[Test]
+    public function a_capture_is_an_open_defect_only_when_its_cut_fails_its_ruling(): void
+    {
+        $either = ['edge' => 'start', 'heard' => 12.0, 'expect' => 'either', 'points' => [10.0, 12.0]];
+        $this->assertTrue(RuledEndingsTestCase::cutMeetsRuling($either, 10.2));
+        $this->assertFalse(RuledEndingsTestCase::cutMeetsRuling($either, 11.0), 'Between the two cuts heard is neither.');
+        $this->assertTrue(RuledEndingsTestCase::cutMeetsRuling([...$either, 'expect' => 'between'], 12.0));
+
+        $clipped = ['edge' => 'end', 'heard' => 20.0, 'expect' => 'outward'];
+        $this->assertTrue(RuledEndingsTestCase::cutMeetsRuling($clipped, 21.0));
+        $this->assertFalse(RuledEndingsTestCase::cutMeetsRuling($clipped, 20.0));
+        $this->assertTrue(RuledEndingsTestCase::cutMeetsRuling([...$clipped, 'edge' => 'start', 'expect' => 'inward'], 21.0));
+        $this->assertFalse(RuledEndingsTestCase::cutMeetsRuling([...$clipped, 'expect' => 'inward'], 21.0));
+
+        $at = ['edge' => 'end', 'heard' => 20.0, 'expect' => 'at', 'ruled_time' => 25.0];
+        $this->assertTrue(RuledEndingsTestCase::cutMeetsRuling($at, 25.8));
+        $this->assertFalse(RuledEndingsTestCase::cutMeetsRuling($at, 20.0));
+        $this->assertFalse(RuledEndingsTestCase::cutMeetsRuling(['edge' => 'end', 'heard' => 20.0, 'expect' => 'keep'], 21.0));
+    }
+
     /** @return array<string, mixed> */
     private function partCapture(float $cut): array
     {

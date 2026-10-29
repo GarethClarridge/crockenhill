@@ -1782,7 +1782,7 @@ It does not authorise dispatch, paid calls or release. Keep fixes within the sha
    each to the intended part; fail clearly if that part cannot be identified after recomposition.
    Reuse 1250's existing `SongEndEdgesTest` coverage. Done when the accepted internal starts are
    reproducibly checked and an internal answer cannot supersede the video's opening answer.
-   **Done 10-29 (uncommitted).** A ruling may carry `part: {section_id}`, the section a later part of
+   **Done 10-29 (`abd330797`).** A ruling may carry `part: {section_id}`, the section a later part of
    the sermon video opens on (`Tests\Support\SermonVideoPart`): the harness and `capture.php` check
    the start of the first segment overlapping it, and fail if none does or if it is segment 0 (the
    opening's ruling governs that). `latestRulings()` and gather's supersession match on `part`, so
@@ -1794,8 +1794,17 @@ It does not authorise dispatch, paid calls or release. Keep fixes within the sha
    `run-{1208,1235}-2026-10-29-inner` (`--current`, live 1758.63 / 2111.03; set `open_defect: false`
    because each live cut is a cut heard; builder `storage/scratch/inner-part-fixtures-20261029/`).
    With the smeared-opening rule switched off, both fail. Replay 667 tests, the 3 known 1288 reds;
-   Pint and PHPStan clean. Side finding: `capture.php --current` marks every non-`keep` capture
-   `open_defect`, so committed `either` captures (e.g. 1216) are guarded only by the fidelity pin.
+   Pint and PHPStan clean. Side finding: `capture.php --current` marked every non-`keep` capture
+   `open_defect`, so committed `either` captures (e.g. 1216) were guarded only by the fidelity pin.
+   **Fixed 10-29:** capture marks one open only when its live cut fails the ruling
+   (`RuledEndingsTestCase::cutMeetsRuling()`, the harness's tolerances without the silence allowance).
+   Of the 103 committed entries marked open, **86 now pass their ruling check and are checked**
+   (82 files); **17 still fail it and stay open**: older `outward`/`inward`/`at` rulings whose
+   clipped cut is still made (1115, 1127, 1136, 1308 starts/ends of 10-18; 1053 §1610, 1070 §3705,
+   1186 §2410, 1262 §3278/§3289/§4913; canary 13 1012 start; canary 11 and 13 on 1108 §1895/§1897)
+   and three whose newer ruling the cut misses (1070 and 1218 sermon ends, 1215 §2637). Replay 668
+   tests, the 3 known 1288 reds (`storage/scratch/open-defect-fix-20261029/`, originals in `before/`).
+   Those 17 are input to step 3's dispositions.
 2. **Reconcile 1288's three red tests.** The latest recorded full suite (10,891 tests) still has
    three merged-Amen failures. Compare their exact expectations with the listening evidence and
    current K16 policy: an answering congregational Amen may remain when separating it would risk
