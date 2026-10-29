@@ -2,7 +2,9 @@
 
 > **Programme handoff — 2026-10-29:** the 10-21/22 video round closed, but the later
 > shared-path changes need a new measured round and current-output acceptance. The focused
-> video plan's opening handoff and latest §5 record supersede its October 16 census. Nothing
+> video plan's opening handoff, **§4.1a pre-freeze checklist** and latest §5 record supersede its
+> October 16 census. Complete internal-join coverage, reconcile the 1288 failures, measure the
+> combined corpus result and dispose of residual misses before freezing the next video round. Nothing
 > historic has been publicly released. G10–G11/§8.4 decided the audience and content policy;
 > production enforcement and each exact release batch remain to be verified separately.
 > Weekly processing resumes **only after the historic import is finished**, as R8 directs.

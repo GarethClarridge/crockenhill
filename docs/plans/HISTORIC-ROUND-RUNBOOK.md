@@ -338,6 +338,11 @@ Start autotick with `ROUND_SNAPSHOT=<snapshot>` and an explicit run list (for ex
 
 ## 6. Preflight for every dispatch
 
+For the next round, first complete the [video plan §4.1a](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
+Its combined measurement supplies current membership and prerequisite routes; older round lists
+are not a fresh census. The staged canary in §3 must check actual encoded transitions and internal
+sermon joins for affected paths, as well as the planned timestamps and pause/resume behaviour.
+
 1. Freeze exact membership in the snapshot; settle transcript and structure dependencies before
    cutting; retain or exclude unresolved cases explicitly rather than widening the batch.
    Include every eligible sermon output in the K16 check, including runs whose last selected

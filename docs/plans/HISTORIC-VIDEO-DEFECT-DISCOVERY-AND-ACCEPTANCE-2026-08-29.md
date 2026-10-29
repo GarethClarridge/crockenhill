@@ -6,19 +6,20 @@
 > October 16 route list in §4.0, and the dated handoff below are historical measurements. Recount
 > eligible runs, open edges and unassessable rulings on the final code before freezing a new round.
 >
-> **Next:** the K16 `sermon_last_line` reword was measured on the 116 tied ends and **parked** (§5 "10-29
-> (evening)": one gain, one loss, ~1,500 calls to adopt; 1131 stays a recorded miss, to fold into any later K16
-> prompt change). 968, 1184 and 1267 §3355 are heard and settled. **1291** (§5 "10-29 (evening)")
-> settled 10-29 late: the song-order lyric path (1120) and `afterSongSound` following a fading song (1291's reading, nine
-> of eleven starts heard right) are committed; 928 and 1250 = speech over a fading song, to measure). Dependent
-> song openings are adopted (`39b518a55`, §5); 1096's title-naming idea is measured (§5, after step 4): naming
-> *another* song of the service (not the own title) is built and committed (1096 alone moves, as ruled); 1042 heard right. A merged
-> congregational Amen can remain in an otherwise complete sermon when safe separation is unproved.
-> Then satisfy the [runbook's](HISTORIC-ROUND-RUNBOOK.md) disk, backup, route and canary checks.
+> **Next:** complete the pre-freeze work in **§4.1a**, then use the
+> [runbook](HISTORIC-ROUND-RUNBOOK.md) for setup and dispatch. The K16 reword is **parked**:
+> one gain, one loss on 116 tied ends; 1131 remains a recorded miss. 968, 1184 and 1267 §3355
+> are heard and settled. Dependent song openings, 1096's other-song title rule, the song-order
+> lyric extension (1120), and speech starts after fading songs are committed. The latest
+> smeared-opening fix (`8ee9d3db2`) meets 1250's requested internal start; all six moved starts
+> were heard acceptable. 928 remains a one-word miss. These changes have not reached the full
+> corpus through a processing round; 1120 needs the lyric-extension step, not a cut alone.
+> The latest recorded suite has three 1288 merged-Amen failures to reconcile with K16's
+> permission to retain the answering Amen; no blanket test waiver is implied.
 > Recheck actual output media, song acceptance and editorial evidence after the round (§4.3–4.5).
 > Weekly processing resumes only after the historic import is done (register R8); preparation may
 > run meanwhile. The [programme plan §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16)
-> owns production census, convergence and signed release.
+> owns production census, convergence and signed era release.
 
 > **Historical handoff — 2026-10-23 to 10-28; superseded by the brief above.** The final round ran overnight 10-21/22; step 5's 61 answers led to four
 > fixes and six re-cuts (1269, 1288, 1090, 1310), all heard "right"; 1363's "Rejoice" and 1310's "Purify My Heart"
@@ -1347,6 +1348,9 @@ rolled-back transactions, answers banked to a scratch disk):
 
 ### 4.1 Finish every fix, then one final round, then close (agreed 10-20)
 
+**Historical instruction for the closed 10-21/22 round; next-round work is §4.1a below.**
+The following records the 10-20 agreement and its execution, not a currently running clone.
+
 **Operator, 10-20: fix everything before wrapping up historic processing.** The round stays up
 (clone `82378974a`, version 16, workers on the round's DBs) until every known defect is fixed,
 so the fixes are re-cut together in **one final round**. It closes once, at the end. Weekly
@@ -1765,6 +1769,54 @@ pipeline misses. Three are found in the recording:
   131 and 132 are one song entered twice. Verdict: **leave the pipeline**. Fix it in OpenLP, like
   1341's two Amazing Graces.
 
+### 4.1a Before the next round: regression coverage and combined verification (2026-10-29)
+
+**Planned; not executed by this update.** Added at the operator's request following the pre-round
+recommendations. This is the current sequence; §4.1's old clone, counts and route lists are historical.
+It does not authorise dispatch, paid calls or release. Keep fixes within the shared processing path.
+
+1. **Protect internal sermon joins.** The rulings harness currently assesses a sermon video's
+   first start or final end; segment fidelity checks do not make an internal edge an independently
+   ruled edge. Add segment-specific regression coverage for the heard starts of **1208, 1235 and
+   1250** without replacing their video-opening rulings. Preserve the listening answers and bind
+   each to the intended part; fail clearly if that part cannot be identified after recomposition.
+   Reuse 1250's existing `SongEndEdgesTest` coverage. Done when the accepted internal starts are
+   reproducibly checked and an internal answer cannot supersede the video's opening answer.
+2. **Reconcile 1288's three red tests.** The latest recorded full suite (10,891 tests) still has
+   three merged-Amen failures. Compare their exact expectations with the listening evidence and
+   current K16 policy: an answering congregational Amen may remain when separating it would risk
+   the preacher's ending. Preserve the original preferred-cut evidence and distinguish preference
+   from a required boundary. Update expectations only where that policy supports them; otherwise
+   retain the defect and resolve it. Do not delete tests or blanket-skip the failures. Run focused
+   tests, PHPStan, Pint and the full parallel suite on final code; Dusk for browser-affecting changes.
+3. **Measure the combined result before freezing.** Recount eligible runs, open and unassessable
+   rulings on final code. Compare current outputs with proposed plans across the eligible corpus,
+   including every changed edge, internal join, refused plan and conflicting ruling. Use the
+   existing replay/capture tools; planner calls that write must run in rolled-back transactions
+   outside an active round. Record exact membership and routes, including prerequisite steps:
+   **1120 must run `ExtendSongsOverOwnLyrics`**, not just extraction. Hear newly changed or
+   conflicting cases; retain already valid evidence for unchanged cuts. Done when every proposed
+   move and refusal has a disposition and the route actually applies the required fix.
+4. **Dispose of residual misses explicitly.** Record repair or containment/exclusion for **928**
+   (one word lost) and **1131** (early sermon end), and any material cases found in step 3. A recorded
+   miss is not acceptance. 928 is one instance of a measured class: **a leader's word spoken over a
+   song's fading music is counted as sung** (`isSung()` takes any window with music ≥ 0.4, so the fade
+   cut can land in a gap inside the sentence; 2 of 30 fade ends, 928 and 1220 ruled either; §5 "Speech
+   over a fading song measured"). Decide for the class, not the instance: a rule in the song end rule,
+   measured across every fade end and heard before adoption, or containment recorded for both runs.
+   Making those words unsung alone does not meet 928, because its gap search stops on the same gap.
+   Keep the K16 reword parked: its measured one-gain/one-loss result does
+   not justify a wholesale re-ask. Do not add the two guards needed only by that parked reword
+   unless a later adopted change makes them relevant. 1250 is no longer an outstanding rule fix;
+   it still needs application and verification in the encoded output.
+5. **Preflight, then inspect the encoded canary.** Follow runbook §§3 and 6: current disk headroom,
+   verified backups, exact snapshot membership and frozen code, then pause/resume and a representative
+   end-to-end canary before bulk expansion. Include affected song-to-speech transitions and internal
+   sermon joins in actual-media checks, not just planned timestamps. Stop expansion on a regression
+   or unassessable result. Post-round current-output audit, song acceptance, editorial QA and signed
+   release remain separate work under §§4.3–4.5 and the programme plan.
+
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Historic imports use the livestream
@@ -2069,7 +2121,7 @@ check against the 09-17 speech-edge trim) deserve a closer look before being bui
 - [ ] Re-resolve the 72 deterministic cases through the pipeline, adjudicate the three unchanged-fallback suggestions separately, and correct livestream-sourced order-of-service items after identity settles. *(Full text: log L2495.)*
 - [ ] **1287 §3596: decide the binding of OoS item 11981**, which binds no song while the sung words match #797. The lyric hold re-checks itself once the binding is made (09-24 fixes); it is not lifted by hand.
 - [ ] Settle the 31 pending-approval sections with the same hint disagreement before anyone approves them. *(Full text: log L2500.)*
-- [x] Add a lyric-coverage check (calibrated in §4.1a) before a song match is recorded as `confirmed`. *Built test-first 2026-09-23.* `SongLyricIdentityCheck` ports the 09-14 lyric scorer's rule unchanged (≥15 distinct content words; a rival song with ≥4 word pairs, twice the bound song's, and +0.1 IDF coverage). `MatchSongsFromTranscript` runs it on every match not taken from OCR and records `lyric_identity_check`. A contradiction raises `song_identity_contradicted_by_lyrics`, which `SongCatalogueTitlePolicy` vetoes at any confidence (so it stays `inferred` and goes to review, and the recalculator cannot promote it). The section also stays eligible for OCR, which can settle it. It is a contradiction test, not a confirmation: an unreadable transcript (`unavailable`) or too few heard words (`insufficient_words`) does not block, because Whisper drops singing. The hand-applied `…_by_transcript` flag is a separate string and is never touched. Registered as the promoted detector `song-identity-contradicted-by-lyrics`. **Corpus measurement** (read-only, inside staging contexts; `storage/scratch/lyricid-20260923-measure.{php,json}`), 1,218 bound song sections: 954 consistent, 190 insufficient words, 15 unavailable, **58 contradicted, 56 already held**. Calibration reproduces: 0 of 42 frame-verified correct sections flagged; of the 8 known-wrong, 4 are contradicted, 2 score consistent (§519, §3218), and 2 have too few words (§508, §631). **Two new unheld candidates**: §872 (run 964; bound #275, sung words match "God We Praise You #177" at 45 pairs to 3) and §3128 (run 1250, `title_hint_fuzzy`; bound #19, sung words match "I Do Not Know What Lies Ahead #871" at 18 to 3, the title its own hint names). Both are historic, at `identified`, with no clip, so nothing is exposed. The check reaches existing rows only when matching re-runs through the pipeline. Those two need a binding decision, not a hand edit. *(Full text: log L2502.)*
+- [x] Add a lyric-coverage check (calibrated in the [09-12–09-23 log §4.1a](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md#41a-measure-what-the-known-defects-do-not-cover)) before a song match is recorded as `confirmed`. *Built test-first 2026-09-23.* `SongLyricIdentityCheck` ports the 09-14 lyric scorer's rule unchanged (≥15 distinct content words; a rival song with ≥4 word pairs, twice the bound song's, and +0.1 IDF coverage). `MatchSongsFromTranscript` runs it on every match not taken from OCR and records `lyric_identity_check`. A contradiction raises `song_identity_contradicted_by_lyrics`, which `SongCatalogueTitlePolicy` vetoes at any confidence (so it stays `inferred` and goes to review, and the recalculator cannot promote it). The section also stays eligible for OCR, which can settle it. It is a contradiction test, not a confirmation: an unreadable transcript (`unavailable`) or too few heard words (`insufficient_words`) does not block, because Whisper drops singing. The hand-applied `…_by_transcript` flag is a separate string and is never touched. Registered as the promoted detector `song-identity-contradicted-by-lyrics`. **Corpus measurement** (read-only, inside staging contexts; `storage/scratch/lyricid-20260923-measure.{php,json}`), 1,218 bound song sections: 954 consistent, 190 insufficient words, 15 unavailable, **58 contradicted, 56 already held**. Calibration reproduces: 0 of 42 frame-verified correct sections flagged; of the 8 known-wrong, 4 are contradicted, 2 score consistent (§519, §3218), and 2 have too few words (§508, §631). **Two new unheld candidates**: §872 (run 964; bound #275, sung words match "God We Praise You #177" at 45 pairs to 3) and §3128 (run 1250, `title_hint_fuzzy`; bound #19, sung words match "I Do Not Know What Lies Ahead #871" at 18 to 3, the title its own hint names). Both are historic, at `identified`, with no clip, so nothing is exposed. The check reaches existing rows only when matching re-runs through the pipeline. Those two need a binding decision, not a hand edit. *(Full text: log L2502.)*
 - [x] Redefine `confirmed` as two agreeing evidence sources whose lineage is demonstrably independent, with at least one supporting the actual performed song. *Built 2026-09-23 (`8ae957628`) as **any two** independent sources, by operator ruling; the performed-song requirement was dropped after measurement (it would demote 105 planned-and-announced bindings where Whisper missed the singing).* *(Full text: log L2504.)*
 
 **4.3a Put a detector in the pipeline for every class found**
@@ -2244,14 +2296,14 @@ Done (detail in the [10-03 to 10-16 log](../archived-plans/HISTORIC-VIDEO-DEFECT
 
 Open:
 
-- [ ] Re-run §4.1a's sample validation on a fresh sample drawn after repairs, as final
+- [ ] Re-run the [09-12–09-23 log §4.1a](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-09-12-TO-2026-09-23.md#41a-measure-what-the-known-defects-do-not-cover) sample validation on a fresh sample drawn after repairs, as final
   acceptance evidence, across eras and apparently clean cases. It is not a held-out set:
   H9 rules that none survives, so the sample is new, not reserved (wording corrected
   2026-09-24). Cover split sermons, partial/composite recordings, corrupt transcripts,
   repeated performances, song identity/count and boundary quality. The sample
   frame must include repaired and previously held runs, not only the never-named
-  population (§4.1a's two samples excluded them), and the checklist must cover
-  every row of the §4.1b coverage matrix, not the original seven dimensions. Record
+  population (that historical section's two samples excluded them), and the checklist must cover
+  every row of that log’s §4.1b coverage matrix, not the original seven dimensions. Record
   sample membership, seed, selection probabilities, applicable denominators and
   acceptance limits before inspection. Include source-first review and randomly
   selected interior passages. Report repaired/targeted challenge cases separately
@@ -6288,7 +6340,11 @@ for tied and untied answers; red-to-green test). Claude shared the repeated patt
   **either** (the dead-feed cut is acceptable; no guard change), 893 B, 894 B. Gathered as a source; fixtures
   `run-{890,893,894,1288,1366}-2026-10-28-amen.json.gz`. 1288 stays red as an open defect (below).
 
-**Open: merged Amens (1288; plan, not built).** When the preacher's Amen and the congregation's decode as one
+**Historical 10-28 proposal: merged Amens (1288; not built).** Current K16 permits retaining
+the answering Amen; reconcile the three remaining test failures under §4.1a before treating this
+proposed decoder work as necessary. The original finding and proposed investigation follow.
+
+ When the preacher's Amen and the congregation's decode as one
 word that runs past the start of the lone "Amen" line, `CueSafeExtractionPlan::beforeNextLine()` keeps the
 whole word (its last token matches the closing line), so the cut follows the congregation's Amen. Read-only scan
 (`storage/scratch/amen-k16-listening-20261028/merged-amen-scan.*`): of 426 answered sermon ends, 122 end on an
@@ -6594,8 +6650,8 @@ read-only, the 30 `song_end_fade` ends of `fade.json`).** Two separate mechanism
   - **Ruled-endings replay: 634 tests, 6 failures in 299 s** (8 shards, `fd69822f3`): the 3 known 1288 reds and the
     3 stale files above; after the refresh those 5 files pass (199 assertions).
   - **Validation:** full parallel suite 10,891 tests, the 3 known 1288 reds, **816 s** (41 min before the 10-28 shards);
-    Dusk 63/63; Pint and PHPStan clean. Logs in the fixtures folder. **Adopted** (all six moves heard). Build the rule (speech start
-  side, not the song end) only if they hold. 928 stays a recorded one-word miss unless a rule for (a) is wanted.
+    Dusk 63/63; Pint and PHPStan clean. Logs in the fixtures folder. **Adopted and committed** (`8ee9d3db2`; all six moves heard). The rule is on the speech-start
+  side, not the song end. 928 remains a recorded one-word miss; its disposition is part of §4.1a.
 
 **K16 reword on all 116 tied ends (operator: "Yes"; 270 Luna calls in all, one HTTP 520 resumed; `measured.json`).**
 Five ends move; 111 are unchanged. **1131 → 1461.42** (its ruled B) and **1183 → 1916.90** gain their conclusions;

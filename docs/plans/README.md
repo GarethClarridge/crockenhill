@@ -20,7 +20,7 @@ touched `.env` or production data. It is a running list, not a complete audit.
 ## How to use this index
 
 **Historic video (reconciled 2026-10-29):** start at the current handoff atop the
-[historic video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md), then its latest §5 record and
+[historic video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md), then its pre-freeze checklist (§4.1a), latest §5 record and
 acceptance work (§4.3–4.5). Its §3 counts and early §4.0 route list are dated evidence. Every ruling in force is in the
 [rulings register](HISTORIC-IMPORT-DECISIONS-2026-09-03.md); how a round runs is in the
 [round runbook](HISTORIC-ROUND-RUNBOOK.md). The boundary consistency, cut redesign and follow-up round
@@ -120,7 +120,7 @@ subsequent re-cuts. It feeds acceptance; it does not authorise release.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
-| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Programme authority; video handoff reconciled 2026-10-29.** The 10-21/22 round is closed; later rule changes have not reached the full corpus. Content acceptance and release remain NO-GO. | Settle the named material edge cases, remeasure exact membership on final code, then freeze and preflight the next round. Complete current-output audit and editorial QA before production convergence and signed era release. Weekly processing follows historic completion. |
+| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Programme authority; video handoff reconciled 2026-10-29.** The 10-21/22 round is closed; later rule changes have not reached the full corpus. Content acceptance and release remain NO-GO. | Complete video §4.1a: internal-join coverage, 1288 test reconciliation, combined corpus measurement and residual dispositions; then freeze and preflight the next round. Complete current-output audit and editorial QA before production convergence and signed era release. Weekly processing follows historic completion. |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |
