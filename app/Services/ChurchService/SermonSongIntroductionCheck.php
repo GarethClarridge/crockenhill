@@ -28,7 +28,8 @@ use OpenAI\Laravel\Facades\OpenAI;
  * ({@see SpokenEdgeSentenceCheck}). The read-only measurement of 2026-10-16 over 280 sermons
  * (`storage/scratch/weekly-edge-tool-20261016/`) found answers that agree on the judgement but
  * name different last lines (1160), and a garbled introduction one answer missed (1005). So it is
- * asked twice, and a third time when the two differ in judgement or line; the majority judgement
+ * asked twice, and a third time when the two differ in judgement, sermon line or video line (the
+ * video line still bounds the Amen extension); the majority judgement
  * stands, with a line its answers name at least twice (operator, 2026-10-16).
  *
  * The preacher must say how the song relates to the sermon: reading its words aloud is not a tie
@@ -105,7 +106,9 @@ TXT;
 
         $calls = [$this->ask($log, $question['prompt']), $this->ask($log, $question['prompt'])];
 
-        if ($calls[0]['ties_to_sermon'] !== $calls[1]['ties_to_sermon'] || $calls[0]['video_last_line'] !== $calls[1]['video_last_line']) {
+        if ($calls[0]['ties_to_sermon'] !== $calls[1]['ties_to_sermon']
+            || $calls[0]['sermon_last_line'] !== $calls[1]['sermon_last_line']
+            || $calls[0]['video_last_line'] !== $calls[1]['video_last_line']) {
             $calls[] = $this->ask($log, $question['prompt']);
         }
 

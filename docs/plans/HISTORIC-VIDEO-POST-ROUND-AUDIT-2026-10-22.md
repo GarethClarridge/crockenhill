@@ -3,9 +3,11 @@
 **Status — 2026-10-24: initial 70-service discovery completed; luna-batch50-03 at 24/50 reviewed, stopped_at_usage_limit. See live checkpoint below.**
 **Reconciliation required before the next audit batch (2026-10-29):** the discovery report is a
 dated lead ledger, not a current defect count. Its run 1011 `supported_material` song-opening
-omission was superseded by the 10-24 source-level check: the earlier apparent sung lines came
-from near-silent bleed, and the clip starts when usable sound returns. Record an accepted source
-limitation in the findings/aggregate, preserving the original claim and its correction. The 13
+omission still stands: the 10-24 class scan (`storage/scratch/class-scan-20261024/summary.json`,
+`song-opening-lyrics-in-gap.json`) lists it as one of three real cropped openings (1011, 1240,
+1345), "From Heaven You Came" §1285 losing 36.9 s of transcribed lyrics before its 519.73 s clip
+start, with the mechanism not investigated. A 10-29 note that called this near-silent bleed cited
+no recorded check, so 1011 is not a source limitation until its opening is heard. The 13
 stale `song_videos` bindings found in the 10-24 class scan were cleared after a backed-up repair;
 do not count the old bindings as current defects. The 10-24 re-cuts changed song clips on 17 runs
 and re-encoded 16 sermon videos; their saved packets/reviews require output-hash comparison and

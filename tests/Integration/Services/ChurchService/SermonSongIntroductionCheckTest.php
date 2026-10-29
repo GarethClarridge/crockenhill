@@ -83,6 +83,23 @@ class SermonSongIntroductionCheckTest extends TestCase
         OpenAI::assertSent(Chat::class, 3);
     }
 
+    /**
+     * The sermon ends at `sermon_last_line` (operator, 2026-10-28), so two answers agreeing on the
+     * judgement and the video's last line but naming different sermon lines are settled by a third,
+     * not by taking the earlier: 14 of 420 banked answers on 10-29 were two of this shape.
+     */
+    #[Test]
+    public function answers_naming_different_sermon_lines_are_settled_by_a_third(): void
+    {
+        $log = $this->service();
+        $this->answers([2, true, 6], [5, true, 6], [5, true, 6]);
+
+        $result = app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
+
+        $this->assertSame(3057.1, $result['end'], 'the sermon line two answers name');
+        OpenAI::assertSent(Chat::class, 3);
+    }
+
     #[Test]
     public function three_different_lines_take_the_middle_one(): void
     {

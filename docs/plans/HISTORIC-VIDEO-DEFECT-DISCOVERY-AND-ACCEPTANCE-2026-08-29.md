@@ -6,8 +6,9 @@
 > October 16 route list in §4.0, and the dated handoff below are historical measurements. Recount
 > eligible runs, open edges and unassessable rulings on the final code before freezing a new round.
 >
-> **Next:** reconcile K16 with the 10-29 ruling that retains a complete substantive conclusion;
-> test disagreement between fresh `sermon_last_line` answers; settle the material cases 968 and
+> **Next:** hear the 11 tied cut-aways that may be the sermon's own application (K16 as narrowed
+> 10-29; §5 "10-29"), then decide whether the prompt needs rewording; with the operator's word,
+> ask a third draw for the six banked answers whose sermon lines split; settle the material cases 968 and
 > 1291, review dependent song openings without risking sung lyrics, and hear 1267 §3355. A merged
 > congregational Amen can remain in an otherwise complete sermon when safe separation is unproved.
 > Then satisfy the [runbook's](HISTORIC-ROUND-RUNBOOK.md) disk, backup, route and canary checks.
@@ -2216,13 +2217,11 @@ the preacher. For song starts, preserve musical introduction and sung words; a p
 spoken opening stays as it is until the proposed announcement-word rule survives corpus replay and
 listening, especially mixed case 1174. Keep the incomplete 1295 song held as ruled (S10).
 
-Before exact release membership is approved, check that partial-recording disclosure reaches
-listeners on the website and through any feed/download that carries the recording. Verify named
-preachers; replace unsupported "Visiting Speaker" claims with honest unknown-speaker wording when
-identity cannot be established. Prioritise substantial omissions, wrong identity, and meaning
-errors over cosmetic edges. For final edge/fade/join acceptance, listen at normal speed and record
-the source of each verdict (operator hearing, model/text or mechanical evidence). Historic work
-finishes before weekly processing resumes (R8); this editorial priority does not change that order.
+Before exact release membership is approved: partial-recording disclosure on every surface
+(register P5), verified or honestly unknown speakers (P3), and normal-speed final listening with
+the verdict's source recorded (Q14); each has a checkbox below. Prioritise substantial omissions,
+wrong identity, and meaning errors over cosmetic edges. Historic work finishes before weekly
+processing resumes (R8); this editorial priority does not change that order.
 
 Done (detail in the [10-03 to 10-16 log](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md), Part 1 §4.5):
 
@@ -2350,6 +2349,10 @@ Open:
 - [ ] Verify the programme plan's **decided** access/content policy
   ([§8.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#8-release-policy),
   register G10–G11) on production before any release, including direct song-media access.
+- [ ] Disclose a partial recording beyond the sermon page (register P5). Only
+  `sermon-partial-recording-note` carries it today; the podcast feed's summary
+  (`PodcastFeedService::buildPodcastSummary()`) does not mention it, and downloaded MP3s'
+  tags are unchecked. Build and test the feed wording before a batch with partial recordings ships.
 
 ### 4.6 Lasting evaluation and long-term custody (added 2026-10-16)
 
@@ -6114,3 +6117,36 @@ So it needs better evidence first: plan step 1 is a second local-Whisper decode 
 narrower window ending before the next line), to see whether it splits the two Amens; then a rule, measure, a
 listening page for the 12, adopt. **Claude's own B answers for 1210 and 1285 (Amen step-back source) rest on
 the same merged evidence and should be re-heard on that page.**
+
+#### 10-29: K16 narrowed; tied cut-aways read; the third draw asked on the sermon line
+
+**Ruling (operator, 10-29):** "a substantive concluding application must not be cut merely because it also
+introduces the song". It is narrower than the 10-16 tie rule, not a return to it: "only keep if it's
+fundamentally part of the sermon that happens to mention a song." Register K16 amended.
+
+**Read of the tied cut-aways (text only; not heard, register Q14).** The 10-28 code ends a tied sermon at the
+voted `sermon_last_line`, so on a tied answer the lines up to the voted `video_last_line` are what 10-28 cut.
+Over the latest banked answer for each of **420** runs: 304 untied, **116 tied with lines cut** (median 22 s,
+longest 66 s). Script and output: `storage/scratch/k16-tied-cutaway-20261029/` (`tied_gap.py`, `tied_gap.json`).
+Most are announcements with a brief "it fits what we've been thinking about" or a lyric read aloud, which both
+the 10-28 and 10-29 rulings cut. Candidates where the cut-away may be the sermon's own application:
+- **stronger:** 956 (the summary "these are the facts… Christ died for sinners and rose", then "the song I have
+  just quoted"), 1131 ("I don't always find it easy to trust God… he's the sovereign Lord"), 1183 (application
+  after reading "In Christ Alone": "when we're walking with the Lord Jesus in a meaningful way…"), 1031
+  ("Theophilus was called to turn his back… Christ is all that matters"), 1244 ("make sure we're listening to
+  God's word and acting upon it");
+- **weaker:** 938, 973, 1001, 1111, 1318, 1364.
+1004's kept line ends mid-phrase ("…for the glory of your") and 968 is the known split ("…you ‖ to pieces.").
+**Next:** a listening page for the 11 (10-28 cut vs the video-line cut, one question each) before any prompt
+change; if the stronger ones are heard as sermon, reword the prompt's `sermon_last_line` definition and measure.
+
+**Third draw fixed.** `prepare()` asked a third time only when the answers differed in
+judgement or `video_last_line`, but the end is chosen from `sermon_last_line`, so two answers differing only
+there took the earlier line. It now asks a third time on any of the three; the failing test came first
+(`answers_naming_different_sermon_lines_are_settled_by_a_third`). Banked: **14 of 420** answers are two of that
+shape (`sermon-line-splits.json`). Replaying the decision with either line, eight converge: the Amen step-back
+or the untied Amen extension reaches the same end (962, 1063, 1080, 1114, 1151, 1244, 1261, 1277). **Six take
+the earlier line where it moves the end:** 968 (1.5 s, the split sentence above), 1001 (3.0 s, "Make it today."
+vs "And celebrate his mercy to you,"), 1086 (7.6 s), 1128 (3.3 s, "Thank you."), 1157 (19 s; the later line
+holds a prayer's opening) and 958 (23 s; the earlier line is the Amen, the later "Thank you.", so the earlier is
+probably right). A third draw for those six is model spend and waits for the operator's word.
