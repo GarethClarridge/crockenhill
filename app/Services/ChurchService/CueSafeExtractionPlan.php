@@ -120,6 +120,13 @@ class CueSafeExtractionPlan
      */
     private const LONGEST_SPOKEN_WORD = 1.0;
 
+    /**
+     * The time a smeared opening word is taken to have been said in, each, before the first word
+     * heard at speaking pace: 1250 §3131's "Marlene" before "is" (heard ≈1739.0, 10-29), 1326
+     * §4134's "Well, I'm just" before "having" (ruled 610.13).
+     */
+    private const SMEARED_WORD_SECONDS = 0.33;
+
     /** A decode window margin before a word at least this long shows nothing was said there. */
     private const OBSERVED_GAP = 0.1;
 
@@ -696,7 +703,9 @@ class CueSafeExtractionPlan
      * "Rock of Ages" and 1229's on "Creator God"'s outro, both joined straight from the reading
      * (operator listening, 2026-10-11). 1291's reading opened on its song's held last note, which the
      * decode heard as a pause between words; the song faded out at 1124.62, and the reading belongs
-     * there (operator listening, 2026-10-29: "about 18:45").
+     * there (operator listening, 2026-10-29: "about 18:45"). Where a song fades out and the speech's
+     * first words are smeared over its music, the speech starts where they were said
+     * ({@see self::smearedOpening()}).
      *
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  list<array{start_time: float, end_time: float}>  $sectionSpans  The spans as detection gave them
@@ -720,17 +729,24 @@ class CueSafeExtractionPlan
             $window = app(OutputEdgeWordTimings::class)->timingWindow($cues, $songEnd, $log->duration);
             $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log));
 
-            if (! in_array($decision['reason'] ?? null, ['song_end_silence', 'song_end_speech', self::SONG_END_FADE], true)
-                || $decision['time'] <= $spans[$index]['start_time'] + self::CUE_BOUNDARY_TOLERANCE
-                || $decision['time'] >= $spans[$index]['end_time']) {
+            if (! in_array($decision['reason'] ?? null, ['song_end_silence', 'song_end_speech', self::SONG_END_FADE], true)) {
+                continue;
+            }
+
+            // Only a fade leaves the speech's onset unestablished: silence or a heard onset already places it.
+            $smeared = $decision['reason'] === self::SONG_END_FADE ? $this->smearedOpening($log, $decision['speech_cue'] ?? null) : null;
+            $time = max((float) $decision['time'], $smeared['time'] ?? 0.0);
+
+            if ($time <= $spans[$index]['start_time'] + self::CUE_BOUNDARY_TOLERANCE || $time >= $spans[$index]['end_time']) {
                 continue;
             }
 
             $placed = $spans[$index]['start_time'];
-            $spans[$index]['start_time'] = (float) $decision['time'];
+            $spans[$index]['start_time'] = $time;
             $entry = array_key_first(array_filter($audit, static fn (array $entry): bool => $entry['span_index'] === $index && $entry['edge'] === 'start'));
-            $moved = ['time' => (float) $decision['time'], 'seconds_moved' => (float) $decision['time'] - $original,
-                'seconds_added' => abs((float) $decision['time'] - $original), 'after_song_sound' => ['section_id' => $song->id, 'reason' => $decision['reason'], 'placed_time' => $placed]];
+            $moved = ['time' => $time, 'seconds_moved' => $time - $original, 'seconds_added' => abs($time - $original),
+                'after_song_sound' => ['section_id' => $song->id, 'reason' => $decision['reason'], 'placed_time' => $placed,
+                    ...($smeared !== null && $smeared['time'] > (float) $decision['time'] ? ['song_cut' => (float) $decision['time'], 'smeared_opening' => $smeared] : [])]];
             if ($entry === null) {
                 $audit[] = ['span_index' => $index, 'edge' => 'start', 'original_time' => $original, 'window' => $window, 'cue' => null, 'cues' => [],
                     'chosen_pause' => null, 'word_before' => null, 'word_after' => null, 'reason' => 'after_song_sound', 'text_disagreement' => false, ...$moved];
@@ -740,6 +756,58 @@ class CueSafeExtractionPlan
         }
 
         return $spans;
+    }
+
+    /**
+     * Where a speech cue's first words were said when the decode smeared them over a song's fading
+     * music: the first of its words heard at speaking pace, less {@see self::SMEARED_WORD_SECONDS}
+     * for each smeared word before it. 1250 §3131's reading opened on 3.5 s of music because
+     * "Marlene" ran 4.4 s up to "is" (operator listening, 2026-10-29); 1216, 1235 and 1342 heard
+     * either way. Null when the cue's first word is heard at speaking pace, is not heard reaching
+     * the cue, or no later word of the cue is.
+     *
+     * @param  array{start: float, end: float, text: string}|null  $speech
+     * @return array{time: float, heard: string, smeared: int}|null
+     */
+    private function smearedOpening(MediaProcessingLog $log, ?array $speech): ?array
+    {
+        if ($speech === null) {
+            return null;
+        }
+
+        $tokens = TranscriptCueEvidence::tokens($speech['text']);
+        $words = $this->merged(array_map(static fn (array $word): array => [...$word, 'window_start' => $word['start']], array_values(array_filter(
+            app(OutputEdgeWordTimings::class)->heardWords($log),
+            static fn (array $word): bool => $word['end'] >= $speech['start'] - self::SONG_END_LEAD && $word['start'] <= $speech['end'],
+        ))));
+        $at = 0;
+        $smeared = 0;
+
+        foreach ($words as $word) {
+            $heard = TranscriptCueEvidence::tokens($word['word']);
+
+            if ($heard === [] || array_slice($tokens, $at, count($heard)) !== $heard) {
+                continue;
+            }
+
+            $atSpeakingPace = $word['end'] - $word['start'] <= self::LONGEST_SPOKEN_WORD;
+
+            if ($at === 0 && $atSpeakingPace) {
+                return null;
+            }
+
+            $at += count($heard);
+
+            if (! $atSpeakingPace) {
+                $smeared++;
+
+                continue;
+            }
+
+            return ['time' => round($word['start'] - self::SMEARED_WORD_SECONDS * $smeared, 3), 'heard' => $heard[0], 'smeared' => $smeared];
+        }
+
+        return null;
     }
 
     /**

@@ -441,6 +441,17 @@ records.extend(edge_listening_rulings(
      for answer in saved('longer-1042-listening-20261029/answers/rulings').values()],
 ))
 
+# 10-29 night: Smeared First Words (a speech start back-estimated from its first word heard at speaking pace).
+# Choices are the version letters; all three were "either". 1235's moved start opens the sermon video's second part,
+# not the video, so it stays in the plan (as FADE_INNER_PARTS above).
+SMEARED_INNER_PARTS = {'1235-sermon-start'}
+records.extend(edge_listening_rulings(
+    'smeared-opening-20261029',
+    [question for question in load('smeared-opening-listening-20261029/questions.json') if question['id'] not in SMEARED_INNER_PARTS],
+    [{**answer, 'choice': answer['choice'].lower()} for question_id, answer in saved('smeared-opening-listening-20261029/answers/rulings').items()
+     if question_id not in SMEARED_INNER_PARTS],
+))
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {

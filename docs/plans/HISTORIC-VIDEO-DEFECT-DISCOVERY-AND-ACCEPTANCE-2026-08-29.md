@@ -6547,6 +6547,56 @@ not this change's. Net: nine met, one one-word loss (928), one improved but stil
 - **Open:** speech over a song's fading music counts as song (928's leader, 1250's "Marlene is going to…"): measure
   before any rule; the song end rule is where it lives.
 
+**Speech over a fading song measured (10-29 night; `storage/scratch/speech-over-fade-20261029/probe.{php,json,txt}`,
+read-only, the 30 `song_end_fade` ends of `fade.json`).** Two separate mechanisms, not one:
+- **(a) A word heard as speech counted as sung** (`isSung()` takes any window with music ≥ 0.4; the leader's word sits
+  in a mixed window, speech ≥ 0.5): **2 of 30**. 928 ("now", s0.88 m0.83: the cut lands in a 0.24 s gap inside the
+  sentence) and 1220 (ruled either). Making those words not sung leaves 928's gap search (`lastGap` up to the
+  classifier's 1345.00 bound) on the same gap, so it alone does not meet 928. No song end ruling says 928's clip is
+  wrong; the fade design (operator 10-07) lets unidentified words at the cut fade with the song.
+- **(b) The speech cue's opening words smeared** (> 2 s, so dropped as an anchor; the speech start falls back to the
+  song's cut or the cue start): **6 of 30**: 1208, 1216, 1235, 1250, 1326, 1342. **1250's song end is ruled right at
+  1735.64** (canary 13), so the miss is the *speech start*, not the song end. Back-estimating the onset from the first
+  well-timed word in the cue's order (minus 0.33 s per smeared word before it) gives **1250 1738.97** (ruled "more
+  like 28:59" ≈ 1739.0) and **1326 610.14** (ruled 610.13), but moves **1342 to 1232.69, 2.3 s past its heard-right
+  1230.40**, and 1216 (+2.3) and 1235 (+2.3) are unruled. 1208 has no timed word after "Good" (10.66 s).
+- **Next:** page "Smeared First Words" https://claude.ai/artifact/SGosZExvkYgdRQDfVJT9Dw (`rulings`; builder and key `storage/scratch/smeared-opening-listening-20261029/`, times a = live start, b = back-estimate) for 1342, 1216 and 1235. **Answered 10-29 night: all three “either”** (answers in the builder's
+  `answers/rulings/`). The back-estimate therefore meets 1250 (1738.97 for ≈1739.0) and 1326 (610.14 for 610.13) and
+  is acceptable on the other three; 1208 (no timed word) keeps today's start. **Build awaits go:** test-first in the
+  speech-start side (`afterSongSound()`'s caller, not `songEnd()`), from the 1250 shape; gather the three answers as
+  `either` rulings (1216 and 1342 talks; 1235 sermon segment 0); capture 1250's start as the failing fixture; replay
+  the ruled endings. 928 stays a recorded one-word miss (mechanism (a), 2 of 30).
+- **Built 10-29 night (operator: "Yes, do all that").**
+  `CueSafeExtractionPlan::smearedOpening()`: after a song that **fades** out, a speech start is the speech cue's first
+  word heard at speaking pace (≤ 1.0 s) in the cue's order, less `SMEARED_WORD_SECONDS` (0.33) per smeared word before
+  it, when that is later than the song's cut; `afterSongSound()` records `song_cut` and `smeared_opening`. The gate now
+  tests the final time, not the song's cut (1235's cut sat 0.10 s before its placed start). Tests: the 1250 shape and a
+  guard (a song ending in **silence** keeps its start; red on the broad version).
+  - **Narrowed to fade ends.** The first build ran on all three song end reasons; the corpus replay moved **nine
+    unheard talk starts** after silence or a heard onset (939, 1018, 1059 +7.33, 1075, 1118 +5.78, 1210, 1262, 1274,
+    1301; `replay-talks-only.json`). There the song end rule has already placed the onset; only a fade leaves it
+    unestablished. That first replay also missed every sermon move (the resolver keeps its audit in `metadata`).
+  - **Replay on the narrowed rule** (`replay.txt`, 803 plans): **six moves**: 1216, 1235 (sermon segment 1), 1250
+    (segment 1, **1738.97**), 1326 (+0.01), 1342, and **1208** (sermon segment 1, 1751.78 → **1758.63**, +6.85 s:
+    "Good" smeared 1748.30–1758.96 before "morning."; classifier quiet 1750–1755, speech from 1755). The measurement
+    missed 1208 (its probe looked 5 s past the cut). **Page "Good Morning Start"**
+    https://claude.ai/artifact/NvpQzXH9J2TpDgrnNW42tS (`rulings`, id `1208-sermon-start`; builder and key
+    `storage/scratch/smeared-1208-listening-20261029/`, a 1751.78 / b 1758.63). **Answered 10-29: either**
+    (kept here: segment 1). Every move the rule makes is now heard: 1250 met, the other five acceptable.
+  - **Rulings:** `smeared-opening-20261029` 1216 and 1342 `either` (points now/back-estimate; supersedes 1342's
+    after-song-fade `keep` 1230.40). **1235 left out** (`SMEARED_INNER_PARTS`): its moved start opens the sermon
+    video's second part. 1250 and 1208 likewise stay here.
+  - **Fixtures** (`storage/scratch/smeared-opening-fixtures-20261029/`): new `run-1216-2026-10-29-smeared`,
+    `run-1342-2026-10-29-smeared` (`--current`; without it capture plans under version 8 and misses 1342's banked
+    window). Refreshed from `--current` captures (21 entries, prior files in `before/`): `run-1342-2026-10-29-fade`,
+    `run-1250-2026-10-23`, `run-1235-2026-10-23`, each a fidelity failure on the moved start, no ruling broken. The
+    1250 test in `SongEndEdgesTest` is its failing fixture: a segment-1 sermon start cannot be a register ruling.
+  - **Ruled-endings replay: 634 tests, 6 failures in 299 s** (8 shards, `fd69822f3`): the 3 known 1288 reds and the
+    3 stale files above; after the refresh those 5 files pass (199 assertions).
+  - **Validation:** full parallel suite 10,891 tests, the 3 known 1288 reds, **816 s** (41 min before the 10-28 shards);
+    Dusk 63/63; Pint and PHPStan clean. Logs in the fixtures folder. **Adopted** (all six moves heard). Build the rule (speech start
+  side, not the song end) only if they hold. 928 stays a recorded one-word miss unless a rule for (a) is wanted.
+
 **K16 reword on all 116 tied ends (operator: "Yes"; 270 Luna calls in all, one HTTP 520 resumed; `measured.json`).**
 Five ends move; 111 are unchanged. **1131 → 1461.42** (its ruled B) and **1183 → 1916.90** gain their conclusions;
 three get shorter against standing rulings: **962** 3798.68 → 3757.10 ("…final hymn.", dropping the Lord's Prayer

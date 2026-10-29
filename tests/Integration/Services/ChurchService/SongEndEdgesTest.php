@@ -442,6 +442,77 @@ class SongEndEdgesTest extends TestCase
     }
 
     /**
+     * 1250 §3131: "Marlene" is decoded over 4.4 s of the song's fading music, so the reading
+     * started at the song's cut on 3.5 s of music ("Both have music. Should be more like 28:59",
+     * 10-29). The song's own cut is right (canary 13); the reading starts where its first word was
+     * said, a spoken word's length before the next word heard at speaking pace.
+     */
+    #[Test]
+    public function a_spoken_part_whose_first_word_is_smeared_over_the_songs_music_starts_where_it_was_said(): void
+    {
+        $sung = ['start' => 1730.70, 'end' => 1734.74, 'text' => 'in the name of my Lord.'];
+        $speech = ['start' => 1735.74, 'end' => 1742.33, 'text' => 'Marlene is going to come and do the next reading for us,'];
+        $song = $this->song(1500.0, 1734.74, [$sung, $speech], [[1500, 1760, self::LOUD]],
+            timeline: [[1500, 1735, 0.8, 0.0], [1735, 1740, 0.6, 0.7], [1740, 1760, 0.0, 0.7]]);
+        $words = [
+            ['start' => 1729.86, 'end' => 1730.90, 'word' => " It's"],
+            ['start' => 1730.90, 'end' => 1731.20, 'word' => ' a'],
+            ['start' => 1731.20, 'end' => 1733.00, 'word' => ' gift,'],
+            ['start' => 1733.00, 'end' => 1733.60, 'word' => ' my'],
+            ['start' => 1733.60, 'end' => 1734.86, 'word' => ' Lord.'],
+            ['start' => 1734.86, 'end' => 1739.30, 'word' => ' Marlene'],
+            ['start' => 1739.30, 'end' => 1739.42, 'word' => ' is'],
+            ['start' => 1739.42, 'end' => 1739.72, 'word' => ' going'],
+            ['start' => 1739.72, 'end' => 1739.83, 'word' => ' to'],
+            ['start' => 1739.94, 'end' => 1740.10, 'word' => ' come'],
+        ];
+        $this->bank($song, 1734.74, $words);
+        $this->bank($song, 1735.74, $words);
+        $songCut = app(CueSafeExtractionPlan::class)->forSection($song->fresh())['segments'][0]['end_time'];
+        $reading = ServiceSection::factory()->create(['media_processing_log_id' => $song->media_processing_log_id,
+            'section_type' => ServiceSectionType::BibleReading, 'start_time' => 1734.74, 'end_time' => 1900.0]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($reading->fresh());
+
+        $this->assertLessThan(1736.0, $songCut, 'the song keeps its own cut');
+        $this->assertEqualsWithDelta(1738.97, $plan['segments'][0]['start_time'], 0.01);
+        $start = collect($plan['cue_edge_widening'])->first(static fn (array $entry): bool => $entry['edge'] === 'start');
+        $this->assertSame(['heard' => 'is', 'smeared' => 1], array_intersect_key($start['after_song_sound']['smeared_opening'], ['heard' => true, 'smeared' => true]));
+    }
+
+    /**
+     * Silence after a song already says where the speech can start: a smeared first word moves
+     * only a start after a fade, the case measured and heard (10-29). The same smear after
+     * silence moved nine unheard talk starts by up to 7 s, so it is not followed there.
+     */
+    #[Test]
+    public function a_smeared_first_word_after_a_song_that_ends_in_silence_does_not_move_the_start(): void
+    {
+        $sung = ['start' => 1730.70, 'end' => 1734.74, 'text' => 'in the name of my Lord.'];
+        $speech = ['start' => 1735.74, 'end' => 1742.33, 'text' => 'Marlene is going to come and do the next reading for us,'];
+        $song = $this->song(1500.0, 1734.74, [$sung, $speech], [[1500, 1735.0, self::LOUD], [1735.0, 1736.6, self::SILENT], [1736.6, 1760, self::LOUD]],
+            timeline: [[1500, 1735, 0.8, 0.0], [1735, 1740, 0.6, 0.7], [1740, 1760, 0.0, 0.7]]);
+        $words = [
+            ['start' => 1733.00, 'end' => 1733.60, 'word' => ' my'],
+            ['start' => 1733.60, 'end' => 1734.86, 'word' => ' Lord.'],
+            ['start' => 1734.86, 'end' => 1739.30, 'word' => ' Marlene'],
+            ['start' => 1739.30, 'end' => 1739.42, 'word' => ' is'],
+            ['start' => 1739.42, 'end' => 1739.72, 'word' => ' going'],
+        ];
+        $this->bank($song, 1734.74, $words);
+        $this->bank($song, 1735.74, $words);
+        $reading = ServiceSection::factory()->create(['media_processing_log_id' => $song->media_processing_log_id,
+            'section_type' => ServiceSectionType::BibleReading, 'start_time' => 1734.74, 'end_time' => 1900.0]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($reading->fresh());
+
+        $start = collect($plan['cue_edge_widening'])->first(static fn (array $entry): bool => $entry['edge'] === 'start');
+        $this->assertSame('song_end_silence', $start['after_song_sound']['reason']);
+        $this->assertArrayNotHasKey('smeared_opening', $start['after_song_sound']);
+        $this->assertLessThan(1737.0, $plan['segments'][0]['start_time']);
+    }
+
+    /**
      * Canary 12, 1028 §1392 (B1): "Aled," is not decoded, so the cue's opening is not heard. The
      * largest pause in reach (562.67–563.72) sat inside "…up on the | screen"; the silence before
      * the first decoded word ends the song instead.
