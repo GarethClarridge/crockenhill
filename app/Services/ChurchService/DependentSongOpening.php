@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Enums\ServiceSectionType;
 use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
+use App\Models\Song;
 
 /** Follow-on evidence for the linking announcements left at song starts (10-29 study). */
 class DependentSongOpening
@@ -17,6 +20,8 @@ class DependentSongOpening
      * play-through split from its song), and dropping its announcement would leave a sub-second output.
      */
     private const MINIMUM_REMAINING_SECONDS = 30.0;
+
+    private const ANNOUNCEMENT_WORDS = ['sing', 'sang', 'sung', 'singing', 'stand', 'standing', 'song', 'hymn', 'chorus', 'number', 'chosen', 'played'];
 
     /**
      * Cue times select text only; they never authorise a cut. Keep a sentence spanning several cues,
@@ -92,10 +97,17 @@ class DependentSongOpening
      * Missing, looping or non-matching evidence is a soft miss. Only the complete transcript
      * sentence's exact decoded words can move a cut; cue ends never supply a timing.
      *
+     * A sentence announces when it holds an announcement word, or names another song of the service
+     * (1096: "Firstly, how can it be the one who died? And secondly, I know that my Redeemer lives.",
+     * the second song of a pair; operator, 10-29). The song's own title does not count: it is often its
+     * first sung line (1226's "And then he is exalted."). On the 28 linking starts left in place on
+     * 10-29, another song's title named 1096 alone (`storage/scratch/title-naming-opening-20261029/`).
+     *
      * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  float|null  $sectionStart  The song section's own start, which names the song this opening belongs to
      * @return array{time: float, dropped: list<string>, stopped: string, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, window: array{start: float, end: float, window_rule: string}|null}
      */
-    public function review(MediaProcessingLog $log, array $cues, float $cut, float $until): array
+    public function review(MediaProcessingLog $log, array $cues, float $cut, float $until, ?float $sectionStart = null): array
     {
         $window = $this->window($log, $cues, $cut);
         $result = ['time' => $cut, 'dropped' => [], 'stopped' => 'not_linking', 'word_before' => null, 'word_after' => null, 'window' => $window];
@@ -130,7 +142,7 @@ class DependentSongOpening
                 break;
             }
             $result['stopped'] = 'not_announcement';
-            if (array_intersect($expected, ['sing', 'sang', 'sung', 'singing', 'stand', 'standing', 'song', 'hymn', 'chorus', 'number', 'chosen', 'played']) === []) {
+            if (array_intersect($expected, self::ANNOUNCEMENT_WORDS) === [] && ! $this->namesAnotherSong($log, $expected, $sectionStart)) {
                 break;
             }
             $matches = [];
@@ -164,5 +176,46 @@ class DependentSongOpening
         }
 
         return $result;
+    }
+
+    /** @param  list<string>  $sentence */
+    private function namesAnotherSong(MediaProcessingLog $log, array $sentence, ?float $sectionStart): bool
+    {
+        if ($sectionStart === null) {
+            return false;
+        }
+        $sections = $log->serviceSections()->with('churchServiceItem')->where('section_type', ServiceSectionType::Song)->get();
+        $own = $sections->first(static fn (ServiceSection $section): bool => abs((float) $section->start_time - $sectionStart) < 0.001)?->resolvedSongId();
+        if ($own === null) {
+            return false;
+        }
+        $songIds = array_unique(array_filter([
+            ...$sections->map(static fn (ServiceSection $section): ?int => $section->resolvedSongId())->all(),
+            ...($log->churchService?->items()->pluck('song_id')->all() ?? []),
+        ]));
+        $songs = Song::query()->whereKey($songIds)->get(['id', 'title', 'alternate_title']);
+        $titles = static fn (Song $song): array => array_values(array_filter(array_map(
+            static fn (?string $title): array => TranscriptCueEvidence::tokens((string) preg_replace(['/#\s*\d+/', '/\(.*?\)/'], '', (string) $title)),
+            [$song->title, $song->alternate_title],
+        ), static fn (array $tokens): bool => count($tokens) >= 2));
+        $ownTitles = $titles($songs->firstWhere('id', $own) ?? new Song);
+
+        foreach ($songs as $song) {
+            if ($song->id === $own) {
+                continue;
+            }
+            foreach ($titles($song) as $title) {
+                if (in_array($title, $ownTitles, true)) {
+                    continue;
+                }
+                for ($at = 0; $at + count($title) <= count($sentence); $at++) {
+                    if (array_slice($sentence, $at, count($title)) === $title) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 }

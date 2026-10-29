@@ -5,8 +5,14 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\ChurchService;
 
 use App\Data\ChurchServiceTranscript;
+use App\Enums\ServiceSectionSongMatchType;
+use App\Enums\ServiceSectionType;
 use App\Exceptions\OutputEdgeTimingsMissing;
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\DependentSongOpening;
 use App\Services\ChurchService\OutputEdgeWordTimings;
@@ -473,10 +479,11 @@ class WordTimedOutputEdgesTest extends TestCase
 
     #[Test]
     #[DataProvider('dependentAnnouncements')]
-    public function a_song_drops_only_a_matching_non_looping_linking_announcement(string $text, string $decoded, int $droppedWords, bool $bankFollowOn = true, float $end = 4900.0): void
+    public function a_song_drops_only_a_matching_non_looping_linking_announcement(string $text, string $decoded, int $droppedWords, bool $bankFollowOn = true, float $end = 4900.0, array $serviceSongs = []): void
     {
         $cue = ['start' => 100.0, 'end' => 110.0, 'text' => $text];
         $log = $this->log($cue);
+        $this->serviceSongs($log, $serviceSongs);
         $timing = [['start' => 100.0, 'end' => 100.2, 'word' => 'And']];
         $this->bank($log, $cue, $timing);
         $words = [];
@@ -506,6 +513,10 @@ class WordTimedOutputEdgesTest extends TestCase
             'missing decode is a soft miss' => ['And then sing.', 'And then sing.', 0, false],
             'announcement words are whole words' => ['And a songbird sings.', 'And a songbird sings.', 0],
             '1096 title without announcement word' => ['And secondly I know my Redeemer lives.', 'And secondly I know my Redeemer lives.', 0],
+            '1096 names the next song of the service' => ['And secondly, I know that my Redeemer lives.', 'And secondly, I know that my Redeemer lives.', 8, true, 4900.0,
+                ['Christ is risen, He is risen indeed', 'I Know That My Redeemer Lives #462']],
+            '1226 sings its own title, catalogued twice' => ['And then he is exalted. The king is exalted on high.', 'And then he is exalted. The king is exalted on high.', 0, true, 4900.0,
+                ['He is exalted', 'He Is Exalted #485']],
             'cannot consume the whole span' => ['And then sing.', 'And then sing.', 0, true, 100.6],
             '1073 play-through fragment keeps under 30 s' => ['And then sing.', 'And then sing.', 0, true, 125.0],
             'unfinished sentence' => ['And then sing', 'And then sing', 0],
@@ -1278,6 +1289,26 @@ class WordTimedOutputEdgesTest extends TestCase
         Storage::disk('local')->put('temp/edge-test.json', json_encode(ChurchServiceTranscript::fromCues([$cue], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
 
         return $log;
+    }
+
+    /**
+     * The service's songs as sections, one after another from the song under test, which starts at 100 s.
+     *
+     * @param  list<string>  $titles
+     */
+    private function serviceSongs(MediaProcessingLog $log, array $titles): void
+    {
+        if ($titles === []) {
+            return;
+        }
+        $service = ChurchService::factory()->create();
+        $log->forceFill(['church_service_id' => $service->id])->save();
+        foreach ($titles as $index => $title) {
+            $item = ChurchServiceItem::factory()->create(['church_service_id' => $service->id, 'song_id' => Song::factory()->create(['title' => $title])->id]);
+            ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'church_service_item_id' => $item->id,
+                'section_type' => ServiceSectionType::Song, 'song_match_type' => ServiceSectionSongMatchType::Confirmed,
+                'start_time' => 100.0 + $index * 300.0, 'end_time' => 390.0 + $index * 300.0]);
+        }
     }
 
     /** @param list<array{start: float, end: float, text: string}> $cues */

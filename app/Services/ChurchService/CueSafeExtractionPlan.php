@@ -440,7 +440,7 @@ class CueSafeExtractionPlan
             $spans = $this->atSongChangeDip($log, $cues, $sectionSpans, $spans, $audit, $levels, start: true);
             foreach ($spans as $index => &$span) {
                 $cut = (float) $span['start_time'];
-                $dependent = app(DependentSongOpening::class)->review($log, $cues, $cut, (float) $span['end_time']);
+                $dependent = app(DependentSongOpening::class)->review($log, $cues, $cut, (float) $span['end_time'], (float) $sectionSpans[$index]['start_time']);
                 if ($dependent['window'] === null) {
                     continue;
                 }

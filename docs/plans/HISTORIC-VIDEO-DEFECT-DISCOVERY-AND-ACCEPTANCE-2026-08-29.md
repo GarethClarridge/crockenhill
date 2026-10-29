@@ -12,7 +12,7 @@
 > settled 10-29 late: the song-order lyric path (1120) and `afterSongSound` following a fading song (1291's reading, nine
 > of eleven starts heard right) are committed; 928 and 1250 = speech over a fading song, to measure). Dependent
 > song openings are adopted (`39b518a55`, §5); 1096's title-naming idea is measured (§5, after step 4): naming
-> *another* song of the service (not the own title) fires on 1096 alone; build awaits the operator's go. A merged
+> *another* song of the service (not the own title) is built and committed (1096 alone moves, as ruled); 1042 heard right. A merged
 > congregational Amen can remain in an otherwise complete sermon when safe separation is unproved.
 > Then satisfy the [runbook's](HISTORIC-ROUND-RUNBOOK.md) disk, backup, route and canary checks.
 > Recheck actual output media, song acceptance and editorial evidence after the round (§4.3–4.5).
@@ -5892,6 +5892,26 @@ items and resolved sections).
   in the corpus (1096 §1814, to the decoded end of "…Redeemer lives.", then the first-quiet margin), met by the ruling
   already given, so no listening page is needed unless the cut lands somewhere unheard. Small: one ruling, one case,
   no break, so per "soft misses aren't worth breaking others" it is worth it only because it breaks nothing.
+**1096 built (10-29 late, operator: "Do both").** `DependentSongOpening::review()` takes the song section's start
+(from `CueSafeExtractionPlan`) and counts a linking sentence as an announcement when it names another song of the
+service: a contiguous title or alternate title (2+ tokens, "#nnn" and brackets dropped) of an order-of-service or
+section song other than the clip's own, and not equal to any of the own song's titles. Data cases in
+`WordTimedOutputEdgesTest`: 1096 drops "And secondly, I know that my Redeemer lives." (red → green); 1226's sung own
+title, catalogued twice (He is exalted 340 / #485 339), stays (fails if the own-title exclusion is removed). Replay of
+the 28 declined linking starts (`title-naming-opening-20261029/replay.txt`): **1096 alone moves, 1252.29 → 1256.05**,
+just before "Let's stand and sing." — meets its `inward` ruling (leaning-openings-20261029). **Harness:** the rule reads
+song titles, so fixtures now carry `service_songs` (catalogue titles + order-of-service items tying sections to
+songs): written by `scripts/ruled-endings/capture.php`, shared per run in `merge.py`, restored by
+`RuledEndingsTestCase::restoreServiceSongs()` (older captures hold none and replay without a service). New dataset
+`run-1096-2026-10-29-title.json.gz` (`storage/scratch/title-naming-fixtures-20261029/`). Replay 623 tests, the 3 known
+1288 reds. **1042 page "Longer Clip 1042"** https://claude.ai/artifact/MvckdYvv9yUGMUnBahB529 (`rulings`, id
+`1042-1521-start`; builder `storage/scratch/longer-1042-listening-20261029/`): start 1256.01, after "…so we'll get it
+by the end."; the verse play-through the leader asks for follows, which the transcript loops as "And then we'll be
+right back."; a context clip (30 s before → 60 s after) and the song as cut (60 s); right / earlier / later.
+**Answered 10-29: 1042 right** (source `longer-1042-20261029`; keep 1256.01, the planner's `song_start_sentence` cut);
+dataset `run-1042-2026-10-29-longer.json.gz`. This closes the last Leaning Song Openings question.
+**Committed with 1096** after: full parallel suite 10,884 tests, the 3 known 1288 reds; Dusk 63/63; replay 624 tests,
+the same 3; Pint, PHPStan clean; `/tmp` held 1777 (suites run as the sail user).
 
 **Measurement checks.** The existing ruling scorer's 9 cases pass. The recorded song-planner and ruling-register
 hashes remain unchanged across the study. Nine runs' metadata changed during capture; after the seven evidence banks,

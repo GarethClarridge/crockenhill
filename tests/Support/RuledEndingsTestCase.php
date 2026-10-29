@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use App\Models\ChurchService;
+use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
+use App\Models\Song;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
@@ -376,7 +379,31 @@ abstract class RuledEndingsTestCase extends TestCase
             'updated_at' => now(),
         ], $fixture['sections']));
 
+        $this->restoreServiceSongs($log, $fixture['service_songs'] ?? null);
+
         return $log->fresh() ?? $log;
+    }
+
+    /**
+     * The service's songs as the capture found them: catalogue titles and the order-of-service items
+     * that tie sections to them. Captures before 10-29 hold none, and their runs replay without a service.
+     *
+     * @param  array{songs: list<array{id: int, title: string|null, alternate_title: string|null}>, items: list<array{song_id: int, section_ids: list<int>}>}|null  $serviceSongs
+     */
+    protected function restoreServiceSongs(MediaProcessingLog $log, ?array $serviceSongs): void
+    {
+        if ($serviceSongs === null || $serviceSongs['items'] === []) {
+            return;
+        }
+        $service = ChurchService::factory()->create();
+        $log->forceFill(['church_service_id' => $service->id])->save();
+        foreach ($serviceSongs['songs'] as $song) {
+            Song::factory()->create($song);
+        }
+        foreach ($serviceSongs['items'] as $item) {
+            $itemId = ChurchServiceItem::factory()->create(['church_service_id' => $service->id, 'song_id' => $item['song_id']])->id;
+            DB::table('service_sections')->whereIn('id', $item['section_ids'])->update(['church_service_item_id' => $itemId]);
+        }
     }
 
     /**

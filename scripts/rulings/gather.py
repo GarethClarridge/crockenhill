@@ -433,6 +433,14 @@ for source, questions, answers in (('lyric-tail-20261029', lyric_tail_questions,
             add(source, answer, run=question['run'], edge='start', heard=max(key['times'].values()),
                 output=key['output'], section_id=key['section'], section_type=key['type'], expect='inward')
 
+# 10-29 late: 1042's song start heard longer (Leaning Song Openings could not tell); "right" keeps the start heard.
+records.extend(edge_listening_rulings(
+    'longer-1042-20261029',
+    [{**q, 'key': {**q['key'], 'times': {'b': q['key']['times']['now']}}} for q in load('longer-1042-listening-20261029/questions.json')],
+    [{**answer, 'choice': {'right': 'b'}.get(answer['choice'], answer['choice'])}
+     for answer in saved('longer-1042-listening-20261029/answers/rulings').values()],
+))
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {

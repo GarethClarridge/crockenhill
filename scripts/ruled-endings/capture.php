@@ -39,15 +39,17 @@ declare(strict_types=1);
 
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\CutReviewEvidence;
 use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\ChurchService\OutputEdgeDecodeWindow;
-use App\Services\ChurchService\CutReviewEvidence;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
@@ -98,6 +100,22 @@ $dropMetadata = ['service_structure_ensemble', 'corpus_rerun', 'media_outputs', 
     'video_quality', 'stored_video', 'historic_promotion', 'speaker_identification'];
 $sectionColumns = ['id', 'section_type', 'start_time', 'end_time', 'confidence', 'status', 'metadata', 'section_order',
     'publication_status', 'song_match_type', 'title', 'needs_manual_review', 'duration', 'summary', 'source_segment_ids'];
+
+/**
+ * @param  Collection<int, ServiceSection>  $sections
+ * @return array{songs: list<array{id: int, title: string|null, alternate_title: string|null}>, items: list<array{song_id: int, section_ids: list<int>}>}
+ */
+$serviceSongs = static function (MediaProcessingLog $log, Collection $sections): array {
+    $items = $log->churchService?->items()->whereNotNull('song_id')->get(['id', 'song_id']) ?? collect();
+    $byItem = $sections->groupBy('church_service_item_id');
+
+    return [
+        'songs' => Song::query()->whereKey($items->pluck('song_id')->unique()->all())->orderBy('id')->get(['id', 'title', 'alternate_title'])
+            ->map(static fn (Song $song): array => ['id' => $song->id, 'title' => $song->title, 'alternate_title' => $song->alternate_title])->all(),
+        'items' => $items->map(static fn ($item): array => ['song_id' => (int) $item->song_id,
+            'section_ids' => ($byItem[$item->id] ?? collect())->pluck('id')->map(static fn ($id): int => (int) $id)->values()->all()])->values()->all(),
+    ];
+};
 
 $edgeRulings = collect(json_decode((string) file_get_contents(base_path('tests/Fixtures/Rulings/edge-rulings.json')), true)['rulings'])->keyBy('id');
 if ($current) {
@@ -335,6 +353,8 @@ foreach ($ids as $id) {
 
             return $row;
         })->all(),
+        // The service's songs by title: a linking sentence that names another of them announces a song (1096).
+        'service_songs' => $serviceSongs($log, $sections),
         'rms' => ['disk' => ServiceArtifactDisk::for($log->rms_log_path), 'threshold' => $threshold, 'window_seconds' => $windowSeconds,
             'input_precision' => 'full', 'samples' => $samples,
             ...($hasDeadPicture ? ['raw_content' => Storage::disk(ServiceArtifactDisk::for($log->rms_log_path))->get($log->rms_log_path)] : [])],
