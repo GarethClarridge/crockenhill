@@ -8,8 +8,10 @@
 >
 > **Next:** with the operator's word, reword K16's `sermon_last_line` definition and measure it on
 > the 116 tied answers against the 10-29 rulings (1131 and 1183 lose their conclusions today; §5
-> "10-29 (later)"); hear 1184's new end; settle the material cases 968 (now 2672.36 against the
-> ruled 2692.61; refresh its fixture to the current answer) and 1291, review dependent song openings without risking sung lyrics, and hear 1267 §3355. A merged
+> "10-29 (later)"; measurement script ready, §5 "10-29 (evening)"); 1184's new end heard right; the material cases 968 (now 2672.68 against the
+> ruled 2692.61; settled 10-29 evening) and 1291 (plan written, §5 "10-29 (evening)"). Dependent song
+> openings are adopted (`39b518a55`, §5); next there, measure whether a linking sentence that names the next
+> song (title against the catalogue, 1096) can count as an announcement, before any rule. A merged
 > congregational Amen can remain in an otherwise complete sermon when safe separation is unproved.
 > Then satisfy the [runbook's](HISTORIC-ROUND-RUNBOOK.md) disk, backup, route and canary checks.
 > Recheck actual output media, song acceptance and editorial evidence after the round (§4.3–4.5).
@@ -6329,3 +6331,56 @@ replay (`midsentence-before.json` vs `midsentence.json`): exactly two ends move,
 ("…Make it today.", its 10-28 ruled end) and **1184 1401.58 → 1399.00** ("…to live God's word out in everyday
 life."; unheard). The `run-1001` ruled-endings fixture passes. Full parallel suite: 10,844 tests, the 4 known red
 (968's split sentence, 1288's merged Amen ×3); Dusk 63 passed.
+
+#### 10-29 (evening): next steps after dependent openings — three ends page, K16 reword ready, 1291 plan
+
+**Three Ends page** https://claude.ai/artifact/3sEMNzvJymKuEf2obGEPdZ (`rulings`, ids `<run>-sermon-end`,
+`1267-s3355-end`; builder and key `storage/scratch/three-ends-listening-20261029/`, cuts from the live planner in a
+rolled-back transaction): **968** A now 2672.68 ("…tear you to pieces.") / B ruled 2692.61 (10-28); **1184** A now
+1400.00 ("…to live God's word out in everyday life.") / B 1401.58, the end before the step-back ("…and then,");
+**1267 §3355** A 2442.54 (before the silence fix) / B 2444.82 (now) / C 2448.11 (the unguarded silence). 1184's
+sermon plan refused for missing edge words at the new end; that one window was decoded with local Whisper only
+(`decode-missing.php`, words match the transcript line). 968's cut is the planner's 2672.68, not the K16 line's
+2672.36 recorded above.
+**Answered 10-29 (source `three-ends-20261029`):** **968 either** (2672.68 or 2692.61; the end now meets it, so
+968 is no longer red), **1184 A** ("B is mid sentence": the open-clause step-back is right), **1267 §3355 A or B**
+("C is wrong - it includes speech": the silence fix's cue-end guard is right). Datasets
+`run-{968,1184,1267}-2026-10-29-ends.json.gz`; `run-968-2026-10-23` recaptured and refreshed
+(`storage/scratch/three-ends-fixtures-20261029/`). Replay on the three runs 9/9.
+
+**K16 reword ready, not run (model spend waits for the operator's word).** `storage/scratch/k16-reword-20261029/`
+(`measure.php`, `system-prompt.txt`). The reword adds one rule ("The sermon's own conclusion or application is part
+of the sermon even when it mentions, quotes or leads into the song: it stays when it is fundamentally the sermon
+that happens to mention the song. A brief remark that the song fits the theme is part of the introduction, not the
+sermon.") and redefines `sermon_last_line` to include that application and stop before a line whose purpose is to
+introduce or announce the song. The script asks the 116 tied ends with the reworded prompt and decides through the
+check's own voting; it banks nothing live. `--replay` (banked answers through the same path) reproduces today's end
+on all 116, so the harness is sound. Expected spend from 1,625 logged real K16 calls (mean 823 input / 279 output
+tokens): about 255 Luna calls (~210k input, ~70k output). Adoption would bump `PROMPT_VERSION` and re-ask every K16
+end (~420 runs, ~925 calls), so it comes only after this measurement scores the 11 rulings (1131 and 1183 must
+gain their conclusions; the A and "either" ones must not grow).
+**Go/no-go on the 11 ruled runs (operator: "Yes, do that"; 22 Luna calls; `measured-subset.json`, answers in
+`answers/`).** `--replay` first reproduced all 11. With the reword, **exactly two ends move: 1131 1410.28 → 1461.42**
+(its B, the cut ruled right) and **1183 1863.48 → 1916.90** ("…when we're able to say, Lord Jesus, you did that for
+me."), 11 s short of its ruled B (1927.94), so unheard. The other nine (938, 1244 ruled A; 956, 973, 1031, 1111,
+1318, 1364 either; 1001) are unchanged. Passes; next is 1183's new end heard and the other 105 tied ends.
+
+**Plan: 1291, a reading that opens on the song's last sung lines (plan only; stops for the operator).**
+The case: §3643 (Matthew 6:5-15) starts at 1115.54 straight after §3642 "The Lord's My Shepherd (I Will Trust In You
+Alone)", and its first cues are that song's last lines ("For your endless mercy follows me. Your goodness will lead
+me home."). Ruled early on 10-19 ("the end of the song", `inward` from 1114.67); an `open_defect` in the replay.
+Both edges are wrong: the song clip loses its last lines, the reading clip opens on them. The classifier cannot
+carry it (79 spoken starts open in "music"). The codebase already detects the condition: `SongLyricsOutsideSection`
+(09-15) finds a song's lyrics sung just outside its section, but only holds publication, and inside a reading it was
+right 5 of 14 times (misses: announcements, readings over music). So:
+1. **Measure (read-only, no calls).** Every speech section (reading, prayer, sermon, talk) that starts directly after
+   a song: do its first cues, contiguous from the start, match that song's catalogue lyrics, and specifically its
+   *last* lines? Record the run, the matched lines, the gap to the song's end, the levels under them, and whether
+   decoded words exist there. Include the 14 in-reading hits from 09-15 as known positives and negatives.
+2. **Candidate rule, only if 1 separates them.** Move the song's end to the decoded end of the last matched line and
+   the next section's start after it (then the first-quiet margin), only when: the lines are the song's last lines in
+   order, start within a few seconds of the cut, match by content-word pairs as `SongLyricsOutsideSection` does, and
+   the next line does not match. A reading of a psalm the song paraphrases (Psalm 23 after this song) is the risk the
+   "last lines in order" condition is for, and the measurement must show it holds.
+3. **Listen** (one clip per version, both edges of each moved pair), then adopt with tests, rulings, fixtures,
+   full suite and Dusk, on the operator's word.

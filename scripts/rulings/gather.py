@@ -383,6 +383,19 @@ for question in leaning_questions:
             output='section', section_id=question['key']['section'], section_type='song',
             expect='inward' if answer['choice'] == 'later' else 'outward')
 
+# 10-29 evening: 968's and 1184's sermon ends and 1267 §3355's song end. Choices are the version letters;
+# 1267's "several" note ("A or B. C is wrong - it includes speech.") makes A and B the two acceptable ends.
+THREE_ENDS = {'1267-s3355-end': ('a', 'b')}
+three_ends_answers = saved('three-ends-listening-20261029/answers/rulings')
+records.extend(edge_listening_rulings(
+    'three-ends-20261029',
+    [{**q, 'key': {**q['key'], 'times': {name: time for name, time in q['key']['times'].items()
+                                         if name in THREE_ENDS.get(q['id'], q['key']['times'])}}}
+     for q in load('three-ends-listening-20261029/questions.json')],
+    [{**answer, 'choice': 'both' if question_id in THREE_ENDS else answer['choice'].lower()}
+     for question_id, answer in three_ends_answers.items()],
+))
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {
