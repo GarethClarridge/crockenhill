@@ -124,6 +124,17 @@ queue and route state are in the archive; a historical “final” label is not 
    unchanged by the round; 2 ruled late (1136, 1308). `song_end_fade` places 234 song ends; of 63 ruled,
    54 met and 9 missed, early (941 §751, 976 §958, 1272 §3403) and late (1215, 1108 ×2) alike, so no
    single bias; the rest marginal (1250 §3127, 1292 §3653) or unchanged (1262 §3288).
+   **Step 3 status at 10-30 (handover).** Done: membership (425), the guarded route replay on final code
+   (`no-stand-in/`, option 1, committed `c24d55d60`), 1120's route, the 17 open entries, the K16
+   shortenings, the late-start and `song_end_fade` classes, the K16 reword on every end. Still open:
+   (a) the edge moves — 451 outputs move, 380 edges by ≥ 1 s (runbook §5: each ≥ 1 s move goes on a
+   page unless a ruling the new cut meets already covers it; group the rest by `reason`);
+   (b) 22 refused plans and 87 unassessable rulings, each with a cause; (c) structure dispositions for
+   1273 §3416 and 1311 §4874; (d) the draft page `storage/scratch/shortened-ends-listening-20261029/`
+   (6 questions: 1004, 1005, 1115, 1127, 1157, 1219; built, not published) plus whatever (a) adds;
+   (e) the reword adoption (step 4). Analyse with `python3 combined-measure-20261029/analyze.py
+   combined-measure-20261029/no-stand-in`. Before any round: the internal disk had ≈ 4 GB free on 10-30
+   (runbook asks ≥ 10 GB; `storage/scratch` 26 GB, `laravel.log` 809 MB; nothing deleted without go).
    **3a. Prerequisite found by step 3 — re-detection discarded unchanged sections' evidence (built
    10-29 night; operator: "Build it", then option "1"; corpus re-measure running, then suite and commit).**
    *Problem.* `ServiceSectionSyncService::hasMaterialSignatureChange()` decides whether a re-detected
@@ -187,6 +198,42 @@ queue and route state are in the archive; a historical “final” label is not 
    "are useful learning for future weekly processing"). If adopted, the round redraws every K16 end as
    weekly would; its decided ends compared with the measured ones give the redraw change rate (§4.2),
    and only flips that change a heard cut go to listening.
+   **Untied ends measured 10-30 (`k16-reword-20261029/measured-untied.json`, answers with identities in
+   `answers/`, nothing banked):** 417 K16 ends (113 tied, 301 untied, 5 unanswered, 6 without a question);
+   643 Luna calls, ≈ $0.31. The reword changes 10 untied ends. Read from the transcript: better 1140,
+   1044 (keeps the closing prayer), 1098 (keeps the preacher's Amen), 1008, 1071, 1086, 1096 (drop
+   housekeeping, a communion transition, an after-service invitation); worse **1375 and 1324, which
+   take in quoted lyrics and the next hymn's title** — the reworded prompt's "even when it mentions,
+   quotes or leads into the song" contradicts K16's "reading lyrics aloud alone does not establish that
+   they conclude the sermon"; 958 to hear (a point built round the hymn title "Facing a Task
+   Unfinished"). With the tied result: 9 better, 3 worse (968, 1375, 1324), 1 to hear.
+   **Adopt the reword as measured (operator 10-30: option 2, "Current version seems fine to me"; not
+   refined for 1375/1324; plan only — do it in a fresh session).** The losses 968, 1375 and 1324 are
+   accepted. The round then redraws every K16 end (§4.2 redraw stability; nothing banked to stop it).
+   1. *Code, test first.* `SermonSongIntroductionCheck::SYSTEM_PROMPT` takes exactly the two
+      replacements in `k16-reword-20261029/measure.php` (saved whole in `system-prompt.txt`) and
+      `PROMPT_VERSION` 2 → 3, so every banked answer stops matching. `SermonSongIntroductionCheckTest`
+      pins version 2 (line ~480); update it red-first, with a test that a banked v2 answer is not read.
+   2. *Re-bank the ruled-endings fixtures, no re-capture.* 587 of 591 fixtures (322 runs) carry banked
+      K16 artifacts, matched by an identity that includes `prompt_version`, so all would fail on missing
+      evidence after step 1. Measured 10-30: of 1,061 artifacts, 585 ask exactly the question tonight's
+      measurement asked, 451 differ only in `media_processing` (the encoder/version a fixture is pinned
+      to; question text, sermon end and song start identical, so the measured answer stands), 23 are a
+      different question (older transcript, sermon end or song start) and 2 are runs with no measured
+      answer (893, 945; not eligible). For each artifact write the v3 artifact: the same identity with
+      `prompt_version: 3`, calls from `answers/<run>.json` where the question fields match, otherwise
+      the reword asked on the artifact's own stored `prompt` (≈ 60 Luna calls for the 25), and the
+      decision computed through `decision()` exactly as `bank()` does; remove the v2 artifact so
+      fixtures do not double. The seven fixtures with a `song_introduction` block replay their own
+      calls and need the block's calls re-asked the same way. Fixture `files` are lists of
+      `{disk, path, content}`; the artifact kind is `sermon-song-introduction-<sha256 of identity>`.
+   3. *Ruled endings.* Run them; every changed result is checked against its ruling, not adjusted to
+      pass. Expected: 1131 and 1140 newly met; 968, 1375 and 1324 newly missed, recorded as accepted
+      losses under this decision (with the operator's words) rather than silently re-expected.
+   4. Focused tests, PHPStan, Pint, the full parallel suite, Dusk; record; commit to master.
+   5. *Live:* nothing to apply now. The round's `TranscribeOutputEdges` asks every K16 end afresh
+      (≈ 1,000 calls, ≈ $0.50); compare its decided ends with `measured*.json` for the redraw change
+      rate, and send only flips that change a heard cut to listening.
 5. **Validate, freeze and canary.** Focused tests, PHPStan, Pint and full parallel suite on final
    code; Dusk for browser behaviour. Follow runbook §§3/6 for live headroom, backups, frozen
    membership, worker revision and pause/resume. Inspect actual song-to-speech transitions and
