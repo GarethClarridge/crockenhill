@@ -269,6 +269,59 @@ queue and route state are in the archive; a historical “final” label is not 
    takes in "Let's stand and sing."; 1240 §2985 talk start opens on the self-correction "sorry, after dinner…"
    (the executed start had 20 s of quiet before "So each evening"); 1258 sermon end keeps "Well, David." of the
    announcement.
+   **1284 asked 10-30:** page "Whose Amen" https://claude.ai/artifact/VjLNfVRfWtSmfkEGjpK6ES (`rulings`, id
+   `1284-sermon-end`; A 3541.075 now, B 3538.72 round; builder `amen-1284-listening-20261030/`). Congregation's → B
+   recorded keep; preacher's → A, and the cause is read before any rule.
+   **Defect-fix plan 10-30 (operator: "plan to fix all the defects"; plan only, each part waits for its go).** Every
+   defect from the two triages, grouped by the rule that placed the cut (`reason` in `moves-ge1s.json`). Each part
+   follows the same steps: (1) *measure* read-only on `no-stand-in/` whether one condition separates the defects
+   from that rule's ruled-right moves, and write a failing test from one defect's fixture; (2) *build* the narrowest
+   rule that separates them; (3) *replay* the runs the rule can reach with the guarded `measure.php --no-ocr-stand-in`
+   (never in the staging context), score every move against the register, settle unruled moves from words, levels
+   and rulings, and page only what needs the ear; (4) ruled-endings suite, full suite and Dusk, then commit. A part
+   whose measurement finds no separating condition stops there and comes back as a finding, not a rule.
+   *F1. Sung openings dropped, 11 song starts, all `song_start_sentence`:* 949 §146759, 981 §1054, 1239 §2980, 1257
+   §3204, 1264 §3317, 1295 §3771 (first sung line), 1106 §1878, 1245 §3051, 1260 §3252 (1–2 s of introduction
+   music), 1130 §2066 and 1342 §4322 (from the first triage). Suspected path: `afterSongOpeningSentence()` moves the
+   start past a "sentence" it reads in sung words, and its move is not passed through `keptMusicalOpening()`, which
+   guards only `placedEdge()`'s pause (D6: a musical opening is always in). Measure: for the 86 `song_start_sentence`
+   moves of ≥ 1 s (58 meet a ruling), the classifier's music share and `isSung()` over the dropped words; the 58 are
+   the guard set. Candidate rule: the sentence move stands only across speech. 1342's decode over the opening
+   is the same question asked of the wide window (`wideSentence`). Largest class, so first.
+   *F2. Song end takes in the speech after it, 8 + 1:* `song_end_silence` 1034 §173997, 1080 §174347, 1243 §3024,
+   1254 §3175, 1315 §4009, 1334 §4237; `song_end_speech` 1009 §1277; `song_end_fade` 1234 §2888; 928/1250 are the
+   open class (1250 met 10-29). Suspected path: `speechAfterSong()` skips a speech cue spoken over the last music
+   (inside the section a cue counts only where its window's speech share passes `SPEECH_CUTOFF`; past the section
+   `cueIsOnlyMusic()` can take it for lyrics), so `songEnd()` runs on to a later quiet. Measure: per defect, which cue
+   holds the speech and which test let it through; then the same tests at the 63 ruled `song_end_fade` ends and the 31
+   `song_end_silence` moves of ≥ 1 s (19 meet a ruling). Candidate rule: a cue whose decoded words are heard as speech (`heardAsSpeech`/`speechHeardBy`)
+   bounds the end even over music. The 10-29 measurement (`speech-over-fade-20261029/`) is the starting point.
+   *F3. 1272 §3403/§3404 early `song_end_fade` at a dip:* the known miss; the 10-30 class count found no single bias
+   (54 of 63 met; early and late misses alike). Measure only after F2, since F2 changes the same end; if 1272 is
+   still alone, record it as a known miss rather than tune the fade.
+   *F4. Opens on the congregation's Amen, 3 starts (`word_pause` moved earlier):* 982 sermon (−5.29), 991 §1168 talk,
+   1321 sermon. The start-side twin of the 10-28 Amen step-back. Measure: starts whose kept stretch before the first
+   word of the section's own speech is only "Amen" (decoded words); candidate rule: a start does not move earlier
+   onto a lone Amen that answers the previous item. Check against the 10-28 Amen ruling's end fixtures so the end
+   side is untouched.
+   *F5. Spoken starts placed inside a sentence, 3 starts:* 1297 sermon start between "this" and "morning"
+   (`word_pause`, +4.24); 928 sermon start drops "now" (`word_pause`, +1.32, against its 10-29 keep); 990 sermon
+   start drops "But let's read from verse 1… Here is a trustworthy saying:" (`sentence_check`, +6). Measure: what
+   `wordPause()` and `sentenceChecked()` saw at each (pause lengths, the words either side, the sentence answer);
+   these may be three causes, so each gets its own test, and a shared rule only if the measurement shows one.
+   *F6. 1193 sermon end inside "…do that" (whole-second cue, `word_pause`, −2.01):* the loop-filler / drifted-cue
+   class 1219 belonged to. Measure: whether the end's decode heard "do that" after the cut and why
+   `beforeNextWordSound()` and the 1219 heard-word rule missed it; the fix belongs with the cue-drift class.
+   *F7. Register data defect:* canary-15 pair rulings carry no section id, so newer rulings on the same song start
+   never supersede them (1221 §2718, 1273 §3421, 1304 §3875). Fix in `gather.py` (bind the pair to its section by
+   run and time) and regenerate; no pipeline change.
+   *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
+   them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
+   1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
+   1311 §4874 stay open on their own lines; the five sermon-join eithers wait for a join shape in the register.
+   *Order:* F7 (no pipeline code, cleans the scoring every replay reads), F1, F2, F3, F4, F5, F6. F1 and F2 share no
+   code path; F4 and F5 both touch spoken starts, so F5's replay runs after F4 is in. One replay per part keeps each
+   move attributable.
    4. (b), (c), then step 4.1–4.4; (d) is unaffected: its six ends (1004, 1005, 1115, 1127, 1157, 1219) are
       unchanged by the reword's measured draw. Publish (d) with whatever (a) and step 4.0's 958 add.
    Membership check passed: all 96 runs in `deleted-clips.json` are in the 425 eligible runs.
