@@ -97,13 +97,13 @@ def add(source, ruling, *, run, edge, heard, output, section_id=None, section_ty
     })
 
 
-def from_items(source, rulings_dir, items_file, section_edges=None):
+def from_items(source, rulings_dir, items_file, section_edges=None, pair_sections=None):
     """Pages whose items carry `edge` and `time` (the full-pass main page and canaries 11-15)."""
     items = {item['id']: item for item in load(items_file)}
     for question_id, ruling in saved(rulings_dir).items():
         item = items.get(question_id)
         if item is not None and item.get('edge') == 'pair':
-            add_pair(source, ruling, item)
+            add_pair(source, ruling, item, (pair_sections or {}).get((item['run'], round(float(item['time']), 2))))
             continue
         if item is None or item.get('edge') not in ('start', 'end') or 'time' not in item:
             skipped[f'{source}:not an edge question'] += 1
@@ -126,7 +126,7 @@ def from_items(source, rulings_dir, items_file, section_edges=None):
 PAIR_KEEPS = {'right': ('start', 'end'), 'start_wrong': ('end',), 'end_wrong': ('start',)}
 
 
-def add_pair(source, ruling, item):
+def add_pair(source, ruling, item, section_id=None):
     """Canary 15 asked about a song's or talk's two ends at once; a ruling keeps the ends it calls right."""
     kept = PAIR_KEEPS.get(ruling['choice'])
     if kept is None:
@@ -137,7 +137,7 @@ def add_pair(source, ruling, item):
     for edge in kept:
         heard = clips[edge]['offset'] if edge == 'start' else clips[edge]['end']
         add(source, {**ruling, 'choice': 'right', 'question_id': f"{ruling['question_id']}-{edge}"},
-            run=item['run'], edge=edge, heard=heard, output='section', section_type=section_type)
+            run=item['run'], edge=edge, heard=heard, output='section', section_id=section_id, section_type=section_type)
 
 
 def canary13_section_edges():
@@ -166,7 +166,12 @@ from_items('canary11', 'canary11-listening-20261005/saved/rulings', 'canary11-li
 from_items('canary12', 'canary12-listening-20261006/saved/rulings', 'canary12-listening-20261006/items.json')
 from_items('canary13', 'canary13-listening/answers/rulings', 'canary13-listening/items.json', canary13_section_edges())
 from_items('canary14', 'canary14-listening/answers/rulings', 'canary14-listening/items.json')
-from_items('canary15', 'canary15-listening/rulings/rulings', 'canary15-listening/items.json')
+# A pair's time is its output's first segment start in the page's source, which names the section, so later
+# rulings on the same edge supersede it.
+from_items('canary15', 'canary15-listening/rulings/rulings', 'canary15-listening/items.json', pair_sections={
+    (int(run), round(float(output['segments'][0]['start_time']), 2)): output['section_id']
+    for run, service in load('canary15-listening/fresh.json').items() for output in service['outputs']
+    if output.get('section_id') and output.get('segments')})
 
 # 10-03 widening page: ids are <run>-<edge>-<whole seconds of the edge before widening>.
 widened = {(edge['run'], edge['edge'], int(edge['original_time'])): edge for edge in load('widening-listening-20261003/edges.json')}

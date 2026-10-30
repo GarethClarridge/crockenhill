@@ -74,7 +74,7 @@
    "operator": 21
   },
   "runs": 363,
-  "superseded": 663,
+  "superseded": 657,
   "left_out": {
    "canary11:not an edge question": 15,
    "canary13:defer": 4,
@@ -357,7 +357,7 @@
    "ruled_at": "2026-10-10T07:22:32.557Z",
    "run": 936,
    "output": "section",
-   "section_id": null,
+   "section_id": 607,
    "section_type": "short_talk",
    "title": "Short talk: Nigeria: persecution of Christians (2024-01-14 morning)",
    "edge": "start",
@@ -366,7 +366,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "full-pass:936-607-start",
@@ -393,7 +393,7 @@
    "ruled_at": "2026-10-10T07:22:32.557Z",
    "run": 936,
    "output": "section",
-   "section_id": null,
+   "section_id": 607,
    "section_type": "short_talk",
    "title": "Short talk: Nigeria: persecution of Christians (2024-01-14 morning)",
    "edge": "end",
@@ -402,7 +402,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "endings:end-936-607",
@@ -1445,7 +1445,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary13:039-949-end",
@@ -1472,7 +1472,7 @@
    "ruled_at": "2026-10-10T07:22:58.060Z",
    "run": 949,
    "output": "section",
-   "section_id": null,
+   "section_id": 4860,
    "section_type": "song",
    "title": "Song: Man Of Sorrows (2021-09-05 evening)",
    "edge": "start",
@@ -1535,7 +1535,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary13:011-949-end",
@@ -1562,7 +1562,7 @@
    "ruled_at": "2026-10-10T07:22:58.060Z",
    "run": 949,
    "output": "section",
-   "section_id": null,
+   "section_id": 4860,
    "section_type": "song",
    "title": "Song: Man Of Sorrows (2021-09-05 evening)",
    "edge": "end",
@@ -1952,7 +1952,7 @@
    "ruled_at": "2026-10-10T07:23:36.196Z",
    "run": 956,
    "output": "section",
-   "section_id": null,
+   "section_id": 809,
    "section_type": "short_talk",
    "title": "Short talk: Family Talk – 1 and 2 Kings (2025-10-19 morning)",
    "edge": "start",
@@ -1970,7 +1970,7 @@
    "ruled_at": "2026-10-10T07:23:36.196Z",
    "run": 956,
    "output": "section",
-   "section_id": null,
+   "section_id": 809,
    "section_type": "short_talk",
    "title": "Short talk: Family Talk – 1 and 2 Kings (2025-10-19 morning)",
    "edge": "end",
@@ -1988,7 +1988,7 @@
    "ruled_at": "2026-10-10T07:23:17.959Z",
    "run": 956,
    "output": "section",
-   "section_id": null,
+   "section_id": 813,
    "section_type": "song",
    "title": "Song: My Heart Is Filled With Thankfulness (2025-10-19 morning)",
    "edge": "start",
@@ -1997,7 +1997,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary15:028-956-song-pair-end",
@@ -2006,7 +2006,7 @@
    "ruled_at": "2026-10-10T07:23:17.959Z",
    "run": 956,
    "output": "section",
-   "section_id": null,
+   "section_id": 813,
    "section_type": "song",
    "title": "Song: My Heart Is Filled With Thankfulness (2025-10-19 morning)",
    "edge": "end",
@@ -2015,7 +2015,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "listening-edges-20261018:956-end",
@@ -2290,7 +2290,7 @@
    "ruled_at": "2026-10-10T07:23:56.287Z",
    "run": 961,
    "output": "section",
-   "section_id": null,
+   "section_id": 827,
    "section_type": "short_talk",
    "title": "Short talk: Barnabas Aid: Ukraine update (2022-07-24 morning)",
    "edge": "start",
@@ -2299,7 +2299,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "full-pass-v2:961-827-start",
@@ -2362,7 +2362,7 @@
    "ruled_at": "2026-10-10T07:23:56.287Z",
    "run": 961,
    "output": "section",
-   "section_id": null,
+   "section_id": 827,
    "section_type": "short_talk",
    "title": "Short talk: Barnabas Aid: Ukraine update (2022-07-24 morning)",
    "edge": "end",
@@ -2371,7 +2371,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "endings:end-961-827",
@@ -2533,7 +2533,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "claude-review-20261030:961-sermon-end",
@@ -2790,7 +2790,7 @@
    "ruled_at": "2026-10-10T07:24:46.140Z",
    "run": 964,
    "output": "section",
-   "section_id": null,
+   "section_id": 874,
    "section_type": "short_talk",
    "title": "Short talk: Putting Jesus first (2021-09-12 morning)",
    "edge": "start",
@@ -2808,7 +2808,7 @@
    "ruled_at": "2026-10-10T07:24:46.140Z",
    "run": 964,
    "output": "section",
-   "section_id": null,
+   "section_id": 874,
    "section_type": "short_talk",
    "title": "Short talk: Putting Jesus first (2021-09-12 morning)",
    "edge": "end",
@@ -2853,7 +2853,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary12:05-964-edge",
@@ -3016,7 +3016,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "Includes the first line spoken after the song",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "full-pass:965-891-start",
@@ -6043,7 +6043,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:032-1012-song-pair-start",
@@ -6052,7 +6052,7 @@
    "ruled_at": "2026-10-10T07:25:03.768Z",
    "run": 1012,
    "output": "section",
-   "section_id": null,
+   "section_id": 1296,
    "section_type": "song",
    "title": "Song: Purify My Heart (2026-03-22 morning)",
    "edge": "start",
@@ -6079,7 +6079,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:032-1012-song-pair-end",
@@ -6088,7 +6088,7 @@
    "ruled_at": "2026-10-10T07:25:03.768Z",
    "run": 1012,
    "output": "section",
-   "section_id": null,
+   "section_id": 1296,
    "section_type": "song",
    "title": "Song: Purify My Heart (2026-03-22 morning)",
    "edge": "end",
@@ -6733,7 +6733,7 @@
    "ruled_at": "2026-10-10T07:25:19.774Z",
    "run": 1025,
    "output": "section",
-   "section_id": null,
+   "section_id": 1376,
    "section_type": "short_talk",
    "title": "Short talk: Release International focus (2026-01-25 morning)",
    "edge": "start",
@@ -6742,7 +6742,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "full-pass-v2:1025-1376-start",
@@ -6787,7 +6787,7 @@
    "ruled_at": "2026-10-10T07:25:19.774Z",
    "run": 1025,
    "output": "section",
-   "section_id": null,
+   "section_id": 1376,
    "section_type": "short_talk",
    "title": "Short talk: Release International focus (2026-01-25 morning)",
    "edge": "end",
@@ -6796,7 +6796,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "endings:end-1025-1376",
@@ -6886,7 +6886,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary13:014-1025-end",
@@ -7085,7 +7085,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "endings:end-1027-sermon",
@@ -7974,7 +7974,7 @@
    "ruled_at": "2026-10-10T07:26:05.325Z",
    "run": 1036,
    "output": "section",
-   "section_id": null,
+   "section_id": 1476,
    "section_type": "short_talk",
    "title": "Short talk: The perfect gift (2025-12-21 morning)",
    "edge": "start",
@@ -7983,7 +7983,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary15:035-1036-short_talk-pair-end",
@@ -7992,7 +7992,7 @@
    "ruled_at": "2026-10-10T07:26:05.325Z",
    "run": 1036,
    "output": "section",
-   "section_id": null,
+   "section_id": 1476,
    "section_type": "short_talk",
    "title": "Short talk: The perfect gift (2025-12-21 morning)",
    "edge": "end",
@@ -8001,7 +8001,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "endings:end-1036-1476",
@@ -8100,7 +8100,7 @@
    "ruled_at": "2026-10-10T07:25:45.303Z",
    "run": 1036,
    "output": "section",
-   "section_id": null,
+   "section_id": 1479,
    "section_type": "song",
    "title": "Song: Holy Holy Holy in a Manger Lowly (2025-12-21 morning)",
    "edge": "start",
@@ -8109,7 +8109,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary15:034-1036-song-pair-end",
@@ -8118,7 +8118,7 @@
    "ruled_at": "2026-10-10T07:25:45.303Z",
    "run": 1036,
    "output": "section",
-   "section_id": null,
+   "section_id": 1479,
    "section_type": "song",
    "title": "Song: Holy Holy Holy in a Manger Lowly (2025-12-21 morning)",
    "edge": "end",
@@ -8127,7 +8127,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary15:001-1036-sermon-end",
@@ -8660,7 +8660,7 @@
    "ruled_at": "2026-10-10T07:26:43.906Z",
    "run": 1047,
    "output": "section",
-   "section_id": null,
+   "section_id": 1558,
    "section_type": "short_talk",
    "title": "Short talk: November Presentation (2025-11-16 morning)",
    "edge": "start",
@@ -8678,7 +8678,7 @@
    "ruled_at": "2026-10-10T07:26:43.906Z",
    "run": 1047,
    "output": "section",
-   "section_id": null,
+   "section_id": 1558,
    "section_type": "short_talk",
    "title": "Short talk: November Presentation (2025-11-16 morning)",
    "edge": "end",
@@ -8696,7 +8696,7 @@
    "ruled_at": "2026-10-10T07:26:24.271Z",
    "run": 1047,
    "output": "section",
-   "section_id": null,
+   "section_id": 1563,
    "section_type": "song",
    "title": "Song: Church Of God Elect And Glorious (2025-11-16 morning)",
    "edge": "start",
@@ -8705,7 +8705,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary15:036-1047-song-pair-end",
@@ -8714,7 +8714,7 @@
    "ruled_at": "2026-10-10T07:26:24.271Z",
    "run": 1047,
    "output": "section",
-   "section_id": null,
+   "section_id": 1563,
    "section_type": "song",
    "title": "Song: Church Of God Elect And Glorious (2025-11-16 morning)",
    "edge": "end",
@@ -8723,7 +8723,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "full-pass:1048-sermon-start",
@@ -14183,7 +14183,7 @@
    "ruled_at": "2026-10-10T07:27:27.526Z",
    "run": 1138,
    "output": "section",
-   "section_id": null,
+   "section_id": 2122,
    "section_type": "short_talk",
    "title": "Short talk: Zimbabwe partnership update (2024-09-08 morning)",
    "edge": "start",
@@ -14201,7 +14201,7 @@
    "ruled_at": "2026-10-10T07:27:27.526Z",
    "run": 1138,
    "output": "section",
-   "section_id": null,
+   "section_id": 2122,
    "section_type": "short_talk",
    "title": "Short talk: Zimbabwe partnership update (2024-09-08 morning)",
    "edge": "end",
@@ -14210,7 +14210,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "endings:end-1138-2122",
@@ -14259,7 +14259,7 @@
    "ruled_at": "2026-10-10T07:27:10.945Z",
    "run": 1138,
    "output": "section",
-   "section_id": null,
+   "section_id": 2124,
    "section_type": "song",
    "title": "Song: Lord Jesus build your church today (2024-09-08 morning)",
    "edge": "start",
@@ -14268,7 +14268,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary15:038-1138-song-pair-end",
@@ -14277,7 +14277,7 @@
    "ruled_at": "2026-10-10T07:27:10.945Z",
    "run": 1138,
    "output": "section",
-   "section_id": null,
+   "section_id": 2124,
    "section_type": "song",
    "title": "Song: Lord Jesus build your church today (2024-09-08 morning)",
    "edge": "end",
@@ -14286,7 +14286,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "sermon-amen-step-back-20261028:1138-sermon-end",
@@ -14550,7 +14550,7 @@
    "ruled_at": "2026-10-10T07:28:22.973Z",
    "run": 1149,
    "output": "section",
-   "section_id": null,
+   "section_id": 2214,
    "section_type": "short_talk",
    "title": "Short talk: The Sabbath and rest in Christ (2024-07-21 morning)",
    "edge": "start",
@@ -14559,7 +14559,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "full-pass-v2:1149-2214-start",
@@ -14658,7 +14658,7 @@
    "ruled_at": "2026-10-10T07:28:22.973Z",
    "run": 1149,
    "output": "section",
-   "section_id": null,
+   "section_id": 2214,
    "section_type": "short_talk",
    "title": "Short talk: The Sabbath and rest in Christ (2024-07-21 morning)",
    "edge": "end",
@@ -14667,7 +14667,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:004-1149-sermon-start",
@@ -14734,7 +14734,7 @@
    "ruled_at": "2026-10-10T07:27:53.271Z",
    "run": 1149,
    "output": "section",
-   "section_id": null,
+   "section_id": 2217,
    "section_type": "song",
    "title": "Song: God In His Wisdom (2024-07-21 morning)",
    "edge": "start",
@@ -14752,7 +14752,7 @@
    "ruled_at": "2026-10-10T07:27:53.271Z",
    "run": 1149,
    "output": "section",
-   "section_id": null,
+   "section_id": 2217,
    "section_type": "song",
    "title": "Song: God In His Wisdom (2024-07-21 morning)",
    "edge": "end",
@@ -14761,7 +14761,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "sermon-amen-step-back-20261028:1149-sermon-end",
@@ -17022,7 +17022,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:042-1200-song-pair-start",
@@ -17031,7 +17031,7 @@
    "ruled_at": "2026-10-10T07:28:41.153Z",
    "run": 1200,
    "output": "section",
-   "section_id": null,
+   "section_id": 2509,
    "section_type": "song",
    "title": "Song: I Will Give Thanks To You (2023-12-10 morning)",
    "edge": "start",
@@ -17089,7 +17089,7 @@
    "ruled_at": "2026-10-10T07:28:41.153Z",
    "run": 1200,
    "output": "section",
-   "section_id": null,
+   "section_id": 2509,
    "section_type": "song",
    "title": "Song: I Will Give Thanks To You (2023-12-10 morning)",
    "edge": "end",
@@ -17098,7 +17098,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary13:096-1200-start",
@@ -18878,7 +18878,7 @@
    "ruled_at": "2026-10-10T07:28:54.430Z",
    "run": 1221,
    "output": "section",
-   "section_id": null,
+   "section_id": 2718,
    "section_type": "song",
    "title": "Song: King Of Kings Majesty (2023-07-02 morning)",
    "edge": "start",
@@ -18887,7 +18887,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "word-edge:08-1221-start",
@@ -18905,7 +18905,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "widening:1221-start-113",
@@ -19017,7 +19017,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:043-1221-song-pair-end",
@@ -19026,7 +19026,7 @@
    "ruled_at": "2026-10-10T07:28:54.430Z",
    "run": 1221,
    "output": "section",
-   "section_id": null,
+   "section_id": 2718,
    "section_type": "song",
    "title": "Song: King Of Kings Majesty (2023-07-02 morning)",
    "edge": "end",
@@ -19449,7 +19449,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary13:026-1221-end",
@@ -19593,7 +19593,7 @@
    "ruled_at": "2026-10-10T07:29:22.279Z",
    "run": 1223,
    "output": "section",
-   "section_id": null,
+   "section_id": 2750,
    "section_type": "short_talk",
    "title": "Short talk: Heidelberg Catechism: True Comfort (2023-06-18 morning)",
    "edge": "start",
@@ -19611,7 +19611,7 @@
    "ruled_at": "2026-10-10T07:29:22.279Z",
    "run": 1223,
    "output": "section",
-   "section_id": null,
+   "section_id": 2750,
    "section_type": "short_talk",
    "title": "Short talk: Heidelberg Catechism: True Comfort (2023-06-18 morning)",
    "edge": "end",
@@ -19651,7 +19651,7 @@
    "ruled_at": "2026-10-10T07:29:11.149Z",
    "run": 1223,
    "output": "section",
-   "section_id": null,
+   "section_id": 2754,
    "section_type": "song",
    "title": "Song: Jesus The Joy Of Loving Hearts (2023-06-18 morning)",
    "edge": "start",
@@ -19660,7 +19660,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary15:044-1223-song-pair-end",
@@ -19669,7 +19669,7 @@
    "ruled_at": "2026-10-10T07:29:11.149Z",
    "run": 1223,
    "output": "section",
-   "section_id": null,
+   "section_id": 2754,
    "section_type": "song",
    "title": "Song: Jesus The Joy Of Loving Hearts (2023-06-18 morning)",
    "edge": "end",
@@ -19678,7 +19678,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "after-song-fade-20261029:1224-s2764-start",
@@ -21802,7 +21802,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:046-1250-short_talk-pair-start",
@@ -21811,7 +21811,7 @@
    "ruled_at": "2026-10-10T07:29:36.234Z",
    "run": 1250,
    "output": "section",
-   "section_id": null,
+   "section_id": 3126,
    "section_type": "short_talk",
    "title": "Short talk: F is for Fish (2022-12-04 morning)",
    "edge": "start",
@@ -21838,7 +21838,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:046-1250-short_talk-pair-end",
@@ -21847,7 +21847,7 @@
    "ruled_at": "2026-10-10T07:29:36.234Z",
    "run": 1250,
    "output": "section",
-   "section_id": null,
+   "section_id": 3126,
    "section_type": "short_talk",
    "title": "Short talk: F is for Fish (2022-12-04 morning)",
    "edge": "end",
@@ -21892,7 +21892,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary14:019-1250-start",
@@ -21910,7 +21910,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary13:046-1250-end",
@@ -24501,7 +24501,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary13:112-1273-end",
@@ -24690,7 +24690,7 @@
    "ruled_at": "2026-10-10T07:29:49.029Z",
    "run": 1273,
    "output": "section",
-   "section_id": null,
+   "section_id": 3421,
    "section_type": "song",
    "title": "Song: God Of My Life To You I Call (2022-06-12 morning)",
    "edge": "start",
@@ -24699,7 +24699,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "leaning-openings-20261029:1273-3421-start",
@@ -24735,7 +24735,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:047-1273-song-pair-end",
@@ -24744,7 +24744,7 @@
    "ruled_at": "2026-10-10T07:29:49.029Z",
    "run": 1273,
    "output": "section",
-   "section_id": null,
+   "section_id": 3421,
    "section_type": "song",
    "title": "Song: God Of My Life To You I Call (2022-06-12 morning)",
    "edge": "end",
@@ -25639,7 +25639,7 @@
    "ruled_at": "2026-10-10T07:30:09.794Z",
    "run": 1282,
    "output": "section",
-   "section_id": null,
+   "section_id": 3526,
    "section_type": "short_talk",
    "title": "Short talk: Jesus the Saviour (2022-03-27 morning)",
    "edge": "start",
@@ -25648,7 +25648,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary13:127-1282-end",
@@ -25693,7 +25693,7 @@
    "ruled_at": "2026-10-10T07:30:09.794Z",
    "run": 1282,
    "output": "section",
-   "section_id": null,
+   "section_id": 3526,
    "section_type": "short_talk",
    "title": "Short talk: Jesus the Saviour (2022-03-27 morning)",
    "edge": "end",
@@ -25702,7 +25702,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "endings:end-1282-3526",
@@ -25774,7 +25774,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary13:129-1282-start",
@@ -27281,7 +27281,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:049-1292-song-pair-start",
@@ -27290,7 +27290,7 @@
    "ruled_at": "2026-10-10T07:30:27.024Z",
    "run": 1292,
    "output": "section",
-   "section_id": null,
+   "section_id": 3653,
    "section_type": "song",
    "title": "Song: Lord You Were Rich (2021-12-26 morning)",
    "edge": "start",
@@ -27317,7 +27317,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:049-1292-song-pair-end",
@@ -27326,7 +27326,7 @@
    "ruled_at": "2026-10-10T07:30:27.024Z",
    "run": 1292,
    "output": "section",
-   "section_id": null,
+   "section_id": 3653,
    "section_type": "song",
    "title": "Song: Lord You Were Rich (2021-12-26 morning)",
    "edge": "end",
@@ -28095,7 +28095,7 @@
    "ruled_at": "2026-10-10T07:31:38.824Z",
    "run": 1300,
    "output": "section",
-   "section_id": null,
+   "section_id": 4643,
    "section_type": "short_talk",
    "title": "Short talk: Evangelism training report (2021-11-07 morning)",
    "edge": "start",
@@ -28113,7 +28113,7 @@
    "ruled_at": "2026-10-10T07:31:38.824Z",
    "run": 1300,
    "output": "section",
-   "section_id": null,
+   "section_id": 4643,
    "section_type": "short_talk",
    "title": "Short talk: Evangelism training report (2021-11-07 morning)",
    "edge": "end",
@@ -28131,7 +28131,7 @@
    "ruled_at": "2026-10-10T07:31:14.883Z",
    "run": 1300,
    "output": "section",
-   "section_id": null,
+   "section_id": 4800,
    "section_type": "song",
    "title": "Song: O great God of highest heaven (2021-11-07 morning)",
    "edge": "start",
@@ -28140,7 +28140,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary15:050-1300-song-pair-end",
@@ -28149,7 +28149,7 @@
    "ruled_at": "2026-10-10T07:31:14.883Z",
    "run": 1300,
    "output": "section",
-   "section_id": null,
+   "section_id": 4800,
    "section_type": "song",
    "title": "Song: O great God of highest heaven (2021-11-07 morning)",
    "edge": "end",
@@ -28158,7 +28158,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "endings:end-1301-sermon",
@@ -28371,7 +28371,7 @@
    "ruled_at": "2026-10-10T07:32:03.356Z",
    "run": 1304,
    "output": "section",
-   "section_id": null,
+   "section_id": 3875,
    "section_type": "song",
    "title": "Song: What love could remember (2021-10-10 morning)",
    "edge": "start",
@@ -28380,7 +28380,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "wider-decode-20261027:1304-3875-start",
@@ -28416,7 +28416,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary15:052-1304-song-pair-end",
@@ -28425,7 +28425,7 @@
    "ruled_at": "2026-10-10T07:32:03.356Z",
    "run": 1304,
    "output": "section",
-   "section_id": null,
+   "section_id": 3875,
    "section_type": "song",
    "title": "Song: What love could remember (2021-10-10 morning)",
    "edge": "end",
@@ -28632,7 +28632,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary12:25-1304-edge",
@@ -28650,7 +28650,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary13:030-1304-end",
@@ -31623,7 +31623,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary12:26-1346-edge",
@@ -31722,7 +31722,7 @@
    "ruled_at": "2026-10-10T07:32:29.686Z",
    "run": 1346,
    "output": "section",
-   "section_id": null,
+   "section_id": 4375,
    "section_type": "song",
    "title": "Song: Take My Life And Let It Be (2020-12-13 morning)",
    "edge": "start",
@@ -31740,7 +31740,7 @@
    "ruled_at": "2026-10-10T07:32:29.686Z",
    "run": 1346,
    "output": "section",
-   "section_id": null,
+   "section_id": 4375,
    "section_type": "song",
    "title": "Song: Take My Life And Let It Be (2020-12-13 morning)",
    "edge": "end",
@@ -31767,7 +31767,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "Includes \"let's pray once again\", but as it's a whole sentence said over the outro it's fine to include or not.",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "sentence-listening-20261026:4916-start",
@@ -32104,7 +32104,7 @@
    "ruled_at": "2026-10-10T07:32:45.177Z",
    "run": 1356,
    "output": "section",
-   "section_id": null,
+   "section_id": 4480,
    "section_type": "short_talk",
    "title": "Short talk: Johann Sebastian Bach (2020-10-04 morning)",
    "edge": "start",
@@ -32140,7 +32140,7 @@
    "ruled_at": "2026-10-10T07:32:45.177Z",
    "run": 1356,
    "output": "section",
-   "section_id": null,
+   "section_id": 4480,
    "section_type": "short_talk",
    "title": "Short talk: Johann Sebastian Bach (2020-10-04 morning)",
    "edge": "end",
@@ -32149,7 +32149,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "endings:end-1356-4480",
@@ -32760,7 +32760,7 @@
    "ruled_at": "2026-10-10T07:33:00.420Z",
    "run": 1364,
    "output": "section",
-   "section_id": null,
+   "section_id": 4547,
    "section_type": "song",
    "title": "Song: O For A Thousand Tongues (2020-08-09 morning)",
    "edge": "start",
@@ -32769,7 +32769,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary15:055-1364-song-pair-end",
@@ -32778,7 +32778,7 @@
    "ruled_at": "2026-10-10T07:33:00.420Z",
    "run": 1364,
    "output": "section",
-   "section_id": null,
+   "section_id": 4547,
    "section_type": "song",
    "title": "Song: O For A Thousand Tongues (2020-08-09 morning)",
    "edge": "end",
@@ -32787,7 +32787,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "superseded": false
   },
   {
    "id": "canary15:056-1364-short_talk-pair-start",
@@ -32796,7 +32796,7 @@
    "ruled_at": "2026-10-10T07:33:34.445Z",
    "run": 1364,
    "output": "section",
-   "section_id": null,
+   "section_id": 4548,
    "section_type": "short_talk",
    "title": "Short talk: Sin will find you out (2020-08-09 morning)",
    "edge": "start",
@@ -32814,7 +32814,7 @@
    "ruled_at": "2026-10-10T07:33:34.445Z",
    "run": 1364,
    "output": "section",
-   "section_id": null,
+   "section_id": 4548,
    "section_type": "short_talk",
    "title": "Short talk: Sin will find you out (2020-08-09 morning)",
    "edge": "end",
