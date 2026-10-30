@@ -148,6 +148,25 @@ queue and route state are in the archive; a historical “final” label is not 
    3. *(a), K16-decided sermon ends:* judge the reword's measured end (`k16-reword-20261029/measured*.json`),
       not `no-stand-in/`'s v2 end; either overlay it in `analyze.py` or give `measure.php` a read-only
       stand-in from `answers/`. These are one-draw proposals; the round redraws them (step 4.5).
+   **Steps 2–3 measured 10-30** (ledger at `5cdf5fa9d`; table `no-stand-in/moves-ge1s.json`, one row per
+   ≥ 1 s move with `class`, `reason`, `k16`; a move is covered when a live ruling on that output is met
+   at its new cut). Of 380 moves, **192 non-K16**: 111 covered, 7 contradict a ruling the executed cut
+   met (928 sermon start +1.32 s, `word_pause`, against its 10-29 keep; 982 sermon start −5.3; 990 sermon
+   start +6; 1073 §1716 start −10; 1130 §2066 start +2.75; 1272 §3403 end and §3404 start −5.5 at the
+   "dip"), 3 ruled and missed both ways (1120 §2012, 1295 §3769, 1342 §4322), **71 unruled**: song starts
+   38 (26 `song_start_sentence` later, 11 `word_pause`, 1 none), song ends 16 (12 `song_end_silence` later),
+   short talks 7, sermon starts/joins 10. Sub-second regressions (not paged by the runbook, listed here):
+   961 §828 end, 1042, 1094, 1281, 1379 sermon ends, 1292 §3653 end (0.5–0.93 s). **188 K16 sermon ends**,
+   judged at the reword's end where it moves one (15 runs; raw line ends, before the edge refinement, so
+   a ±1 s miss there is the refinement, not a loss): 123 met, 39 unruled, 11 contradict, 15 miss both
+   ways. Of the 11, 8 drop only an announcement or the congregation's Amen against a 10-18–10-22 keep
+   (961, 1038, 1076, 1194, 1218, 1219, 1296, 1326) — the 10-28 Amen ruling, shorter wins — 1007 drops the
+   closing prayer, 1044 is the reword's end 0.31 s from its ruled either. Misses both ways: 1004, 1115,
+   1127, 1167, 1283 against a 10-18 "cut off" (the (d) pattern; 1167, 1283 not yet on (d)); 1070, 1190,
+   1201, 1299 end 1–2 s before a 10-28 ruled end that also drops "Let's stand"; 1255 against an old
+   full-pass keep (drops "Amen."); 968, 1324, 1375 accepted losses; 1183, 1275 refinement. **Data
+   defect:** canary-15 pair rulings carry no section id, so later rulings on the same song start never
+   supersede them (1221 §2718, 1273 §3421, 1304 §3875 read as regressions though a newer ruling is met).
    4. (b), (c), then step 4.1–4.4; (d) is unaffected: its six ends (1004, 1005, 1115, 1127, 1157, 1219) are
       unchanged by the reword's measured draw. Publish (d) with whatever (a) and step 4.0's 958 add.
    Membership check passed: all 96 runs in `deleted-clips.json` are in the 425 eligible runs.
