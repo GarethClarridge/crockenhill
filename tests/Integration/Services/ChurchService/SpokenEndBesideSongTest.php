@@ -145,6 +145,54 @@ class SpokenEndBesideSongTest extends TestCase
     }
 
     /**
+     * 1193: whole-second cues end the kept line at 889.00 and start the next there, but its "do that" is decoded
+     * 889.04–889.35: the next cue's start is drifted and cannot cut the kept line's last words off (defect-fix plan F6).
+     */
+    #[Test]
+    public function a_kept_lines_last_word_decoded_after_the_next_cues_start_is_kept(): void
+    {
+        $log = $this->service([
+            ['start' => 880.99, 'end' => 886.0, 'text' => 'the seed of his word, here at Crockenhill Baptist Church.'],
+            ['start' => 887.0, 'end' => 889.0, 'text' => 'May God help us tonight, as we seek to do that.'],
+            ['start' => 889.0, 'end' => 891.0, 'text' => "Let's stand and sing a song."],
+            ['start' => 905.0, 'end' => 911.0, 'text' => 'How great thou art'],
+        ], [['sermon', 51.0, 891.01], ['song', 891.01, 1100.0]], timeline: [[870, 891, 0.01, 0.8], [891, 1100, 0.7, 0.02]]);
+        $this->introduction($log, [['start_time' => 51.0, 'end_time' => 891.01]], [2, false, 2], [2, false, 2]);
+        $this->bank($log, 889.0, [
+            ['start' => 887.94, 'end' => 888.08, 'word' => ' as'], ['start' => 888.09, 'end' => 888.27, 'word' => ' we'],
+            ['start' => 888.70, 'end' => 888.92, 'word' => ' seek'], ['start' => 888.92, 'end' => 889.01, 'word' => ' to'],
+            ['start' => 889.04, 'end' => 889.14, 'word' => ' do'], ['start' => 889.14, 'end' => 889.35, 'word' => ' that.'],
+            ['start' => 889.52, 'end' => 889.63, 'word' => " Let's"], ['start' => 889.63, 'end' => 889.90, 'word' => ' stand'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 51.0, 'end_time' => 891.01]], sermonEnd: true);
+
+        $this->assertGreaterThanOrEqual(889.35, $plan['segments'][0]['end_time']);
+        $this->assertLessThan(889.52, $plan['segments'][0]['end_time']);
+    }
+
+    /** 1273: the kept line ends "…in Jesus name Amen"; the "Amen." decoded 1.34 s into the next cue is the answer. */
+    #[Test]
+    public function an_amen_said_again_after_the_next_cues_start_is_not_the_kept_lines(): void
+    {
+        $log = $this->service([
+            ['start' => 4026.12, 'end' => 4027.86, 'text' => 'pray these things in Jesus name'],
+            ['start' => 4027.86, 'end' => 4029.06, 'text' => 'Amen'],
+            ['start' => 4029.06, 'end' => 4032.90, 'text' => "Let's sing"],
+            ['start' => 4034.30, 'end' => 4036.76, 'text' => 'When peace like a river'],
+        ], [['sermon', 2088.46, 4033.0], ['song', 4033.0, 4294.3]], timeline: [[4010, 4033, 0.01, 0.8], [4033, 4290, 0.7, 0.02]]);
+        $this->introduction($log, [['start_time' => 2088.46, 'end_time' => 4033.0]], [2, false, 2], [2, false, 2]);
+        $this->bank($log, 4029.06, [
+            ['start' => 4026.99, 'end' => 4027.38, 'word' => " Jesus'"], ['start' => 4027.38, 'end' => 4027.86, 'word' => ' name.'],
+            ['start' => 4027.86, 'end' => 4029.06, 'word' => ' Amen.'], ['start' => 4030.40, 'end' => 4030.88, 'word' => ' Amen.'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, [['start_time' => 2088.46, 'end_time' => 4033.0]], sermonEnd: true);
+
+        $this->assertLessThan(4030.40, $plan['segments'][0]['end_time']);
+    }
+
+    /**
      * 1304 under K16: the section ends mid-way through the preacher quoting the hymn, which ties
      * it to the sermon. The quotation goes in whole; "Let's stand and sing." on its own does not.
      */

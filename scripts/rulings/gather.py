@@ -659,6 +659,21 @@ for run, section_id, section_type, edge, executed, round_cut, note in EITHER_MOV
                     'ruled_time': None, 'note': 'Claude review 10-30: '+note, 'answer_source': 'claude-review',
                     'points': [executed, round_cut]})
 
+# 10-30, defect-fix plan F6: a K16 kept line's last word decoded just after a whole-second next cue's start is kept.
+# 1375's 10-30 review end (1318.00) cut into "life." (decoded 1318.01–1318.56); 1031's either ends (10-29) keep their
+# two points, and the end after "joy." (decoded to 463.60, "We have one more song" from 466.50) is added beside them.
+for ruling_id, run, points, note in [
+    ('claude-review-20261030:1375-sermon-end-f6', 1375, [1318.86], 'the end after "Of life." (decoded to 1318.56), before "These words."; '
+     'supersedes this review\'s 1318.00, which cut into "life".'),
+    ('claude-review-20261030:1031-sermon-end-f6', 1031, [462.72, 463.9, 489.72], 'the operator\'s either points (10-29), and the end '
+     'after "…you will find joy." (decoded to 463.60), which the earlier point cut into.'),
+]:
+    records.append({'id': ruling_id, 'source': 'claude-review-20261030', 'ruled_on': '2026-10-30', 'ruled_at': '2026-10-30T18:00:00Z',
+                    'run': run, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon', 'title': None, 'edge': 'end',
+                    'heard': points[-1] if len(points) == 1 else points[1], 'answer': None,
+                    'expect': 'keep' if len(points) == 1 else 'either', 'ruled_time': None, 'note': 'Claude review 10-30: '+note,
+                    'answer_source': 'claude-review', **({'points': points} if len(points) > 1 else {})})
+
 # 10-30, defect-fix plan F1 and F2/F3: Sung Or Spoken (11 song starts the round moves later) and Speech Over The Last
 # Chords (9 song ends the round moves), A the executed cut, B the round's. Neither answers name approximate times
 # ("Should be about 58:28"), so they stay in their notes.

@@ -389,6 +389,43 @@ queue and route state are in the archive; a historical “final” label is not 
    keeps the level up, and the classifier calls the whole stretch music (1243 M-class 1 to B). **Next for F2 is
    evidence, not a rule:** a finer music-presence signal at song ends (where the last chord dies under speech), measured
    on these 9 and the 30 covered song-end moves before any rule; plan only, awaits go.
+   **F2 evidence plan 10-30 (operator: "Do both"; plan only, measurement awaits go).** *Why:* the classifier
+   (`scripts/classify_audio.py`, AST `MIT/ast-finetuned-audioset-10-10-0.4593`) scores fixed, non-overlapping 5 s
+   windows; at 1243 music falls 0.75 (325–330) → 0.42 (330–335) → 0.01, so the music's end (heard ≈331) is inside one
+   window but not placed within it. *Step 1, measure (read-only, local GPU server, no paid calls):* re-score with the
+   same model and revision, in 2 s windows on a 0.25 s hop, the stretch [earlier cut − 8 s, later cut + 4 s] of the 39
+   song-end moves ≥ 1 s (`moves-ge1s.json`) and 1216; write `storage/scratch/song-end-music-20261030/`; take as the
+   music's end the first time the music score stays below the run's own cut-off (`MUSIC_CUTOFF` 0.4) for ≥ 1 s, and
+   compare it with the rulings (keep/either points within `RIGHT` 0.31 s) and the four neither times (±1 s). *Pass:*
+   every ruled-right end at or after it and before the next item's first sung or spoken line, and the six
+   round-wrong ends brought within their ruling; also a sample of 20 unmoved ruled song ends, so the signal does not
+   move what is right. *Step 2, only if step 1 passes:* the narrowest rule (candidate: `song_end_silence` and
+   `song_end_fade` do not run past the measured music end when a speech cue starts before the quiet they reach), the
+   fine scores banked as an edge artifact beside the edge words so the planner stays offline; test-first from 1243;
+   replay; suites. *Stop:* if the fine scores do not place the end within ~1 s of the heard times, F2 stays an
+   accepted miss class and comes back as a finding.
+   **F5 MEASURED 10-30: no guard built** (`defect-fix-f5-20261030/`). A decoded-word "mid-sentence" test on every
+   spoken output's outer start and end in the round (`scan.php`: no closing punctuation before the cut and a
+   lower-case word after it, or a word straddling an end) finds 146 edges, of which 56 carry right rulings and 5
+   wrong (1311 "a ‖ great", 1327 "I've ‖ asked", 1009, 1017 all ruled keep): word punctuation and timing cannot judge a
+   sentence at the cut, so neither candidate guard is safe. The audits (`audit.php`, rolled back) settle two of the
+   three: **1297**'s start has its sentence check set up but never asked (`asked: false`; the replay is offline),
+   and the round's own `PrepareOutputEdgeEvidence` asks it before cutting, so it is not a code defect today; **928**
+   stays the recorded one-word miss; **990** is the banked answer itself (asked to drop "But let's read…"), left as
+   a recorded miss unless the sentence check's prompt is revisited.
+   **F6 BUILT 10-30** (`defect-fix-f5-20261030/`). 1193's audit: K16 keeps "May God help us tonight, as we seek to do
+   that." (cue 887.00–889.00), the pause rule chose the right pause (889.35–889.52, after "that", before "let's"), and
+   `beforeNextLine()` cut back to the next cue's start, 889.00: the kept word "that" (decoded 889.14) counts as kept
+   only if it starts before the next cue, and whole-second cues start that cue at 889.00. Fix: a kept word the next
+   line does not say, decoded within `KEPT_WORD_CUE_DRIFT` (0.5 s) of the next cue's start, is the closing line's.
+   Reach (`reach-f6.php`): 23 runs. Replays against a baseline on the same code without the change
+   (`pilot-f6-baseline.jsonl`, so the 1070/1219 fixes do not show as moves): unbounded, 4 of 104 outputs change, one
+   wrong (1273 took in the answering "Amen." decoded 1.34 s into "Let's sing", against its 10-28 keep at 4029.06);
+   bounded, 3 change, all ends that finished their last word: **1193 889.00 → 889.43**, 1031 462.72 → 463.90 (after
+   "joy.", which 462.72 cut into), 1375 1318.00 → 1318.86 (after "life."). Register: 1375's review end superseded
+   (keep 1318.86), 1031 gains 463.90 beside the operator's either points. Tests: 1193 and the 1273 guard.
+   **Defect-fix plan status 10-30:** F7, F4, F6 done; F1 closed (no defect); F2/F3 confirmed, evidence plan awaits go;
+   F5 no guard (1297 is asked by the round's sentence check; 928, 990 recorded misses).
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and

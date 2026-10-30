@@ -30,6 +30,12 @@ class CueSafeExtractionPlan
     /** Seconds within which an output edge counts as sitting on a cue's boundary. */
     private const CUE_BOUNDARY_TOLERANCE = 0.05;
 
+    /**
+     * How far after the next cue's start a K16 kept line's last word may be decoded and still be that line's:
+     * whole-second cues ran 0.01–0.30 s ahead of the words at 1193, 1031 and 1375 (defect-fix plan F6, 10-30).
+     */
+    private const KEPT_WORD_CUE_DRIFT = 0.5;
+
     /** Seconds from the cue boundary within which its edge word must be heard to anchor the cut. */
     private const ANCHOR_REACH = 2.0;
 
@@ -757,8 +763,13 @@ class CueSafeExtractionPlan
                     $keptWord = $keptWords[array_key_last($keptWords)] ?? null;
                     $keptTokens = $keptWord === null ? [] : TranscriptCueEvidence::tokens($keptWord['word']);
                     $closingTokens = TranscriptCueEvidence::tokens($cue['text']);
-                    // A pause already beyond the closing line must not protect an announcement or answering Amen.
-                    if ($keptWord !== null && $keptWord['start'] < $next['start'] && end($keptTokens) === end($closingTokens)) {
+                    // A pause already beyond the closing line must not protect an announcement or answering Amen. A
+                    // kept word the next line does not say, decoded just after the next cue's start, is the closing
+                    // line's: 1193's whole-second cues start the next line at 889.00, its "do that" decoded to 889.35.
+                    // Later than that it is a word said again: 1273's answering "Amen." 1.34 s on.
+                    $drifted = $keptWord !== null && $keptWord['start'] < $next['start'] + self::KEPT_WORD_CUE_DRIFT
+                        && ! in_array(end($keptTokens), TranscriptCueEvidence::tokens($next['text']), true);
+                    if ($keptWord !== null && ($keptWord['start'] < $next['start'] || $drifted) && end($keptTokens) === end($closingTokens)) {
                         $opening = $this->openingHeard($next, $heard, min($next['start'], $cue['end']));
                         $firstToken = TranscriptCueEvidence::tokens($next['text'])[0];
                         if ($opening !== null && (TranscriptCueEvidence::tokens($opening['word']['word'])[0] ?? null) === $firstToken
