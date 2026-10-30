@@ -659,6 +659,19 @@ for run, section_id, section_type, edge, executed, round_cut, note in EITHER_MOV
                     'ruled_time': None, 'note': 'Claude review 10-30: '+note, 'answer_source': 'claude-review',
                     'points': [executed, round_cut]})
 
+# 10-30, defect-fix plan F4: a spoken start no longer opens on the closing Amen before it. 1255 §3180's start (its
+# full-pass id §3181, re-keyed by capture) was heard right in the full pass, before the 10-28 Amen ruling, with the
+# congregation's answering "Amen." (559.98–560.34) at its head; as the triage's thirteen sermon ends, either stands.
+for run, section_id, section_type, edge, executed, round_cut, note in [
+    (1255, 3180, 'short_talk', 'start', 559.98, 560.34, 'The talk opens after the congregation\'s answering "Amen." '
+     '(10-28 Amen ruling); the full-pass start that keeps it was heard before that ruling.'),
+]:
+    records.append({'id': f'claude-review-20261030:{run}-s{section_id}-{edge}', 'source': 'claude-review-20261030', 'ruled_on': '2026-10-30',
+                    'ruled_at': '2026-10-30T15:00:00Z', 'run': run, 'output': 'section', 'section_id': section_id,
+                    'section_type': section_type, 'title': None, 'edge': edge, 'heard': executed, 'answer': None, 'expect': 'either',
+                    'ruled_time': None, 'note': 'Claude review 10-30: '+note, 'answer_source': 'claude-review',
+                    'points': [executed, round_cut]})
+
 # 10-30: Sermon Ends To Hear, the three moved sermon ends Claude's triage could not settle (A now, or for 1070 its 10-28
 # ruled end; B the round's). 1070's A: "B clips the preachers amen".
 records.extend(edge_listening_rulings(

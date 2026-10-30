@@ -421,6 +421,9 @@ class CueSafeExtractionPlan
                             $reason = $sentenceCheck['moved'] ?? false ? 'sentence_check' : $reason;
                         }
                         // After the sentence check, whose banked answers are bound to the cut it was asked about.
+                        if ($edge === 'start' && ! $songEnds) {
+                            $decision = $this->afterClosingAmen($decision, $words);
+                        }
                         if ($edge === 'end') {
                             $heardWords ??= $evidence->heardWords($log);
                             $endLevels = $levels ?? $this->levels($log);
@@ -1598,6 +1601,33 @@ class CueSafeExtractionPlan
         }
 
         return $decision;
+    }
+
+    /**
+     * The Amen that closes the item before is never where the next one opens, whoever says it: the pause rule opened
+     * 982's reading on a 5 s smear of the prayer's "amen" and 1321's reading in the pause before the prayer's "Amen."
+     * (defect-fix plan F4, 10-30). A spoken start whose first kept word is a lone Amen opens where that Amen stops. A song
+     * start is left alone: its introduction can play in under the congregation's Amen (1282 §3533, heard right at 1902.16
+     * with "Amen." from 1902.55).
+     *
+     * @param  array<string, mixed>  $decision
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @return array<string, mixed>
+     */
+    private function afterClosingAmen(array $decision, array $words): array
+    {
+        $cut = (float) $decision['time'];
+        $kept = array_values(array_filter($words, static fn (array $word): bool => $word['end'] > $cut + self::CUE_BOUNDARY_TOLERANCE));
+        usort($kept, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+
+        // Where the next word starts before the Amen stops, there is no gap after it to open in.
+        if ($kept === [] || $this->normalize($kept[0]['word']) !== 'amen'
+            || (isset($kept[1]) && $kept[1]['start'] < $kept[0]['end'] - self::CUE_BOUNDARY_TOLERANCE)) {
+            return $decision;
+        }
+
+        return ['time' => $kept[0]['end'], 'chosen_pause' => ['start' => $kept[0]['end'], 'end' => $kept[1]['start'] ?? $kept[0]['end']],
+            'word_before' => $kept[0], 'word_after' => $kept[1] ?? null];
     }
 
     /**

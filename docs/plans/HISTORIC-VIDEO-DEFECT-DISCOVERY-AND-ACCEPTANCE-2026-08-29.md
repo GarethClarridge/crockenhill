@@ -340,6 +340,41 @@ queue and route state are in the archive; a historical “final” label is not 
    Page **"Sung Or Spoken"** https://claude.ai/artifact/RZ7kwPJXdZpNiz5MBhKTgs (`rulings`, ids `<run>-s<section>-start`,
    A executed / B round; builder `song-openings-listening-20261030/`). On answers: a B-wrong set decides whether a
    rule is worth building (candidate: the next cue is the next lyric line, nothing spoken between).
+   **F2/F3 MEASURED 10-30: the 9 go to the ear** (`defect-fix-f2-20261030/`). Of the 39 song-end moves ≥ 1 s, the
+   covered ones add no decoded words (music only; a speech cue may start inside, its words later), the nine add
+   decoded words of a speech cue, which the classifier hears as music (`speechAfterSong()` skips the cue). But 1216
+   §2655 adds "let's pray again" over the music and was ruled keep at the longer end ("B cuts off the music"), and
+   1295 §3769 the other way was either, so speech over the last music is not by itself wrong. Page **"Speech Over The
+   Last Chords"** https://claude.ai/artifact/3hcYFYWpoVTz1DFCkv6LTs (`rulings`, ids `<run>-s<section>-end`, A
+   executed / B round; 1272's B is the earlier; builder `song-ends-listening-20261030/`). On answers: a rule only if
+   the B-wrong ends separate (candidate: decoded words of a non-lyric cue before the end, with music fading).
+   **F5 read 10-30** (`defect-fix-f5-20261030/around.php`), three mechanisms: 1297's section boundary falls inside
+   "…shall we, this morning", and the pause rule took the 0.4 s pause after "this" (the executed start, "Let's",
+   opens the sentence); 928's "now" is a 1.18 s smear over the song's last music (the 10-29 recorded one-word miss);
+   990's banked sentence-check answer asked to drop "But let's read from verse 1… a trustworthy saying" after a
+   decode smeared "and 16" across the cut, and `sentenceChecked()` applied it as asked. Candidate guards, each to be
+   measured on every move of its kind before building: a start-side pause may not sit inside a cue that runs on
+   across it (1297); a start-side sentence-check trim may not cross a cue that opens a new sentence (990).
+   **F4 BUILT 10-30** (`defect-fix-f4-20261030/`). Of the five spoken starts moved earlier by ≥ 1 s, the three
+   defects gain only an "Amen" (1011, 1104 gain a Bible announcement). Words: 982's start sat at the head of a 5.3 s
+   smear of the prayer's "amen" (the reading's "now" at 988.68, the executed start heard right), 991's on "Amen."'s
+   onset, 1321's in the pause before "Amen.". `CueSafeExtractionPlan::afterClosingAmen()`: a spoken start whose first
+   kept word is a lone Amen opens where it stops; song starts are left alone. First built for every start, the replay
+   broke 1282 §3533 (a song start heard right at 1902.16 with "Amen." from 1902.55: the introduction plays in under
+   it), so it was narrowed to spoken starts. Reach (`reach.php`: any planned segment whose first decoded word is
+   "Amen"): 20 runs; replay on the narrowed rule (`replay2.log`, `diff2.log`): 9 of 109 outputs change: 7 spoken
+   starts move past a closing Amen (982 → 988.68, 991 → 567.37, 1155, 1239, 1251's second part, 1255 §3180, 1313
+   §3976, 1321 → 809.89; each checked in `check*.php`: the Amen ends the prayer before), and two ends shift by the
+   1070 fix `1773110fc`, which postdates the round's plans (00:11 vs 03:34): 1239's part end +0.02, **1305 §3889 talk
+   end 943.42 → 943.51, 0.06 s inside "Let's"** (a second decode's "matters." ends 943.45; sub-second, listed with the
+   others). Scored (`scored2/`): 982's regression clears (13 → 12), nothing else changes status. 1285 §3573's 20 s
+   "Amen." smear is a song start, so untouched. Tests: three spoken shapes and the 1282 song guard.
+   The full suite then caught an overlap: a start may step past the Amen only when the next word begins after it stops
+   (`output_edges_use_the_largest_adjacent_pause`, "amen" sounding under "the"); guard added, replay unchanged
+   (`diff3.log`, 0 outputs differ). Five ruled-endings fixtures recaptured at the new cuts
+   (`amen-start-fixture-refresh-20261030/`, prior files in `before/`: 982, 1251, 1255, 1313, 1321). 1255 §3180's
+   full-pass "right" start (559.98) keeps the congregation's answering "Amen.", heard before the 10-28 Amen ruling, so
+   recorded either 559.98/560.34 (`claude-review-20261030`), as the triage's thirteen sermon ends.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and

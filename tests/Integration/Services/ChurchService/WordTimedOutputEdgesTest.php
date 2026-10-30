@@ -738,6 +738,66 @@ class WordTimedOutputEdgesTest extends TestCase
         ];
     }
 
+    /**
+     * The Amen that closes the item before is never where the next one opens, whoever says it: the round opened
+     * 982's reading on a 5 s smear of the prayer's "amen", and 991's talk and 1321's reading on the prayer's "Amen."
+     * (defect-fix plan F4, 10-30; 982's executed start after it was heard right).
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     */
+    #[Test]
+    #[DataProvider('startsAfterAClosingAmen')]
+    public function a_spoken_start_does_not_open_on_the_closing_amen_before_it(array $cues, array $words, float $original, float $expected): void
+    {
+        $log = $this->logWithCues($cues);
+        $this->bankWindow($log, $original, $words);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => $original, 'end_time' => 4900.0]]);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    /** A song's introduction can play in under the congregation's Amen: 1282 §3533's start was heard right before it. */
+    #[Test]
+    public function a_song_start_may_open_on_the_amen_its_introduction_plays_under(): void
+    {
+        $log = $this->logWithCues([['start' => 1898.0, 'end' => 1901.5, 'text' => 'before we look into some of these verses together.'],
+            ['start' => 1902.5, 'end' => 1903.2, 'text' => 'Amen.'], ['start' => 1905.0, 'end' => 1912.0, 'text' => 'Praise to the Lord, the Almighty']]);
+        $this->bankWindow($log, 1902.16, [['start' => 1900.2, 'end' => 1901.4, 'word' => ' together.'], ['start' => 1902.55, 'end' => 1903.12, 'word' => ' Amen.']]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 1902.16, 'end_time' => 4900.0]], songEnds: true);
+
+        $this->assertEqualsWithDelta(1902.16, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    public static function startsAfterAClosingAmen(): array
+    {
+        return [
+            '982: a smeared "amen" before the reading' => [
+                [['start' => 978.68, 'end' => 982.68, 'text' => "We ask these things in your son's name"], ['start' => 982.68, 'end' => 983.68, 'text' => 'Amen'],
+                    ['start' => 984.68, 'end' => 989.68, 'text' => 'Now I want you to know brothers']],
+                [['start' => 981.82, 'end' => 982.17, 'word' => " son's"], ['start' => 982.17, 'end' => 982.52, 'word' => ' name'], ['start' => 983.39, 'end' => 988.68, 'word' => ' amen'],
+                    ['start' => 988.68, 'end' => 988.91, 'word' => ' now'], ['start' => 988.91, 'end' => 989.0, 'word' => ' i'], ['start' => 989.0, 'end' => 989.31, 'word' => ' want']],
+                984.67, 988.68,
+            ],
+            '991 §1168: a start already past the prayer\'s "Amen." stays' => [
+                [['start' => 562.0, 'end' => 566.0, 'text' => 'In the great name of Jesus Christ our Saviour, we pray.'], ['start' => 566.0, 'end' => 567.0, 'text' => 'Amen.'],
+                    ['start' => 568.0, 'end' => 573.0, 'text' => 'We have the slide on screen please.']],
+                [['start' => 565.48, 'end' => 565.95, 'word' => ' Saviour,'], ['start' => 565.95, 'end' => 566.05, 'word' => ' we'], ['start' => 566.05, 'end' => 566.46, 'word' => ' pray.'],
+                    ['start' => 566.46, 'end' => 567.36, 'word' => ' Amen.']],
+                568.0, 568.0,
+            ],
+            '1321: the prayer\'s "Amen." before the reading' => [
+                [['start' => 802.64, 'end' => 807.29, 'text' => 'We pray that they will know the arms of your love around'], ['start' => 807.29, 'end' => 808.76, 'text' => 'them, Lord.'],
+                    ['start' => 809.5, 'end' => 809.88, 'text' => 'Amen.'], ['start' => 809.88, 'end' => 820.88, 'text' => "Well, we're going to read, before we sing again, we're"]],
+                [['start' => 807.91, 'end' => 808.35, 'word' => ' them,'], ['start' => 808.35, 'end' => 808.77, 'word' => ' Lord.'], ['start' => 809.55, 'end' => 809.89, 'word' => ' Amen.'],
+                    ['start' => 810.2, 'end' => 810.5, 'word' => ' Well,']],
+                809.0, 809.89,
+            ],
+        ];
+    }
+
     /** @param list<array{start: float, end: float, word: string}> $words */
     #[Test]
     #[DataProvider('songSentenceStarts')]
