@@ -272,6 +272,9 @@ queue and route state are in the archive; a historical “final” label is not 
    **1284 asked 10-30:** page "Whose Amen" https://claude.ai/artifact/VjLNfVRfWtSmfkEGjpK6ES (`rulings`, id
    `1284-sermon-end`; A 3541.075 now, B 3538.72 round; builder `amen-1284-listening-20261030/`). Congregation's → B
    recorded keep; preacher's → A, and the cause is read before any rule.
+   **Answered 10-30: either — "B is right, but A is acceptable - it's the preacher repeating their \"Amen\"".**
+   Recorded (source `amen-1284-listening-20261030`, points 3538.72/3541.075); the round's B meets it, and on a sermon
+   end the shorter wins, so nothing changes. The unruled-moves triage needs no further listening.
    **Defect-fix plan 10-30 (operator: "plan to fix all the defects"; plan only, each part waits for its go).** Every
    defect from the two triages, grouped by the rule that placed the cut (`reason` in `moves-ge1s.json`). Each part
    follows the same steps: (1) *measure* read-only on `no-stand-in/` whether one condition separates the defects

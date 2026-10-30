@@ -666,6 +666,13 @@ records.extend(edge_listening_rulings(
     [{**answer, 'choice': answer['choice'].lower()} for answer in saved('ends-to-hear-20261030/answers/rulings').values()],
 ))
 
+# 10-30: Whose Amen, the one unruled move the triage could not settle (A now, B the round's): "B is right, but A is
+# acceptable - it's the preacher repeating their \"Amen\"". Either; on a sermon end the shorter, B, wins.
+records.extend(edge_listening_rulings(
+    'amen-1284-listening-20261030', load('amen-1284-listening-20261030/questions.json'),
+    [{**answer, 'choice': answer['choice'].lower()} for answer in saved('amen-1284-listening-20261030/answers/rulings').values()],
+))
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {
