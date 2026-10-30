@@ -513,6 +513,44 @@ for run, edge_time, expect, note in (
                     'title': None, 'edge': 'end', 'heard': edge_time, 'answer': None, 'expect': expect, 'ruled_time': None,
                     'note': note, 'answer_source': 'claude-review'})
 
+# 10-30: moved edges settled from the transcript, decoded words and levels (plan §4.1a step 3 (a); triage in
+# storage/scratch/page1-triage-20261030/). Sermon ends heard before the 10-28 Amen ruling keep the end heard and add the
+# round's end, which stops after the preacher's last word or Amen; "either" leaves the cut heard acceptable.
+AMEN = 'the 10-28 Amen ruling: the preacher\'s Amen in, the congregation\'s Amen and the song introduction out'
+SETTLED = [
+    # (run, section_id, edge, points, note); one point is a keep.
+    (961, None, 'end', (3884.74, 3924.83), f'Ends "…and discouragement."; drops the hymn announcement ({AMEN}).'),
+    (1007, None, 'end', (4506.82, 4561.58), 'Ends "This is the reason. He came to save sinners."; drops the closing prayer, an end that still reads as one (K16, 10-29).'),
+    (1038, None, 'end', (3823.62, 3825.64), f'Ends after the Amen, before "All right." ({AMEN}).'),
+    (1076, None, 'end', (1616.72, 1618.6), f'Ends after the preacher\'s Amen, before the congregation\'s ({AMEN}).'),
+    (1190, None, 'end', (1493.46, 1494.74, 1498.202), f'Ends after "In Jesus\' name. Amen." ({AMEN}).'),
+    (1194, None, 'end', (3490.44, 3521.14), f'Ends "…in Jesus\' name. Amen."; drops "let\'s stand… our concluding hymn" and its first verse ({AMEN}).'),
+    (1201, None, 'end', (1092.25, 1093.87), f'Ends after the preacher\'s Amen, before the congregation\'s ({AMEN}).'),
+    (1218, None, 'end', (3845.94, 3875.25), f'Ends "…in his name. Amen."; drops the hymn introduction ({AMEN}).'),
+    (1255, None, 'end', (3604.05, 3625.0), f'Ends after the preacher\'s Amen; drops "let\'s stand… concluding hymn" ({AMEN}).'),
+    (1296, None, 'end', (3763.21, 3764.76), f'Ends after the preacher\'s Amen, before the congregation\'s ({AMEN}).'),
+    (1299, None, 'end', (4117.97, 4118.8), 'Both after the Amens, before "Let\'s stand"; 0.8 s of the same pause apart.'),
+    (1303, None, 'end', (3399.38, 3411.71), f'Ends after the preacher\'s Amen, before the congregation\'s; drops "let\'s remind ourselves of the cross… as we conclude this part of our service" ({AMEN}).'),
+    (1326, None, 'end', (3599.73, 3611.11), f'Ends "What a good God it is that we serve."; drops the hymn announcement ({AMEN}).'),
+    # A 10-18 "cut off mid sentence" heard the cut inside the hymn announcement; the round ends on the Amen before it.
+    (1115, None, 'end', (1461.28,), f'Ends "…in Jesus\' name. Amen."; the whole hymn 828 introduction is out ({AMEN}).'),
+    (1127, None, 'end', (4184.14,), f'Ends "…the peace of God will be with you. Amen."; drops "as we sing our last song… let\'s sing" ({AMEN}).'),
+    (1167, None, 'end', (4148.62,), f'Ends after the preacher\'s Amen, before the congregation\'s ({AMEN}).'),
+    (1283, None, 'end', (3382.6,), f'Ends after "in Jesus\' name. Amen." (decoded 3382.21); drops the communion handover and the hymn\'s last two verses read aloud ({AMEN}).'),
+    # Song edges.
+    (1073, 1716, 'start', (2700.0, 2710.0), 'The played-through introduction sounds from 2699.5 ("after Jill\'s played it through"); a musical introduction is always in (D6, 10-24).'),
+    (1120, 2012, 'start', (2352.06, 2353.05), 'Both in the quiet after "As With Gladness." and before the music.'),
+    (1295, 3769, 'end', (350.695, 352.0), 'The round ends before the decoded "Let\'s join together in prayer" (350.77); "Ends at 5:52" was approximate.'),
+]
+for run, section_id, edge, points, note in SETTLED:
+    owner = f's{section_id}' if section_id else 'sermon'
+    records.append({'id': f'claude-review-20261030:{run}-{owner}-{edge}', 'source': 'claude-review-20261030', 'ruled_on': '2026-10-30',
+                    'ruled_at': '2026-10-30T03:00:00Z', 'run': run, 'output': 'section' if section_id else 'sermon',
+                    'section_id': section_id, 'section_type': 'song' if section_id else 'sermon', 'title': None, 'edge': edge,
+                    'heard': points[0] if len(points) == 1 or edge == 'start' else max(points), 'answer': None,
+                    'expect': 'keep' if len(points) == 1 else 'either', 'ruled_time': None, 'note': 'Claude review 10-30: '+note,
+                    'answer_source': 'claude-review', **({'points': list(points)} if len(points) > 1 else {})})
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {

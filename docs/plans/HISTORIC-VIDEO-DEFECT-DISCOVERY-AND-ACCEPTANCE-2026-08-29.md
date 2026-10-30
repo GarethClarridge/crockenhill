@@ -3,8 +3,8 @@
 **Current worklist — reconciled 2026-10-30.** Historic outputs remain quarantined; no release batch
 is authorised. The 10-21/22 round closed. Later shared-path fixes still need a measured round and
 current-output acceptance. 1288's onset leak is fixed (§4.1a step 2). What remains before a freeze is
-§4.1a steps 3–4 in the order the 10-30 review sets (step 3, "Order of the remaining work"; ledger done 10-30), one
-operator decision (what disposes of a residual miss; 958 reaffirmed "either" 10-30) and internal-disk headroom.
+§4.1a steps 3–4 in the order the 10-30 review sets (step 3, "Order of the remaining work"; ledger done 10-30), no
+operator decision outstanding (958 "either" and the residual-miss rule E23 decided 10-30) and internal-disk headroom.
 
 This file owns **current video work and status**, not execution diaries or acceptance procedures.
 The complete prior text is preserved in the [execution record through 10-29](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md).
@@ -167,6 +167,28 @@ queue and route state are in the archive; a historical “final” label is not 
    full-pass keep (drops "Amen."); 968, 1324, 1375 accepted losses; 1183, 1275 refinement. **Data
    defect:** canary-15 pair rulings carry no section id, so later rulings on the same song start never
    supersede them (1221 §2718, 1273 §3421, 1304 §3875 read as regressions though a newer ruling is met).
+   **Triaged 10-30 (operator: "only ask me to listen to things you actually need my judgment on").** Each
+   contradicted or missed edge was read from cues, decoded words and levels (`page1-triage-20261030/around.php`).
+   *Settled, recorded* as `claude-review-20261030` (20 rulings, all met by the round): 13 sermon ends that stop after
+   the preacher's last word or Amen and drop only a song introduction or the congregation's Amen, heard before the
+   10-28 Amen ruling, recorded "either" so the cut heard stays acceptable (961, 1007 [closing prayer, still an end],
+   1038, 1076, 1190, 1194, 1201, 1218, 1255, 1296, 1299, 1303, 1326); four 10-18 "cut off mid sentence" ends the round
+   ends on the Amen before the announcement, recorded keep (1115, 1127, 1167, 1283 — 1283's Amen decodes at 3382.21,
+   before the cut); 1073 §1716 start either 2700/2710 (the played-through introduction sounds from 2699.5; D6);
+   1120 §2012 start either (same quiet); 1295 §3769 end either 350.695/352.0 (ends before the decoded "Let's join").
+   *Needs the ear, 3:* page "Sermon Ends To Hear" https://claude.ai/artifact/KDXKyWuaYd1XKfY2ph4uWN (`rulings`,
+   ids `<run>-sermon-end`, A/B; builder `ends-to-hear-20261030/`): 1004 (prayer's last phrase, timings disagree),
+   1005 (garbled stretch, may be music), 1070 (does B keep the preacher's whole Amen). The 10-29 draft page
+   (`shortened-ends-listening-20261029/`) is superseded: 1115, 1127, 1219 settled, 1157 covered.
+   *Defects, the round's cut is wrong (code, no listening):* **1219** sermon end 3836.9 sits inside "Jesus said, I
+   am the way and the truth" (decoded 3835.5–3838.2): the cue times there are loop filler, so K16's line end is
+   ~20 s early ([[loop filler overruns speech]]); **928** start +1.32 s drops "now" (`word_pause`); **982** start
+   opens on the congregation's "amen" 5 s before the reading; **990** start `sentence_check` drops "But let's read
+   from verse 1… Here is a trustworthy saying:"; **1130 §2066** `song_start_sentence` drops the first line "Glory be
+   to God the Father"; **1342 §4322** `song_start_sentence` trusts words decoded over the song's opening (the reading
+   ended at 1556; ruled 1567.44, round 1569.55); **1272 §3403/§3404** the known early `song_end_fade` at the dip.
+   Sub-second regressions (961 §828, 1042, 1094, 1281, 1379, 1292 §3653) stay listed above. Still to triage: 71
+   unruled non-K16 and 39 unruled K16 moves.
    4. (b), (c), then step 4.1–4.4; (d) is unaffected: its six ends (1004, 1005, 1115, 1127, 1157, 1219) are
       unchanged by the reword's measured draw. Publish (d) with whatever (a) and step 4.0's 958 add.
    Membership check passed: all 96 runs in `deleted-clips.json` are in the 425 eligible runs.
@@ -213,7 +235,7 @@ queue and route state are in the archive; a historical “final” label is not 
    (current policy). Refusals 27 → 22 and unassessable rulings 93 → 87 against the stand-in pass. No
    provider call, job or file write in any pass. Separate finding, unmeasured: the projection recreates the run's own items
    each round; check what an item carries that churn could lose before deciding it matters.
-4. **Dispose of residual misses.** 928 still loses one word at a speech start over fading music;
+4. **Dispose of residual misses** (rule decided 10-30: register E23 — measured class, no mend without breaking a heard-right edge, no substantive loss → recorded soft miss; 928's one word accepted under it). 928 still loses one word at a speech start over fading music;
    this is separate from its internal end in step 2. The measured class is 2 of 30 fade ends (928
    and 1220, the latter ruled either). Merely classifying mixed words as unsung does not fix 928's
    gap search. Record measured repair or containment for the class. 1131 is an early-end miss today
@@ -403,7 +425,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Next processing round | Not ready to freeze: complete §4.1a in the 10-30 order (ledger done → edge moves → K16 build → validate), the residual-miss disposition (958 decided 10-30) and ≥ 10 GB internal disk. Membership (425) is counted. |
+| Next processing round | Not ready to freeze: complete §4.1a in the 10-30 order (ledger done → edge moves → K16 build → validate), the listening pages (958 and E23 decided 10-30) and ≥ 10 GB internal disk. Membership (425) is counted. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |
