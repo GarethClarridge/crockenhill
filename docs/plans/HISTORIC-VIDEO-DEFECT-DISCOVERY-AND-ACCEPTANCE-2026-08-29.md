@@ -88,12 +88,105 @@ queue and route state are in the archive; a historical “final” label is not 
    run in rolled-back transactions outside an active round. Record exact membership and prerequisite
    routes: **1120 needs `ExtendSongsOverOwnLyrics`, not extraction alone**. Dispose of every move
    and refusal; reuse unchanged valid evidence and hear new/conflicting audible cases.
+   **In progress 10-29.** Membership recounted: **425** eligible runs (completed, non-superseded
+   historic), identical to the 10-24 list; nothing in flight. Replay
+   `storage/scratch/combined-measure-20261029/` (`measure.php` → `plans-*.jsonl`, `analyze.py`): per run,
+   one rolled-back transaction inside the run's staging context; plan A on stored sections (the
+   `reExtract` route, and the actual route of 942, 974, 1363), then the round's recompose replayed
+   (stamp + request on the latest banked attempt, chain from detection to the refining projection,
+   including `ExtendSongsOverOwnLyrics`), then plan B. No provider call. 1120 confirmed: extraction
+   alone ends §1999 at 952.46, recompose at the ruled 961.27; recompose also moves §2004's start
+   1365 → 1355 (musical introduction, unheard). The first pass (`run1-no-ocr/`) is not usable for
+   songs: OCR is an OpenAI vision call the replay cannot make. The corrected pass replays each
+   unchanged song's banked OCR text instead. Results and dispositions pending.
+   **Incident (10-29 night): the corrected pass deleted 126 recorded clip files.** It ran each run
+   inside its staging context, so the sync's replacement branch (`cleanupExtractedAssets()`) deleted
+   real files on `historic_staging`; the database rollback held (rows verified unchanged), the deletes
+   did not. 87 short talks, 36 songs `not_applicable`, 3 songs `pending_approval`; list and recorded
+   hashes in `combined-measure-20261029/deleted-clips.json`. No second copy: 123 none, 3 an older cut in
+   quarantine; staging is single-copy (C2). The first pass (no staging context) deleted nothing.
+   They are derived from the masters and need a re-cut before any review of them. **Operator 10-29
+   night: "Let the next round do it."** The round's membership must include all 96 runs in that list,
+   and its diff must show each of the 126 sections with a new recorded clip.
+   Replays must not activate the staging context and must mark disks read-only.
+   **The 17 open fixture entries, disposed (stand-in pass; confirm on the fixed pass):** met by the
+   round 2 (1012 start, now governed by 10-25 `keep 0.0`; 1070 §3705); superseded by K16/the Amen rule
+   4 (1053 §1610, 1186 §2410, 1070 end, 1218 end: each ends on the preacher's Amen, dropping only the
+   song announcement or the congregation's Amen); conflicting ruling, to hear 2 (1115, 1127: a 10-18
+   "cut off mid sentence" says later, K16 now ends earlier on the Amen); open misses to step 4: 9 —
+   late sermon/reading starts 1136, 1308, 1262 §3289; `song_end_fade` song ends 1215 §2637, 1108 §1895,
+   1108 §1897; singles 1262 §3278, 1262 §4913, 1108 canary-11 start. Section rulings on sermon sections
+   (§1610, §3705, §2410) are judged on the sermon video's edge there. `gather.py` maps every
+   `wrong_place` answer to `outward`; four are structure answers ("the middle of a different song"):
+   1012 and 1282 are superseded, **1273 §3416 and 1311 §4874 stand** and need a structure disposition,
+   not an edge score.
+   **Classes measured for step 4:** 38 sermon starts lie > 5 s after their section start, nearly all
+   unchanged by the round; 2 ruled late (1136, 1308). `song_end_fade` places 234 song ends; of 63 ruled,
+   54 met and 9 missed, early (941 §751, 976 §958, 1272 §3403) and late (1215, 1108 ×2) alike, so no
+   single bias; the rest marginal (1250 §3127, 1292 §3653) or unchanged (1262 §3288).
+   **3a. Prerequisite found by step 3 — re-detection discarded unchanged sections' evidence (built
+   10-29 night; operator: "Build it", then option "1"; corpus re-measure running, then suite and commit).**
+   *Problem.* `ServiceSectionSyncService::hasMaterialSignatureChange()` decides whether a re-detected
+   section is the same one. When it says no, the replacement branch drops the old metadata (banked
+   `song_ocr_text`, the match record), resets publication to `not_applicable`, cleans up extracted
+   assets and detaches song videos. It compared the section's item, its title and its exact times,
+   and three of those misfired on unchanged spans: detection's classified sections carry only the
+   draws' `oosItemId`, so a section bound to the run's own item arrived with none (933); planned items
+   the draws did not cite arrived with none too, though the projection after the sync rebound the same
+   item (108 in the corpus, e.g. 967 §1073); the projection recreates the run's own items each round,
+   so ids churned (131, e.g. 939 §636: 20150 → cited 4883 → bound 24911); and re-detection's arithmetic
+   returned 2010.5800000000002 for a stored 2010.5799999999999 (1120 §2009). On recompose that meant
+   songs lost OCR confirmation, their catalogue titles ("Where, O grave…" → "Song") and the K16 answers
+   that name them, or were re-OCR'd with paid calls where a source was staged, and unchanged clips
+   stopped describing their recorded cut and lost their publication. Shared path: any re-detection of
+   an already-projected run (`redetectServiceStructure`, on corpus re-run or recovered-transcript
+   grounds, weekly runs included); a plain retry re-detects only if detection itself failed, before
+   any item is bound.
+   *Decision (operator, option 1 of three):* a section is unchanged when its type and span, to the
+   millisecond, are unchanged, whatever its item or title. Matching re-derives the song
+   (`withoutSongBinding()`), and a person-reviewed binding stays while the span is unchanged. Rejected:
+   also requiring the normalised title (would still replace reworded draw titles) and moving the
+   decision after the projection (a larger restructuring).
+   *Built:* `materialIdentity()` returns type and millisecond-rounded bounds; the first, narrower carve-out
+   for run-projected items was removed. `ChurchServiceItem::isAttestedOnlyByDetection()` (from
+   `MatchSongsFromTranscript::onlyTheRunAttests()`) stays for matching's song withdrawal. Tests, red
+   first: four unchanged-span shapes keep evidence, publication, clip and song video (933, 967 none
+   cited, 939 another cited, a reworded title), float noise keeps publication, a moved bound or a changed
+   type is still replaced. Two older expectations changed with the decision: canary 9's
+   `an_unbound_section_given_a_different_title_*` now keeps its clip over the same span, and the
+   re-detection that names another song drops the binding without marking the section superseded.
+   Sync 47/47; matching, item, recompose, re-detection, sync and projection tests 498/498; Pint, PHPStan.
+   *Measured (guarded replay, no OCR stand-in, `combined-measure-20261029/`):* the first, carve-out
+   fix (`no-stand-in-fix1/`) cut unchanged-span publication resets from 582 to 169, leaving 60 songs
+   unconfirmed and 60 re-titled; **option 1 (`no-stand-in/`) leaves 7 changed sections of 425 runs, none
+   the defect:** 0 unconfirmed, 1 respelt; 4 songs (981 §1043, 1020 §1340, 1304 §3875, 1305 §3888; three
+   published) whose span genuinely changes at detection and is restored by the later song-edge steps,
+   so they reset and need re-approval after the round (only option 3 would avoid it; recorded as a
+   residual); 2 move between two catalogue songs both titled "Great Is The Lord" (318/317; 977 §1009,
+   1305 §3886: an OpenLP duplicate for curation); 1344 §4342's fuzzy title-hint match no longer stands
+   (current policy). Refusals 27 → 22 and unassessable rulings 93 → 87 against the stand-in pass. No
+   provider call, job or file write in any pass. Separate finding, unmeasured: the projection recreates the run's own items
+   each round; check what an item carries that churn could lose before deciding it matters.
 4. **Dispose of residual misses.** 928 still loses one word at a speech start over fading music;
    this is separate from its internal end in step 2. The measured class is 2 of 30 fade ends (928
    and 1220, the latter ruled either). Merely classifying mixed words as unsung does not fix 928's
    gap search. Record measured repair or containment for the class. 1131 remains an early-end miss
    (current 1410.28; ruled 1461.42), with the K16 reword parked. Include all further material misses
    from step 3; neither a recorded miss nor a fixture marked open is acceptance.
+   **K16 class measured 10-29 night (step 3, `combined-measure-20261029/shortened-ends.json`):** of 188
+   sermon ends the round would shorten, 176 drop only an announcement, lyrics or the congregation's
+   Amen; 7 drop the closing prayer with an end that still reads as one (acceptable under K16 as softened
+   10-29 night); **2 drop the last point: 1131 and 1140** (new: "As we draw to our close… how can you not
+   glorify God?"); 4 need hearing (1004, 1005, 1157, 1219; draft page `shortened-ends-listening-20261029/`).
+   1140's banked answer is untied, outside the parked reword's 116-end measurement. **Reword asked on
+   1140 (operator: "You can make the calls"; 3 Luna calls, `k16-reword-20261029/answers/1140.json`):**
+   it keeps the application, 1808.62 → 1853.29, though that cue carries a dangling "Let's" of the next
+   line; 1131 → its ruled 1461.42. Record now 2 mended, 1 broken (968), untied ends unmeasured. Next: ask
+   the reword on every untied end after the fixed re-measure (≈735 calls, ≈$0.55 at the 08-18 price
+   snapshot), recording each answer's full identity but **not banking it** (operator: redraw changes
+   "are useful learning for future weekly processing"). If adopted, the round redraws every K16 end as
+   weekly would; its decided ends compared with the measured ones give the redraw change rate (§4.2),
+   and only flips that change a heard cut go to listening.
 5. **Validate, freeze and canary.** Focused tests, PHPStan, Pint and full parallel suite on final
    code; Dusk for browser behaviour. Follow runbook §§3/6 for live headroom, backups, frozen
    membership, worker revision and pause/resume. Inspect actual song-to-speech transitions and
@@ -121,6 +214,9 @@ in the [record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-1
 - [ ] Preserve originals for the backlog from 2026-08-30 onward and process oldest first after take-over.
 - [ ] Extend the source-reviewed evaluation set beyond deterministic cut fixtures to structure and
   song identity; score before and after take-over. Keep mock-response tests distinct from model evidence.
+- [ ] Measure model redraw stability: a weekly run gets one draw. Where a round re-asks a model question
+  (first case: K16 if the reword is adopted, §4.1a step 4), compare the decided outcome with the one
+  measured before and record the change rate and the flips; do not bank answers to suppress it.
 - [ ] Audit already-published weekly clips read-only for the redesigned edge/sync classes; any
   production recuts require their own operational authority.
 
