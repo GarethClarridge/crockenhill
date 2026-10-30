@@ -182,7 +182,7 @@ queue and route state are in the archive; a historical “final” label is not 
    (`shortened-ends-listening-20261029/`) is superseded: 1115, 1127, 1219 settled, 1157 covered.
    *Defects, the round's cut is wrong (code, no listening):* **1219** sermon end 3836.9 sits inside "Jesus said, I
    am the way and the truth" (decoded 3835.5–3838.2): the cue times there are loop filler, so K16's line end is
-   ~20 s early ([[loop filler overruns speech]]); **928** start +1.32 s drops "now" (`word_pause`); **982** start
+   ~20 s early (the loop-filler class: filler cue times overrun the speech they replace); **928** start +1.32 s drops "now" (`word_pause`); **982** start
    opens on the congregation's "amen" 5 s before the reading; **990** start `sentence_check` drops "But let's read
    from verse 1… Here is a trustworthy saying:"; **1130 §2066** `song_start_sentence` drops the first line "Glory be
    to God the Father"; **1342 §4322** `song_start_sentence` trusts words decoded over the song's opening (the reading
