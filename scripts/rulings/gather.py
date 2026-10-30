@@ -488,6 +488,31 @@ for record in word_boundary:
         record['part'] = {'section_id': 512}
 records.extend(word_boundary)
 
+# 10-29: K16-tied sermon ends (A the end before the song talk, B through to the song). 1001's A ended mid-sentence
+# ("And celebrate his mercy to you,"); B was chosen over that, not over "…Make it today." (1924.76, ruled 10-28), and
+# both are whole-sentence ends, so its answer allows either (plan §4.1a step 4.0).
+TIED_1001 = {'a': 1924.76, 'b': 1939.2}
+records.extend(edge_listening_rulings(
+    'k16-tied-20261029',
+    [{**q, 'key': {**q['key'], 'times': TIED_1001}} if q['run'] == 1001 else q
+     for q in load('k16-tied-listening-20261029/questions.json')],
+    [{**answer, 'choice': 'both'} if answer['run'] == 1001 else answer
+     for answer in saved('k16-tied-listening-20261029/answers/rulings').values()],
+))
+
+# 10-30: K16 reword ends read from the transcript (plan §4.1a step 4.0). 1140's current end drops the last point
+# ("how can you not glorify God?"), so a later end should end later; the reword's 1853.29 carries a dangling "Let's"
+# and is not kept. 1375 and 1324 keep the current end: the reword takes in quoted lyrics and the next hymn's title.
+for run, edge_time, expect, note in (
+    (1140, 1808.62, 'outward', 'Claude review 10-30: the end drops the last point, "how can you not glorify God?".'),
+    (1375, 1318.0, 'keep', 'Claude review 10-30: right; the K16 reword takes in "Just because he lives." (quoted lyrics).'),
+    (1324, 3307.0, 'keep', 'Claude review 10-30: right; the K16 reword takes in the next hymn\'s title.'),
+):
+    records.append({'id': f'claude-review-20261030:{run}-sermon-end', 'source': 'claude-review-20261030', 'ruled_on': '2026-10-30',
+                    'ruled_at': '2026-10-30T01:53:01Z', 'run': run, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon',
+                    'title': None, 'edge': 'end', 'heard': edge_time, 'answer': None, 'expect': expect, 'ruled_time': None,
+                    'note': note, 'answer_source': 'claude-review'})
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {
@@ -516,6 +541,9 @@ RULED = [
     ('register-e9:1286-s3587-start', '2026-10-10', 1286, 3587, 'start', (1665.22, 1670.96),
      'E9: a song clip keeps its spoken introduction ("Now we\'re going to sing a new song."); 10-10: '
      'an introduction may be in or out.'),
+    ('operator-20261030:958-sermon-end', '2026-10-30T01:53:01Z', 958, None, 'end', (1993.88, 2016.78),
+     'Plan §4.1a step 4.0, operator 10-30: "either" reaffirmed; the K16 reword\'s end (2016.78, the point built '
+     'round "Facing a Task Unfinished") is acceptable alongside the ruled 1993.88.'),
 ]
 # 10-24: song starts set by the operator's Intro Rule, Song Intros and Song Openings answers
 # (listening-intro-rule-20261024/record-starts.php; register D6 amended 10-24). They were stored as operator

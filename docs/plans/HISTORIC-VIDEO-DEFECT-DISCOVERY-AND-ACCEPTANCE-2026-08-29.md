@@ -3,8 +3,8 @@
 **Current worklist — reconciled 2026-10-30.** Historic outputs remain quarantined; no release batch
 is authorised. The 10-21/22 round closed. Later shared-path fixes still need a measured round and
 current-output acceptance. 1288's onset leak is fixed (§4.1a step 2). What remains before a freeze is
-§4.1a steps 3–4 in the order the 10-30 review sets (step 3, "Order of the remaining work"), two
-operator decisions (958's end; what disposes of a residual miss) and internal-disk headroom.
+§4.1a steps 3–4 in the order the 10-30 review sets (step 3, "Order of the remaining work"; ledger done 10-30), one
+operator decision (what disposes of a residual miss; 958 reaffirmed "either" 10-30) and internal-disk headroom.
 
 This file owns **current video work and status**, not execution diaries or acceptance procedures.
 The complete prior text is preserved in the [execution record through 10-29](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md).
@@ -250,6 +250,14 @@ queue and route state are in the archive; a historical “final” label is not 
       decision owed:** reaffirm "either" (2016.78 then acceptable) or accept the loss alongside 968, 1375
       and 1324. (iii) 1140, 1375 and 1324 have no ruling: their gain and losses were read from the
       transcript. Record each as an `answer_source: claude-review` ruling so the ratchet carries the decision.
+      **Done 10-30.** `gather.py` gains source `k16-tied-20261029` (11 rulings): 1131 keep 1461.42 and the
+      nine others supersede or agree with what the ledger held; 1183's B stays superseded by its later
+      reword answer. 1001's B was chosen over a mid-sentence A (1927.2), not over "…Make it today.", so it
+      is recorded as either 1924.76 / 1939.2. **958: operator reaffirmed "either"** (`operator-20261030`,
+      1993.88 / 2016.78), so the reword's 958 end is no loss. `claude-review-20261030`: 1140 outward from
+      1808.62 (the reword's 1853.29 keeps the last point but carries a dangling "Let's", so it is not kept);
+      1375 keep 1318 and 1324 keep 3307. Ledger 1,771 rulings; no other ruling changed beyond 8 newly
+      superseded. `RuledEndingsRegressionTest` 41/41.
    1. *Code, test first.* `SermonSongIntroductionCheck::SYSTEM_PROMPT` takes exactly the two
       replacements in `k16-reword-20261029/measure.php` (saved whole in `system-prompt.txt`) and
       `PROMPT_VERSION` 2 → 3, so every banked answer stops matching. `SermonSongIntroductionCheckTest`
@@ -376,7 +384,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Next processing round | Not ready to freeze: complete §4.1a in the 10-30 order (ledger → edge moves → K16 build → validate), the two operator decisions (958; residual-miss disposition) and ≥ 10 GB internal disk. Membership (425) is counted. |
+| Next processing round | Not ready to freeze: complete §4.1a in the 10-30 order (ledger done → edge moves → K16 build → validate), the residual-miss disposition (958 decided 10-30) and ≥ 10 GB internal disk. Membership (425) is counted. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |
