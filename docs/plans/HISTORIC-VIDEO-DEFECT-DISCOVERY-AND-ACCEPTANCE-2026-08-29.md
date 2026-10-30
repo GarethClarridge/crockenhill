@@ -375,6 +375,20 @@ queue and route state are in the archive; a historical “final” label is not 
    (`amen-start-fixture-refresh-20261030/`, prior files in `before/`: 982, 1251, 1255, 1313, 1321). 1255 §3180's
    full-pass "right" start (559.98) keeps the congregation's answering "Amen.", heard before the 10-28 Amen ruling, so
    recorded either 559.98/560.34 (`claude-review-20261030`), as the triage's thirteen sermon ends.
+   **Sung Or Spoken and Speech Over The Last Chords ANSWERED 10-30** (sources `song-openings-listening-20261030`,
+   `song-ends-listening-20261030`; 14 rulings, approximate neither times kept in notes). *F1 closed, no rule:* the
+   round's later start is right or acceptable for 9 of 11 (B 1239, 1295, 1342, 981; either 949, 1106, 1257, 1260,
+   1264), so the triage's "sung opening dropped" was wrong; 1130 neither ("A clips the first word of the song being
+   quoted. B drops the first line": right just before "Glory", ~459.9; its full-pass keep at A stays live and is
+   now doubtful) and 1245 neither ("Both include previous music": later than B) are single misses. *F2/F3 confirmed,
+   not buildable on today's evidence:* the round's longer end is right or acceptable for 3 of 9 (B 1254, 1334; either
+   1315), A for 1009, 1080, and neither, between the two, for 1034 (≈58:28), 1234 (≈11:15), 1243 (≈5:31) and 1272
+   (≈14:43). Measured (`onset.php`): the decoded onset of the speech cue is not the end either: ruled-right ends run
+   2–3 s past it (1347 696.04 → kept 699.36, 1111, 1216, 1012), and the neither times sit 0.3–3.8 s after it. The end
+   heard is where the music stops under the speech; `song_end_silence` runs on to the later quiet because the speech
+   keeps the level up, and the classifier calls the whole stretch music (1243 M-class 1 to B). **Next for F2 is
+   evidence, not a rule:** a finer music-presence signal at song ends (where the last chord dies under speech), measured
+   on these 9 and the 30 covered song-end moves before any rule; plan only, awaits go.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and

@@ -659,6 +659,15 @@ for run, section_id, section_type, edge, executed, round_cut, note in EITHER_MOV
                     'ruled_time': None, 'note': 'Claude review 10-30: '+note, 'answer_source': 'claude-review',
                     'points': [executed, round_cut]})
 
+# 10-30, defect-fix plan F1 and F2/F3: Sung Or Spoken (11 song starts the round moves later) and Speech Over The Last
+# Chords (9 song ends the round moves), A the executed cut, B the round's. Neither answers name approximate times
+# ("Should be about 58:28"), so they stay in their notes.
+for source in ('song-openings-listening-20261030', 'song-ends-listening-20261030'):
+    records.extend(edge_listening_rulings(
+        source, load(f'{source}/questions.json'),
+        [{**answer, 'choice': answer['choice'].lower()} for answer in saved(f'{source}/answers/rulings').values()],
+    ))
+
 # 10-30, defect-fix plan F4: a spoken start no longer opens on the closing Amen before it. 1255 §3180's start (its
 # full-pass id §3181, re-keyed by capture) was heard right in the full pass, before the 10-28 Amen ruling, with the
 # congregation's answering "Amen." (559.98–560.34) at its head; as the triage's thirteen sermon ends, either stands.
