@@ -243,6 +243,18 @@ class ChurchServiceItem extends Model
         return $this->source instanceof ChurchServiceItemSource ? [$this->source] : [];
     }
 
+    /**
+     * Whether only a processing run's detection attests this item: no order of service, email or
+     * person has. Read from the evidence, not the `source` column, which keeps its first writer
+     * after a merge, so an item a run wrote and OpenLP or the email attested since is not this.
+     */
+    public function isAttestedOnlyByDetection(): bool
+    {
+        $sources = $this->provenanceSources();
+
+        return $sources !== [] && collect($sources)->every(fn (ChurchServiceItemSource $source): bool => $source->isDetected());
+    }
+
     public function provenanceLabel(): string
     {
         return collect($this->provenanceSources())

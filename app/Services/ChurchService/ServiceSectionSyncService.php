@@ -328,27 +328,27 @@ class ServiceSectionSyncService
     }
 
     /**
-     * The part of a signature that decides whether extracted media still belongs to the section.
+     * The part of a signature that decides whether extracted media still belongs to the section: its type
+     * and its span, to the millisecond (re-detection's arithmetic returns 2010.5800000000002 for a stored
+     * 2010.5799999999999).
      *
-     * A section bound to an order-of-service item is identified by that item, so its title text
-     * is not compared at all; an unbound title is compared without case or punctuation. Either
-     * way a respelling ("Speak O Lord" → "Speak, O Lord") keeps the media, where comparing the
-     * raw text once deleted a published clip and its song video (canary 9, run 1221). The new
-     * title is still written.
+     * Not its item or title (operator 10-29 night, plan §4.1a step 3a). A detected section names only the
+     * order-of-service item its draws cited, and the projection that follows settles the binding: in the
+     * 10-29 corpus replay it rebound the same item or recreated the run's own, yet comparing them dropped
+     * unchanged sections' banked OCR text, publication and clips (933, 967, 939). A title respelling once
+     * deleted a published clip (canary 9, run 1221). Matching re-derives the song (`withoutSongBinding()`),
+     * and the new title is still written.
      *
      * @param  array{church_service_item_id: int|null, section_type: string, title: ?string, start_time: float, end_time: float}  $signature
-     * @return array{church_service_item_id: int|null, section_type: string, title: ?string, start_time: float, end_time: float}
+     * @return array{section_type: string, start_time: float, end_time: float}
      */
     private function materialIdentity(array $signature): array
     {
-        $title = $signature['title'];
-
-        $signature['title'] = match (true) {
-            $signature['church_service_item_id'] !== null, $title === null => null,
-            default => trim((string) preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($title))),
-        };
-
-        return $signature;
+        return [
+            'section_type' => $signature['section_type'],
+            'start_time' => round($signature['start_time'], 3),
+            'end_time' => round($signature['end_time'], 3),
+        ];
     }
 
     /**

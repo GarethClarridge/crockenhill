@@ -448,6 +448,135 @@ class ServiceSectionSyncServiceTest extends TestCase
         Storage::disk('public')->assertExists('section-publications/2718/video.mp4');
     }
 
+    /**
+     * Operator 10-29 night (plan §4.1a step 3a, option 1): re-detection judges a section by its type and span.
+     * Its item is not settled until the projection after the sync, and in the 10-29 corpus replay every
+     * item difference below came back to the same binding or a recreated item, yet the exact comparison
+     * dropped banked OCR text, publication and clips (933, 967, 939). Matching re-derives the song.
+     *
+     * @param  array{existing: 'detected'|'planned', cited: 'none'|'other', title: string}  $redetected
+     */
+    #[Test]
+    #[DataProvider('unchangedSpansWithAnotherItemOrTitle')]
+    public function a_section_re_detected_over_the_same_span_keeps_its_evidence_and_media(array $redetected): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $item = $redetected['existing'] === 'detected'
+            ? ChurchServiceItem::factory()->livestream()->song()->create(['title' => 'Great Is The Gospel'])
+            : ChurchServiceItem::factory()->song()->create(['title' => 'Great Is The Gospel']);
+        $section = $this->publishedSongOn($processingLog, $item);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(
+                churchServiceItemId: $redetected['cited'] === 'other' ? ChurchServiceItem::factory()->song()->create()->id : null,
+                sectionOrder: 6,
+                sectionType: ServiceSectionType::Song->value,
+                title: $redetected['title'],
+                startTime: 2130.3,
+                endTime: 2412.0,
+                duration: 281.7,
+            ),
+        ]);
+
+        $section->refresh();
+        $metadata = $section->metadata?->toArray() ?? [];
+
+        $this->assertArrayNotHasKey('superseded', $metadata);
+        $this->assertSame('Great Is The Gospel #178 | Great is the gospel', $metadata['song_ocr_text'] ?? null);
+        $this->assertSame(ServiceSectionPublicationStatus::Published, $section->publication_status);
+        $this->assertSame('section-publications/576/video.mp4', $section->extracted_video_path);
+        $this->assertSame($section->id, SongVideo::query()->where('video_file_path', 'sermons/songs/576.mp4')->value('service_section_id'));
+        Storage::disk('public')->assertExists('section-publications/576/video.mp4');
+    }
+
+    /** @return array<string, array{array{existing: 'detected'|'planned', cited: 'none'|'other', title: string}}> */
+    public static function unchangedSpansWithAnotherItemOrTitle(): array
+    {
+        return [
+            'an item the run projected, none cited (933)' => [['existing' => 'detected', 'cited' => 'none', 'title' => 'Great Is the Gospel']],
+            'an order-of-service item, none cited (967)' => [['existing' => 'planned', 'cited' => 'none', 'title' => 'Great Is the Gospel']],
+            'another item cited (939)' => [['existing' => 'detected', 'cited' => 'other', 'title' => 'Great Is The Gospel']],
+            'a reworded title, none cited (967)' => [['existing' => 'planned', 'cited' => 'none', 'title' => 'The Gospel Song']],
+        ];
+    }
+
+    /**
+     * Run 1120 §2009, 10-29: re-detection's arithmetic gave back 2010.5800000000002 for a start stored as
+     * 2010.5799999999999, and the exact comparison unpublished an unchanged song.
+     */
+    #[Test]
+    public function a_section_whose_times_differ_only_by_float_noise_keeps_its_publication(): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $item = ChurchServiceItem::factory()->song()->create(['title' => 'While Shepherds Watched']);
+        $section = $this->publishedSongOn($processingLog, $item);
+        $section->forceFill(['start_time' => 2010.5799999999999, 'end_time' => 2134.9899999999998, 'duration' => 124.41])->save();
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(
+                churchServiceItemId: $item->id,
+                sectionOrder: 6,
+                sectionType: ServiceSectionType::Song->value,
+                title: 'While Shepherds Watched Their Flocks',
+                startTime: 2010.5800000000002,
+                endTime: 2134.9899999999998,
+                duration: 124.41,
+            ),
+        ]);
+
+        $section->refresh();
+
+        $this->assertArrayNotHasKey('superseded', $section->metadata?->toArray() ?? []);
+        $this->assertSame(ServiceSectionPublicationStatus::Published, $section->publication_status);
+        $this->assertSame('section-publications/576/video.mp4', $section->extracted_video_path);
+    }
+
+    /** A moved bound or a changed type is a change, whatever the item. */
+    #[Test]
+    #[DataProvider('changedSpansOrTypes')]
+    public function a_section_whose_span_or_type_changed_is_superseded(string $sectionType, float $startTime): void
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $item = ChurchServiceItem::factory()->song()->create(['title' => 'Great Is The Gospel']);
+        $section = $this->publishedSongOn($processingLog, $item);
+
+        $this->service->sync($processingLog, [
+            $this->sectionData(
+                churchServiceItemId: $item->id,
+                sectionOrder: 6,
+                sectionType: $sectionType,
+                title: 'Great Is The Gospel',
+                startTime: $startTime,
+                endTime: 2412.0,
+                duration: 2412.0 - $startTime,
+            ),
+        ]);
+
+        $section->refresh();
+
+        $this->assertArrayHasKey('superseded', $section->metadata?->toArray() ?? []);
+        $this->assertSame(ServiceSectionPublicationStatus::NotApplicable, $section->publication_status);
+        $this->assertNull($section->extracted_video_path);
+    }
+
+    /** @return array<string, array{string, float}> */
+    public static function changedSpansOrTypes(): array
+    {
+        return [
+            'a moved bound' => [ServiceSectionType::Song->value, 2125.0],
+            'a changed type' => [ServiceSectionType::Other->value, 2130.3],
+        ];
+    }
+
     /** A section inserted or removed earlier in the service no longer shifts a clip onto its neighbour's row. */
     #[Test]
     public function an_unchanged_section_keeps_its_media_when_an_earlier_section_is_inserted_or_removed(): void
@@ -498,8 +627,12 @@ class ServiceSectionSyncServiceTest extends TestCase
         Storage::disk('public')->assertExists('section-publications/1398/video.mp4');
     }
 
+    /**
+     * Operator 10-29 night (plan §4.1a step 3a, option 1): a section is its type and span. A new title over the
+     * same span keeps the clip; matching re-derives the song from what is sung (`withoutSongBinding`).
+     */
     #[Test]
-    public function an_unbound_section_given_a_different_title_is_still_superseded(): void
+    public function an_unbound_section_given_a_different_title_over_the_same_span_keeps_its_media(): void
     {
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
@@ -530,8 +663,9 @@ class ServiceSectionSyncServiceTest extends TestCase
             ),
         ]);
 
-        $this->assertNull($section->fresh()->extracted_video_path);
-        Storage::disk('public')->assertMissing('section-publications/2718/video.mp4');
+        $this->assertSame('Majesty', $section->fresh()->title);
+        $this->assertSame('section-publications/2718/video.mp4', $section->fresh()->extracted_video_path);
+        Storage::disk('public')->assertExists('section-publications/2718/video.mp4');
     }
 
     #[Test]
@@ -757,7 +891,8 @@ class ServiceSectionSyncServiceTest extends TestCase
 
         $section->refresh();
 
-        $this->assertArrayHasKey('superseded', $section->metadata?->toArray() ?? []);
+        // The span is the same, so the section keeps its record (operator 10-29 night, option 1); its song does not.
+        $this->assertArrayNotHasKey('superseded', $section->metadata?->toArray() ?? []);
         $this->assertBindingDropped($section);
     }
 
@@ -1253,6 +1388,30 @@ class ServiceSectionSyncServiceTest extends TestCase
      *     metadata: array<string, mixed>
      * }
      */
+    /** 933 §576 as the 10-22 round left it: confirmed by banked OCR, published, with its clip and song video. */
+    private function publishedSongOn(MediaProcessingLog $processingLog, ChurchServiceItem $item): ServiceSection
+    {
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'section_order' => 6,
+            'title' => 'Great Is The Gospel',
+            'start_time' => 2130.3,
+            'end_time' => 2412.0,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
+            'publication_status' => ServiceSectionPublicationStatus::Published->value,
+            'extracted_video_path' => 'section-publications/576/video.mp4',
+            'extracted_at' => now(),
+            'metadata' => ['song_ocr_text' => 'Great Is The Gospel #178 | Great is the gospel'],
+        ]);
+        SongVideo::factory()->create(['service_section_id' => $section->id, 'video_file_path' => 'sermons/songs/576.mp4']);
+        Storage::disk('public')->put('section-publications/576/video.mp4', 'video');
+        Storage::disk('public')->put('sermons/songs/576.mp4', 'video');
+
+        return $section;
+    }
+
     private function sectionData(
         ?int $churchServiceItemId,
         int $sectionOrder,
