@@ -226,6 +226,35 @@ queue and route state are in the archive; a historical “final” label is not 
    980, 1103, 1077. **Proposed fix:** test-first from 1219, a K16 end whose kept line's last words are not among the
    decoded words before the cut finds that line in the decoded words of a wider window and ends after it, or holds
    the end for review when it cannot; then replay the 14 and run the ruled-endings suite.
+   **Unruled moves triaged 10-30** (the 71 non-K16 and 39 K16 rows of `moves-ge1s.json`; scripts and outputs in
+   `storage/scratch/unruled-triage-20261030/`: `stretch.php` the dropped or added cue text and decoded words,
+   `before-cut.php` what an end keeps, `classes.php` the classifier's shares of each moved stretch, `levels.php`).
+   *Settled, recorded* as `claude-review-20261030` (78 rulings, `gather.py`): 34 K16 ends keep the round's end, which
+   stops after the preacher's last word or Amen and drops only a song introduction, quoted lyrics or the congregation's
+   Amen (each Amen case checked: the preacher's Amen is decoded before the cut; 1381 by levels, its Amen's sound ending
+   1689.15); 44 other moves are either, the executed cut and the round's both acceptable: song starts that drop only a
+   spoken introduction or title (a musical introduction is always in; speech over it is spoken), song starts and ends
+   that add only music or quiet, 932's song end before the prayer spoken over the music, and six sermon or talk edges
+   that add a Bible announcement or drop a handover. Five sermon-join moves (983, 1009, 1250, 1266, 1322) read as
+   either but are not recorded: the register has no shape for a join edge. 1005 was answered on Sermon Ends To Hear;
+   **1314** is the round's own hold (`spoken_end_thought_unresolved`).
+   *Needs the ear, 1:* **1284** sermon end 3538.72 sits in a 0.05 s dip between the preacher's "Amen." (sound
+   3538.1–3538.65) and a louder Amen from 3538.75, decoded 3537.42 and 3538.69 by two windows; the congregation's or
+   the preacher's cannot be told from words or levels.
+   *Defects in the round's cut (code, no listening), by class:* **sung opening dropped** (`song_start_sentence`
+   and `word_pause` take sung words for a spoken introduction; the 1130/1342 class): 949 §146759 "Glory be to God the
+   Father", 981 §1054 "…our God reigns", 1239 §2980 "Restore… the honour of his name", 1257 §3204 "I will give thanks
+   to you", 1264 §3317 "He who would valiant be", 1295 §3771 "You who reign in majesty"; and 1–2 s of introduction
+   music dropped, 1106 §1878, 1245 §3051, 1260 §3252. **Song end takes in the speech after it** (`song_end_silence`
+   / `song_end_fade` run on to a later quiet past words spoken over the last music; the open speech-over-fading-song
+   class of 928/1250): 1009 §1277, 1034 §173997, 1080 §174347, 1234 §2888, 1243 §3024 ("Let's join together in
+   prayer. Let's pray."), 1254 §3175, 1315 §4009, 1334 §4237. **Opens on the congregation's Amen** (982's class): 991
+   §1168, 1321 sermon start. **1297** sermon start 1837.16 falls between "this" and "morning" ("Let's have our Bibles
+   open, shall we, this morning at Matthew…"). **1193** sermon end 889.00 sits inside "…as we seek to do that"
+   (decoded "do" 889.04, "that" 889.14): its whole-second cue ends before its words. *Soft misses:* 1300 §4639 talk end
+   takes in "Let's stand and sing."; 1240 §2985 talk start opens on the self-correction "sorry, after dinner…"
+   (the executed start had 20 s of quiet before "So each evening"); 1258 sermon end keeps "Well, David." of the
+   announcement.
    4. (b), (c), then step 4.1–4.4; (d) is unaffected: its six ends (1004, 1005, 1115, 1127, 1157, 1219) are
       unchanged by the reword's measured draw. Publish (d) with whatever (a) and step 4.0's 958 add.
    Membership check passed: all 96 runs in `deleted-clips.json` are in the 425 eligible runs.

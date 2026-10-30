@@ -556,6 +556,109 @@ for run, section_id, edge, points, note in SETTLED:
                     'expect': 'keep' if len(points) == 1 else 'either', 'ruled_time': None, 'note': 'Claude review 10-30: '+note,
                     'answer_source': 'claude-review', **({'points': list(points)} if len(points) > 1 else {})})
 
+# 10-30 (later): the 110 unruled ≥ 1 s moves settled from cues, decoded words, levels and classifier shares (plan §4.1a
+# step 3 (a); triage in storage/scratch/unruled-triage-20261030/). K16 ends that stop after the preacher's last word or
+# Amen and drop only a song introduction, quoted lyrics or the congregation's Amen keep the round's end; the other
+# settled moves are either, the executed cut and the round's both acceptable. Defects, soft misses, holds and the one
+# end that needs the ear are in the plan, not here.
+K16_KEPT = {
+    929: (4564.40, 'Ends on the Amen; drops the introduction of "What a friend we have in Jesus".'),
+    946: (3636.74, 'Ends on the Amen; drops "Somewhat predictably, we\'re going to sing…" and the hymn\'s words.'),
+    953: (1691.22, 'Ends "…in your son\'s name. Amen."; drops the congregation\'s Amen.'),
+    957: (1573.90, 'Ends "…he is worthy of all our trust."; drops the hymn\'s words read aloud and "Let\'s stand".'),
+    969: (4143.14, 'Ends "…in Jesus\' name. Amen."; drops the congregation\'s Amen and the hymn introduction.'),
+    971: (3817.94, 'Ends "…in Jesus name amen"; drops the hymn introduction and its first verse.'),
+    986: (4468.78, 'Ends on the Amen; drops the congregation\'s Amen and the song introduction.'),
+    1017: (1411.40, 'Ends on the Amen; drops "Let\'s stand, shall we, and sing together."'),
+    1026: (1661.90, 'Ends "…the weakness of God is stronger than human strength."; drops "let\'s pray together before we sing again".'),
+    1032: (4124.06, 'Ends on the Amen; drops the hymn 907 introduction.'),
+    1057: (3936.60, 'Ends on the preacher\'s Amen (decoded 3936.03); drops the congregation\'s.'),
+    1064: (3880.94, 'Ends on the Amen; drops "let\'s stand… and sing" and the hymn\'s words.'),
+    1073: (3593.70, 'Ends on the preacher\'s Amen; drops the congregation\'s and "Well we\'ll stand and sing".'),
+    1075: (4031.58, 'Ends on the Amen; drops the congregation\'s Amen and the hymn 396 introduction.'),
+    1100: (3776.82, 'Ends on the preacher\'s Amen (decoded 3776.06); drops the congregation\'s.'),
+    1110: (981.27, 'Ends "…the wonderful grace of God to us in these verses."; drops "Amazing grace" read aloud.'),
+    1141: (1866.04, 'Ends on the preacher\'s Amen; drops the congregation\'s and "Let\'s sing again".'),
+    1142: (1522.06, 'Ends on the preacher\'s Amen (decoded 1521.29); drops the congregation\'s.'),
+    1173: (1009.18, 'Ends "…have not seen and yet have believed."; drops "I think we\'re going to sing again."'),
+    1208: (4112.54, 'Ends "In Jesus\' name, amen."; drops the hymn introduction.'),
+    1215: (4008.10, 'Ends on the Amens; drops "we\'re going to sing about doing that…".'),
+    1230: (2845.46, 'Ends on the preacher\'s Amen (decoded 2844.18); drops the congregation\'s.'),
+    1239: (3943.34, 'Ends on the Amen; drops the song introduction.'),
+    1262: (3613.40, 'Ends on the Amen; drops the hymn summary and its words read aloud.'),
+    1289: (1443.42, 'Ends "…encourage us"; drops "we\'re going to sing another song…".'),
+    1297: (3787.96, 'Ends on the preacher\'s Amen; drops the congregation\'s and "Let\'s sing our final song".'),
+    1309: (3687.86, 'Ends "…in Jesus\' name. Amen."; drops the final hymn introduction.'),
+    1319: (3332.14, 'Ends on the preacher\'s Amen (decoded 3330.66); drops the congregation\'s.'),
+    1331: (3583.89, 'Ends "If only you will receive it."; drops "Let\'s sing our final hymn…".'),
+    1336: (3327.86, 'Ends on the Amens; drops the "Be Still My Soul" introduction.'),
+    1341: (3713.80, 'Ends on the Amen; drops the "Amazing Grace" introduction.'),
+    1354: (3304.68, 'Ends on the Amen; drops the song introduction and its first lines.'),
+    1372: (1405.00, 'Ends "…for Jesus\'s sake. Amen."; drops the song introduction.'),
+    1381: (1689.18, 'Ends after the preacher\'s Amen sound (to 1689.15); drops the congregation\'s.'),
+}
+for run, (edge_time, note) in K16_KEPT.items():
+    records.append({'id': f'claude-review-20261030:{run}-sermon-end', 'source': 'claude-review-20261030', 'ruled_on': '2026-10-30',
+                    'ruled_at': '2026-10-30T10:00:00Z', 'run': run, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon',
+                    'title': None, 'edge': 'end', 'heard': edge_time, 'answer': None, 'expect': 'keep', 'ruled_time': None,
+                    'note': f'Claude review 10-30: {note} ({AMEN}).', 'answer_source': 'claude-review'})
+SPOKEN_INTRO = 'a spoken introduction is optional, a musical one always in (10-24)'
+EITHER_MOVES = [
+    # (run, section_id or None for the sermon, section_type, edge, executed, round, note)
+    (932, 163060, 'song', 'end', 2532.48, 2511.415, 'The round ends before the closing prayer spoken over the music.'),
+    (948, 706, 'song', 'start', 849.96, 851.46, f'Drops "…God\'s people. So let\'s stand"; {SPOKEN_INTRO}.'),
+    (976, 959, 'song', 'start', 524.27, 523.0, 'Adds 1.3 s of the introduction\'s music.'),
+    (1011, 1285, 'song', 'start', 519.73, 513.85, 'Adds 5.9 s of quiet before the song.'),
+    (1011, None, 'sermon', 'start', 288.46, 283.645, 'Adds "Will you turn with me now in your Bibles to 2 Peter?"'),
+    (1020, 1340, 'song', 'start', 414.16, 417.58, f'Drops the spoken "…the people close to his heart."; {SPOKEN_INTRO}.'),
+    (1032, 1437, 'song', 'start', 4166.58, 4168.54, f'Drops the title spoken; {SPOKEN_INTRO}.'),
+    (1033, 1440, 'song', 'start', 85.96, 87.16, f'Drops "…for them. Let\'s stand and sing"; {SPOKEN_INTRO}.'),
+    (1033, 1445, 'song', 'start', 1129.18, 1131.98, f'Drops the title spoken; {SPOKEN_INTRO}.'),
+    (1042, 164158, 'song', 'start', 4143.48, 4144.49, f'Drops "shall we?" spoken over the introduction; {SPOKEN_INTRO}.'),
+    (1052, 1608, 'song', 'end', 3853.92, 3855.42, 'Adds 1.5 s of the song\'s last sound, no words.'),
+    (1064, 1677, 'song', 'start', 1332.67, 1335.40, f'Drops "let\'s stand and sing it through together."; {SPOKEN_INTRO}.'),
+    (1064, 1677, 'song', 'end', 1531.06, 1534.93, 'Adds 3.9 s of music, no words.'),
+    (1104, None, 'sermon', 'start', 2003.82, 1999.82, 'Adds "Well, Mark\'s reading is Luke 18."'),
+    (1106, 1879, 'song', 'start', 390.0, 375.0, 'Adds 15 s of the introduction\'s music.'),
+    (1118, 174658, 'song', 'start', 4133.94, 4138.60, f'Drops "…because he promises to be faithful to us."; {SPOKEN_INTRO}.'),
+    (1120, 2004, 'song', 'start', 1365.0, 1355.0, 'Adds 10 s of the introduction\'s music.'),
+    (1124, 2031, 'song', 'start', 3255.64, 3258.49, f'Drops "…sing this lovely hymn through together. Amen."; {SPOKEN_INTRO}.'),
+    (1129, 174809, 'song', 'start', 2623.15, 2625.69, f'Drops "Let\'s stand and sing before we look at God\'s Word"; {SPOKEN_INTRO}.'),
+    (1166, 2285, 'song', 'end', 1580.10, 1581.1715, 'Adds 1.1 s of music.'),
+    (1167, 2298, 'song', 'start', 2015.61, 2016.92, f'Drops "stand and sing." over the introduction; {SPOKEN_INTRO}.'),
+    (1177, 2352, 'song', 'start', 676.43, 678.38, f'Drops the title spoken; {SPOKEN_INTRO}.'),
+    (1194, 2434, 'short_talk', 'end', 939.645, 937.885, 'Drops "Let\'s pray, shall we," after the talk.'),
+    (1195, 2444, 'song', 'end', 506.52, 508.722, 'Adds 2.2 s of music, before "Sit down".'),
+    (1198, 2486, 'short_talk', 'start', 569.64, 571.22, 'Drops the handover "Anne is going to introduce the next carol."'),
+    (1198, 2487, 'song', 'start', 866.31, 868.51, f'Drops the title spoken; {SPOKEN_INTRO}.'),
+    (1213, 2615, 'song', 'start', 1731.11, 1732.94, f'Drops "…so let\'s stand and sing"; {SPOKEN_INTRO}.'),
+    (1226, 2791, 'song', 'end', 3787.62, 3790.25, 'Adds 2.6 s of music, before "Incidentally".'),
+    (1231, 2842, 'song', 'start', 272.15, 274.30, f'Drops "…we\'ll begin to stand and sing."; {SPOKEN_INTRO}.'),
+    (1232, 2854, 'song', 'start', 112.77, 116.35, f'Drops "So let\'s stand and sing." over the introduction; {SPOKEN_INTRO}.'),
+    (1237, 2954, 'song', 'start', 4579.14, 4581.07, f'Drops "Let\'s stand and sing."; {SPOKEN_INTRO}.'),
+    (1244, 165615, 'song', 'start', 3825.04, 3826.80, f'Drops "let\'s stand and sing." over the introduction; {SPOKEN_INTRO}.'),
+    (1251, 3147, 'song', 'start', 2230.13, 2236.0, f'Drops the spoken quotation "…to shun evil is understanding."; {SPOKEN_INTRO}.'),
+    (1252, 3163, 'song', 'start', 1874.13, 1875.29, f'Drops "The young ones will go…"; {SPOKEN_INTRO}.'),
+    (1267, 3342, 'song', 'start', 142.24, 144.81, f'Drops "…as we stand and sing together."; {SPOKEN_INTRO}.'),
+    (1271, None, 'sermon', 'start', 1059.73, 1063.57, 'Drops 3.8 s of the music before the sermon.'),
+    (1284, 3557, 'song', 'end', 475.90, 477.734, 'Adds 1.8 s of the song\'s last sound, no words.'),
+    (1295, 3775, 'song', 'start', 1590.46, 1591.90, f'Drops "…his finished work there." over the introduction; {SPOKEN_INTRO}.'),
+    (1302, 3840, 'song', 'start', 204.15, 205.50, f'Drops "…risen Saviour. Let\'s stand"; {SPOKEN_INTRO}.'),
+    (1307, 4665, 'song', 'start', 3858.86, 3860.12, f'Drops a spoken "Jesus."; {SPOKEN_INTRO}.'),
+    (1320, None, 'sermon', 'start', 229.06, 235.29, 'Drops the reader\'s thanks, "That would be great. Thank you."'),
+    (1326, 4136, 'song', 'start', 1277.84, 1279.05, f'Drops the title spoken; {SPOKEN_INTRO}.'),
+    (1330, 4189, 'song', 'end', 3626.14, 3627.68, 'Adds 1.5 s of music, no words.'),
+    (1330, 4190, 'short_talk', 'start', 3626.24, 3627.68, 'Drops 1.4 s of the music before the testimony.'),
+]
+for run, section_id, section_type, edge, executed, round_cut, note in EITHER_MOVES:
+    owner = f's{section_id}' if section_id else 'sermon'
+    records.append({'id': f'claude-review-20261030:{run}-{owner}-{edge}', 'source': 'claude-review-20261030', 'ruled_on': '2026-10-30',
+                    'ruled_at': '2026-10-30T10:00:00Z', 'run': run, 'output': 'section' if section_id else 'sermon',
+                    'section_id': section_id, 'section_type': section_type, 'title': None, 'edge': edge,
+                    'heard': max(executed, round_cut) if edge == 'end' else executed, 'answer': None, 'expect': 'either',
+                    'ruled_time': None, 'note': 'Claude review 10-30: '+note, 'answer_source': 'claude-review',
+                    'points': [executed, round_cut]})
+
 # 10-30: Sermon Ends To Hear, the three moved sermon ends Claude's triage could not settle (A now, or for 1070 its 10-28
 # ruled end; B the round's). 1070's A: "B clips the preachers amen".
 records.extend(edge_listening_rulings(
