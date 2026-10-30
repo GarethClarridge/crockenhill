@@ -717,10 +717,27 @@ for ruling_id, ruled_at, run, section_id, edge, heard_range, note in RULED:
                     'heard': heard_range[1] if edge == 'end' else heard_range[0], 'answer': None, 'expect': 'either',
                     'ruled_time': None, 'note': note, 'points': list(heard_range)})
 
+# A section ruling the page recorded without a section id is on the run's section of its type whose edge is nearest
+# the cut heard, as RuledEndingsTestCase::latestRulings() and the round's analyze.py read it. Without that binding the
+# newest id-less ruling on a run replaced every other on the same edge, whatever its section (1304's §3879 start by a
+# §4884 one), and none was replaced by a later ruling that names its section (1221 §2718's 10-03 start by the 10-27
+# either). Sections: defect-fix-f7-20261030/export-sections.php.
+ruling_sections = load('defect-fix-f7-20261030/sections.json')
+for record in records:
+    if record['output'] == 'section' and record['section_id'] is None:
+        column = 'start' if record['edge'] == 'start' else 'end'
+        candidates = [section for section in ruling_sections.get(str(record['run']), [])
+                      if record.get('section_type') is None or section['type'] == record['section_type']]
+        if not candidates:
+            sys.exit(f"{record['id']}: no section to bind it to; re-run export-sections.php")
+        record['bound_section_id'] = min(candidates, key=lambda section: abs(section[column] - record['heard']))['id']
+
+
 # A later ruling on the same edge was made on a later cut, so it replaces the earlier ones. A later part of a sermon
 # video is its own edge: its start never replaces the video's opening, nor the reverse.
 def edge_of(record):
-    return (record['run'], record['output'], record['section_id'], record['edge'], (record.get('part') or {}).get('section_id'))
+    return (record['run'], record['output'], record['section_id'] or record.get('bound_section_id'), record['edge'],
+            (record.get('part') or {}).get('section_id'))
 
 
 latest = {}

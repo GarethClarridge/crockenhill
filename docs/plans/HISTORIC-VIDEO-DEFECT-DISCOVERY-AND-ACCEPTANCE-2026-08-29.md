@@ -318,6 +318,16 @@ queue and route state are in the archive; a historical “final” label is not 
    *F7. Register data defect:* canary-15 pair rulings carry no section id, so newer rulings on the same song start
    never supersede them (1221 §2718, 1273 §3421, 1304 §3875). Fix in `gather.py` (bind the pair to its section by
    run and time) and regenerate; no pipeline change.
+   **F7 DONE 10-30 (operator: "Start the defect fix plan").** The canary-15 pairs were already bound (`pair_sections`);
+   the defect was every id-less section ruling (117, from canary 11/12/14, widening, word-edge, full-pass): all of a
+   run's id-less rulings on one edge shared one key, so the newest replaced the rest whatever their section (1304
+   §3879 by a §4884 ruling), and none was replaced by a later ruling naming its section (1221 §2718). `gather.py` now
+   binds each to the section of its type whose edge is nearest the cut heard (`bound_section_id`), as the harness
+   and `analyze.py` already did (sections: `defect-fix-f7-20261030/export-sections.php`). 43 flips, nothing else:
+   26 live again, 17 replaced; far binds checked (widening ids carry the pre-widening edge). Round scoring re-run
+   (`defect-fix-f7-20261030/{before,after}/`): regressions 14 → 13 (1221 cleared), no new one; revived 19 met, 4
+   unassessable, 3 missed by both cuts (1108 §1897 start, 1346 §4366 end, 1346 §4368 start: old canary rulings no
+   cut since has met; neither cut moves there, so not the round's). Ruled-endings 650 OK.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and

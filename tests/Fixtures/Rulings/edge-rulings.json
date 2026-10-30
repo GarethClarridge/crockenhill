@@ -75,7 +75,7 @@
    "operator": 21
   },
   "runs": 386,
-  "superseded": 657,
+  "superseded": 648,
   "left_out": {
    "canary11:not an edge question": 15,
    "canary13:defer": 4,
@@ -1028,6 +1028,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 671,
    "superseded": false
   },
   {
@@ -1403,7 +1404,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 4858,
+   "superseded": false
   },
   {
    "id": "canary13:009-949-start",
@@ -1530,7 +1532,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "bound_section_id": 4860,
+   "superseded": true
   },
   {
    "id": "canary13:039-949-end",
@@ -1620,7 +1623,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "bound_section_id": 4860,
+   "superseded": true
   },
   {
    "id": "canary13:011-949-end",
@@ -2656,6 +2660,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 830,
    "superseded": false
   },
   {
@@ -2958,6 +2963,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 879,
    "superseded": true
   },
   {
@@ -2976,6 +2982,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 72754,
    "superseded": false
   },
   {
@@ -2994,7 +3001,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 879,
+   "superseded": false
   },
   {
    "id": "widening:964-start-1354",
@@ -3012,6 +3020,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 72754,
    "superseded": true
   },
   {
@@ -3030,6 +3039,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 879,
    "superseded": true
   },
   {
@@ -3103,6 +3113,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 94692,
    "superseded": true
   },
   {
@@ -3121,6 +3132,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 94692,
    "superseded": true
   },
   {
@@ -3139,6 +3151,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "Includes the first line spoken after the song",
+   "bound_section_id": 94692,
    "superseded": false
   },
   {
@@ -5627,6 +5640,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1237,
    "superseded": false
   },
   {
@@ -6907,6 +6921,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1373,
    "superseded": true
   },
   {
@@ -6925,7 +6940,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 1373,
+   "superseded": false
   },
   {
    "id": "canary12:29-1025-edge",
@@ -6943,6 +6959,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1374,
    "superseded": true
   },
   {
@@ -6997,6 +7014,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "There's no song in the clip here",
+   "bound_section_id": 1374,
    "superseded": true
   },
   {
@@ -7015,6 +7033,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1376,
    "superseded": true
   },
   {
@@ -7177,7 +7196,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "bound_section_id": 1379,
+   "superseded": true
   },
   {
    "id": "canary13:014-1025-end",
@@ -7231,7 +7251,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 135447,
+   "superseded": false
   },
   {
    "id": "canary13:015-1025-end",
@@ -7267,6 +7288,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 135447,
    "superseded": true
   },
   {
@@ -7376,6 +7398,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 4905,
    "superseded": false
   },
   {
@@ -7454,7 +7477,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 1390,
+   "superseded": false
   },
   {
    "id": "canary13:001-1028-end",
@@ -7526,6 +7550,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "Includes half a spoken line",
+   "bound_section_id": 1392,
    "superseded": true
   },
   {
@@ -7598,7 +7623,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 1395,
+   "superseded": false
   },
   {
    "id": "canary13:016-1028-end",
@@ -7616,7 +7642,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary14:000-1028-end",
@@ -7634,6 +7660,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1395,
    "superseded": false
   },
   {
@@ -7796,6 +7823,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "It misses the musical outro, and ends as soon as the last word is said, but because it's a song the last word is held for a while. Should have about an extra 5 seconds. We don't need to stop songs until speaking starts.",
+   "bound_section_id": 1398,
    "superseded": true
   },
   {
@@ -7814,7 +7842,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 1398,
+   "superseded": false
   },
   {
    "id": "sermon-own-line-songs-20261028:1028-sermon-end",
@@ -7869,6 +7898,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1400,
    "superseded": true
   },
   {
@@ -7905,6 +7935,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1400,
    "superseded": false
   },
   {
@@ -8013,6 +8044,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "Includes half a line of benediction",
+   "bound_section_id": 1400,
    "superseded": true
   },
   {
@@ -8435,6 +8467,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1477,
    "superseded": false
   },
   {
@@ -12103,7 +12136,8 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "Includes the next spoken item",
-   "superseded": true
+   "bound_section_id": 1896,
+   "superseded": false
   },
   {
    "id": "canary11:34-1108-edge",
@@ -12121,7 +12155,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 72881,
+   "superseded": false
   },
   {
    "id": "canary11:02-1108-edge",
@@ -12139,7 +12174,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 1897,
+   "superseded": false
   },
   {
    "id": "canary13-edges:1108-song1897-end-137461",
@@ -12193,6 +12229,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "It's got half a sentence of the song intro (though I think the rest of the audio might be missing). It would be better not to include this sentence then include part of it. Songs do not need to contain their spoken introduction (though it's fine for them to).",
+   "bound_section_id": 1901,
    "superseded": false
   },
   {
@@ -12211,7 +12248,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 1901,
+   "superseded": false
   },
   {
    "id": "sermon-own-line-songs-20261028:1108-sermon-end",
@@ -12302,6 +12340,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "Includes the first line of the benediction",
+   "bound_section_id": 4948,
    "superseded": false
   },
   {
@@ -12547,7 +12586,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 3734,
+   "superseded": false
   },
   {
    "id": "canary13:018-1112-end",
@@ -12583,6 +12623,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3736,
    "superseded": false
   },
   {
@@ -12619,7 +12660,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 3737,
+   "superseded": false
   },
   {
    "id": "canary11:25-1112-edge",
@@ -12673,7 +12715,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 3739,
+   "superseded": false
   },
   {
    "id": "sermon-amen-step-back-20261028:1112-sermon-end",
@@ -12764,6 +12807,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 4909,
    "superseded": false
   },
   {
@@ -12934,6 +12978,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1957,
    "superseded": true
   },
   {
@@ -12952,6 +12997,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1960,
    "superseded": true
   },
   {
@@ -12970,6 +13016,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1960,
    "superseded": true
   },
   {
@@ -12988,6 +13035,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1960,
    "superseded": false
   },
   {
@@ -13006,7 +13054,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "Clips the last word of the song (the line is actually \"shielded by your powerful hand\", not what the transcription says,",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary14:003-1117-end",
@@ -13024,6 +13072,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1959,
    "superseded": false
   },
   {
@@ -13096,6 +13145,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1960,
    "superseded": true
   },
   {
@@ -13114,6 +13164,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1962,
    "superseded": true
   },
   {
@@ -13204,6 +13255,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "Clips the last word. Could either include the sentence or not.",
+   "bound_section_id": 1962,
    "superseded": true
   },
   {
@@ -13258,6 +13310,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1962,
    "superseded": true
   },
   {
@@ -13348,7 +13401,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 73032,
+   "superseded": false
   },
   {
    "id": "sermon-amen-step-back-20261028:1117-sermon-end",
@@ -13497,6 +13551,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 1966,
    "superseded": true
   },
   {
@@ -15285,7 +15340,8 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "bound_section_id": 2198,
+   "superseded": true
   },
   {
    "id": "listening-edges3-20261018:1148-s2201-end",
@@ -19872,7 +19928,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 2717,
+   "superseded": false
   },
   {
    "id": "widening:1221-end-91",
@@ -19890,6 +19947,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 2717,
    "superseded": true
   },
   {
@@ -19926,7 +19984,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "bound_section_id": 2718,
+   "superseded": true
   },
   {
    "id": "widening:1221-start-113",
@@ -19944,6 +20003,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 2718,
    "superseded": true
   },
   {
@@ -20002,6 +20062,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "It misses the last line of the song. There's probably an extra 10-15 seconds.",
+   "bound_section_id": 2718,
    "superseded": true
   },
   {
@@ -20020,6 +20081,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 2718,
    "superseded": true
   },
   {
@@ -20164,6 +20226,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 73036,
    "superseded": true
   },
   {
@@ -20470,6 +20533,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 2730,
    "superseded": false
   },
   {
@@ -20488,7 +20552,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "Includes the first line of the benediction",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "listening-song-changes-20261020:1222-s2733-end-current",
@@ -23066,6 +23130,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3127,
    "superseded": false
   },
   {
@@ -23084,6 +23149,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 73103,
    "superseded": false
   },
   {
@@ -23102,7 +23168,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary13:047-1250-end",
@@ -23156,7 +23222,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 3128,
+   "superseded": false
   },
   {
    "id": "canary11:05-1250-edge",
@@ -23174,6 +23241,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3131,
    "superseded": true
   },
   {
@@ -23210,6 +23278,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "It misses the last line of the song and the musical outro.",
+   "bound_section_id": 3131,
    "superseded": true
   },
   {
@@ -23318,6 +23387,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "It loses the musical outro. The extra 6 seconds in your \"around the edge\" clip is about right. We really want to end songs when it gets to silence, or when someone starts talking.",
+   "bound_section_id": 4911,
    "superseded": true
   },
   {
@@ -24847,6 +24917,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "This is actually two songs, which should be separated by silence.",
+   "bound_section_id": 3351,
    "superseded": false
   },
   {
@@ -25732,7 +25803,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "This is in the middle of a different song",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary13-edges:1273-song3415-end-56364",
@@ -25786,6 +25857,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3416,
    "superseded": false
   },
   {
@@ -26969,6 +27041,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "This is the introduction to two songs, not the end of a song.",
+   "bound_section_id": 3526,
    "superseded": true
   },
   {
@@ -27059,6 +27132,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3527,
    "superseded": false
   },
   {
@@ -27095,7 +27169,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "No, this is the start of the next song",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary13:131-1282-end",
@@ -27730,7 +27804,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "bound_section_id": 3582,
+   "superseded": true
   },
   {
    "id": "endings:end-1286-3582",
@@ -29776,6 +29851,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "Includes half a line of speech",
+   "bound_section_id": 3870,
    "superseded": true
   },
   {
@@ -29866,6 +29942,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3875,
    "superseded": true
   },
   {
@@ -29902,7 +29979,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 3879,
+   "superseded": false
   },
   {
    "id": "canary12:24-1304-edge",
@@ -29920,6 +29998,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3879,
    "superseded": true
   },
   {
@@ -30046,7 +30125,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "bound_section_id": 4884,
+   "superseded": true
   },
   {
    "id": "canary12:25-1304-edge",
@@ -30064,7 +30144,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "bound_section_id": 4884,
+   "superseded": true
   },
   {
    "id": "canary13:030-1304-end",
@@ -30100,6 +30181,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "It should ideally have none of the benediction included. If it is going to include some it should include all.",
+   "bound_section_id": 4884,
    "superseded": true
   },
   {
@@ -30630,6 +30712,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3951,
    "superseded": true
   },
   {
@@ -30648,6 +30731,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3951,
    "superseded": true
   },
   {
@@ -30684,6 +30768,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3951,
    "superseded": true
   },
   {
@@ -30738,7 +30823,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 3950,
+   "superseded": false
   },
   {
    "id": "canary12:38-1311-edge",
@@ -30756,6 +30842,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3950,
    "superseded": true
   },
   {
@@ -30792,7 +30879,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 3953,
+   "superseded": false
   },
   {
    "id": "canary12:40-1311-edge",
@@ -30810,6 +30898,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 3953,
    "superseded": true
   },
   {
@@ -30846,6 +30935,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 73576,
    "superseded": true
   },
   {
@@ -30886,6 +30976,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 73576,
    "superseded": true
   },
   {
@@ -30904,6 +30995,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 73576,
    "superseded": true
   },
   {
@@ -30922,6 +31014,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 73576,
    "superseded": false
   },
   {
@@ -30940,6 +31033,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 73576,
    "superseded": true
   },
   {
@@ -30958,6 +31052,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 73576,
    "superseded": true
   },
   {
@@ -30976,7 +31071,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 3954,
+   "superseded": false
   },
   {
    "id": "canary12:44-1311-edge",
@@ -30994,7 +31090,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 3954,
+   "superseded": false
   },
   {
    "id": "widening:1311-start-1514",
@@ -31012,6 +31109,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 4874,
    "superseded": true
   },
   {
@@ -31030,6 +31128,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 4874,
    "superseded": true
   },
   {
@@ -31048,7 +31147,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 4874,
+   "superseded": false
   },
   {
    "id": "word-edge:06-1311-start",
@@ -31066,6 +31166,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 4874,
    "superseded": true
   },
   {
@@ -31084,7 +31185,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "This is halfway through the song",
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary13:006-1311-end",
@@ -31142,6 +31243,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "All of this is the next item",
+   "bound_section_id": 4874,
    "superseded": true
   },
   {
@@ -31160,6 +31262,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 4876,
    "superseded": true
   },
   {
@@ -31178,6 +31281,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 4876,
    "superseded": false
   },
   {
@@ -31214,6 +31318,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "All of this is the next item",
+   "bound_section_id": 4876,
    "superseded": true
   },
   {
@@ -31232,7 +31337,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 135568,
+   "superseded": false
   },
   {
    "id": "canary13:032-1311-end",
@@ -31286,6 +31392,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 135568,
    "superseded": true
   },
   {
@@ -31304,6 +31411,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 135568,
    "superseded": true
   },
   {
@@ -31394,6 +31502,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 4971,
    "superseded": true
   },
   {
@@ -31448,6 +31557,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "All of this is in the next item, the benediction. It's not even the start of the benediction",
+   "bound_section_id": 4971,
    "superseded": true
   },
   {
@@ -33229,6 +33339,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 4366,
    "superseded": true
   },
   {
@@ -33247,6 +33358,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "bound_section_id": 4366,
    "superseded": false
   },
   {
@@ -33265,7 +33377,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 4366,
+   "superseded": false
   },
   {
    "id": "widening:1346-start-366",
@@ -33283,6 +33396,7 @@
    "expect": "inward",
    "ruled_time": null,
    "note": "Not ideal - merges half a sentence",
+   "bound_section_id": 4368,
    "superseded": true
   },
   {
@@ -33301,7 +33415,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": true
+   "bound_section_id": 4368,
+   "superseded": false
   },
   {
    "id": "canary11:28-1346-edge",
@@ -33391,7 +33506,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "Includes \"let's pray once again\", but as it's a whole sentence said over the outro it's fine to include or not.",
-   "superseded": false
+   "bound_section_id": 4375,
+   "superseded": true
   },
   {
    "id": "sentence-listening-20261026:4916-start",
@@ -34012,7 +34128,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "bound_section_id": 4685,
+   "superseded": true
   },
   {
    "id": "canary13:036-1358-end",
