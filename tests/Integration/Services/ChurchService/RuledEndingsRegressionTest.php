@@ -337,6 +337,39 @@ class RuledEndingsRegressionTest extends RuledEndingsTestCase
     }
 
     /**
+     * 1070's sermon ends on the preacher's "Amen." (decoded 1628.78). Another decode heard that same
+     * Amen at 1629.07, and the end was cut there as if it were the next word ("B clips the preachers
+     * amen", operator 10-30; A, 1630.41 before "Let's stand", is right). The Amen sounds 1628.7–1629.35
+     * and silence follows to 1630.3, so both decodes heard one word. A heard word with the last kept
+     * word's text that starts just after it is that word, not the next one: the end falls in that silence.
+     */
+    #[Test]
+    public function another_decodes_copy_of_the_last_word_is_not_the_next_word(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(base_path('tests/Fixtures/RuledEndings/run-1070-2026-10-23.json.gz'))), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
+        $audit = json_encode(array_values(array_filter($plan['metadata']['cue_edge_widening'] ?? [], static fn (array $edge): bool => $edge['edge'] === 'end')), JSON_THROW_ON_ERROR);
+
+        $cut = end($plan['segments'])['end_time'];
+        $this->assertGreaterThanOrEqual(1629.4, $cut, 'after the Amen\'s sound: '.$audit);
+        $this->assertLessThanOrEqual(1630.41, $cut, 'before "Let\'s": '.$audit);
+    }
+
+    /** 1133's congregation answers the preacher's Amen (to 4000.54) with its own from 4000.73: the next word, not a copy. */
+    #[Test]
+    public function the_congregations_amen_after_a_gap_is_the_next_word(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(base_path('tests/Fixtures/RuledEndings/run-1133-2026-10-23.json.gz'))), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
+
+        $this->assertEqualsWithDelta(4000.73, end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE);
+    }
+
+    /**
      * 1288's sermon ended where another decode put the start of "So let's sing…" (3755.31), but the
      * sound of "So" is up from 3755.26 after a quiet at 3755.19 (−53 dB under −25 dB): the end
      * carried the onset ("It's not the second Amen that's the problem", operator 10-29). It ends in

@@ -76,6 +76,21 @@ class CueSafeExtractionPlan
      */
     private const SPOKEN_END_TAIL = 0.3;
 
+    /**
+     * Seconds after the last kept word's decoded end within which another decode's word with the same
+     * text can start and be that word heard again, not the next one. 1070's Amen sounds 1628.7–1629.35;
+     * two decodes heard it, 1628.78–1629.04 and 1629.07–1629.24 (operator 10-30: "B clips the
+     * preachers amen").
+     */
+    private const SAME_WORD_GAP = 0.1;
+
+    /**
+     * Seconds below the levels threshold that make the same text two words: the congregation's Amen
+     * answers the preacher's after a quiet (1202: 0.38 s, 1133: 0.72 s; both ruled right ending
+     * before it), while one Amen heard by two decodes has none (1070).
+     */
+    private const SAME_WORD_QUIET = 0.1;
+
     /** Seconds without decoded words that can end an unpunctuated song announcement. */
     private const SONG_START_SENTENCE_PAUSE = 1.0;
 
@@ -408,11 +423,12 @@ class CueSafeExtractionPlan
                         // After the sentence check, whose banked answers are bound to the cut it was asked about.
                         if ($edge === 'end') {
                             $heardWords ??= $evidence->heardWords($log);
-                            $decision = $this->beforeWordHeardElsewhere($this->withSpokenEndTail($decision), $heardWords);
+                            $endLevels = $levels ?? $this->levels($log);
+                            $decision = $this->beforeWordHeardElsewhere($this->withSpokenEndTail($decision), $heardWords, $endLevels);
                             if ($besideSong && $thoughtComplete) {
                                 $decision = $this->beforeNextLine($decision, $cues, $songIntroduction, $this->withWindow($words, $window));
                             }
-                            $decision = $this->beforeNextWordSound($decision, $levels ?? $this->levels($log));
+                            $decision = $this->beforeNextWordSound($decision, $endLevels);
                         }
                         $span[$key] = $decision['time'];
                         $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $movedFrom ?? $original,
@@ -692,16 +708,36 @@ class CueSafeExtractionPlan
      * pause one window's decode shows can be a dropout that lost the words. 1108's sermon ended
      * inside "Let" of "Let's stand to sing." (4119.76): its window's decode heard nothing after
      * "true." (4119.46), while the decodes either side heard "Let" at 4119.58 (operator listening,
-     * 2026-10-18). Never before the last kept word's decoded end; smeared words time nothing.
+     * 2026-10-18). Never before the last kept word's decoded end; smeared words time nothing. Another
+     * decode's copy of the last kept word, with no quiet between them, is that word: its end carries the
+     * tail on, and it is never the next word (1070, {@see self::SAME_WORD_GAP}, {@see self::SAME_WORD_QUIET}).
      *
      * @param  array<string, mixed>  $decision
      * @param  list<array{start: float, end: float, word: string}>  $heardWords
+     * @param  array{threshold: float, samples: list<array{time: float, rms: float}>}|null  $levels
      * @return array<string, mixed>
      */
-    private function beforeWordHeardElsewhere(array $decision, array $heardWords): array
+    private function beforeWordHeardElsewhere(array $decision, array $heardWords, ?array $levels): array
     {
         $word = $decision['word_before'] ?? null;
-        if (! is_array($word) || $decision['time'] <= (float) $word['end'] + 0.001) {
+        if (! is_array($word)) {
+            return $decision;
+        }
+
+        $text = static fn (array $heard): string => mb_strtolower((string) preg_replace('/[^\p{L}\p{N}]+/u', '', $heard['word']));
+        $copies = $levels === null ? [] : array_filter($heardWords, fn (array $heard): bool => $heard['end'] - $heard['start'] <= self::ANCHOR_REACH
+            && $heard['start'] > (float) $word['start'] + 0.001
+            && $heard['start'] <= (float) $word['end'] + self::SAME_WORD_GAP && $text($heard) !== '' && $text($heard) === $text($word)
+            && ! $this->quietBetween($levels, (float) $word['start'], (float) $heard['end']));
+        if ($copies !== []) {
+            $word = [...$word, 'end' => max((float) $word['end'], ...array_column($copies, 'end'))];
+            $decision = [...$decision, 'word_before' => $word, 'last_word_heard_again_until' => $word['end']];
+            if (is_array($decision['chosen_pause'] ?? null)) {
+                $decision['chosen_pause']['start'] = max((float) $decision['chosen_pause']['start'], (float) $word['end']);
+            }
+            $decision = $this->withSpokenEndTail($decision);
+        }
+        if ($decision['time'] <= (float) $word['end'] + 0.001) {
             return $decision;
         }
 
@@ -1206,6 +1242,29 @@ class CueSafeExtractionPlan
         }
 
         return $dead < $end - 0.001 ? $dead : null;
+    }
+
+    /**
+     * Whether the levels fall below their threshold for {@see self::SAME_WORD_QUIET} or longer between two times.
+     *
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     */
+    private function quietBetween(array $levels, float $from, float $to): bool
+    {
+        $quietFrom = null;
+        foreach ($this->samplesBetween($levels, $from, $to) as $sample) {
+            if (is_finite($sample['rms']) && $sample['rms'] >= $levels['threshold']) {
+                $quietFrom = null;
+
+                continue;
+            }
+            $quietFrom ??= $sample['time'];
+            if ($sample['time'] - $quietFrom >= self::SAME_WORD_QUIET) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

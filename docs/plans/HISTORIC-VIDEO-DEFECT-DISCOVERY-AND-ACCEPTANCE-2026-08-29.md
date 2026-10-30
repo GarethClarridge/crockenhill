@@ -196,9 +196,18 @@ queue and route state are in the archive; a historical “final” label is not 
    (`page1-triage-20261030/duplicate-onset-scan.php`, `duplicate-onset-scan.json`): of 2,353 planned segment ends, 15
    sit on the onset of a word decoded again < 0.6 s after an identical one — a clip where the repeated word is the
    last kept one (1070; to check: 1001 §312.2 "Amen.", 1133 "Amen.", 1033 "pray", 1083 "Why"), a sliver of a dropped
-   word otherwise (1371 "Let's"). **Proposed fix, awaits go:** test-first from 1070, a heard word with the last kept
-   word's text starting within 0.6 s of it is that word, not the next one; replay the 15, then the ruled-endings
-   suite.
+   word otherwise (1371 "Let's"). **Fixed 10-30 (operator: "Build the fix now").** Another decode's word is the
+   last kept word heard again, not the next word, when it has the same text, starts within 0.1 s of the kept word's
+   decoded end, and no ≥ 0.1 s below the levels threshold separates them (1070's Amen: no quiet; the congregation's
+   Amen after the preacher's: 0.38 s in 1202, 0.72 s in 1133, both ruled right ending before it). Text and gap alone
+   were tried first and failed: a 0.6 s reach moved 1133 into the congregation's Amen (replay), a 0.1 s gap moved
+   1202 (ruled-endings suite). Replay of the 100 runs the rule can reach (`page1-triage-20261030/replay-100.log`,
+   `no-stand-in/pilot.jsonl`): 9 of 573 outputs change — 1070 1629.07 → 1629.54 (into the silence after the
+   Amen), and 8 ends 0.02–0.23 s later through the rest of the same word (1233 §2878, 1239, 1243 §3026, 1287 §3600,
+   1305 §3889, 1310 §3936, 1338 §4763, 1343); none earlier. Tests: 1070, and 1133 as the guard. 7 fixture files
+   recaptured and refreshed (`same-word-fixture-refresh-20261030/`, prior files in `before/`; 1016's sermon join
+   +0.29 s too). Full suite 10,914 with only those 7 stale live cuts before the refresh; ruled endings 650/650
+   after; Dusk 63/63. The 3 known 1288 reds no longer fail.
    **1219 traced 10-30 (plan only, awaits go).** 1219's transcript (`local_whisper`) merges a whole-second
    transcription with finer ones: 451 of 1,010 cues start on .9, and near the end they run ~11 s early ("Jesus
    said," cued 3824.9, decoded 3835.70; the same passage repeats with true times from 3843.62). K16 chose the line
