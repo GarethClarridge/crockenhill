@@ -448,6 +448,34 @@ queue and route state are in the archive; a historical “final” label is not 
    move attributable.
    4. (b), (c), then step 4.1–4.4; (d) is unaffected: its six ends (1004, 1005, 1115, 1127, 1157, 1219) are
       unchanged by the reword's measured draw. Publish (d) with whatever (a) and step 4.0's 958 add.
+      **(d) superseded** (1004, 1005 answered; 1115, 1127, 1219 settled; 1157 covered: see above).
+      **(b) causes given 10-30** (`storage/scratch/refusals-unassessable-20261030/`: `classify.py` → `causes.json`,
+      `drift.py`, `bounds.py`; read-only, on `no-stand-in/` re-scored against today's register, which makes 98
+      unassessable rulings, not 87; the pass predates `1773110fc`, `1208799c1`, `e95366011`, `02d2dfa5c`).
+      *22 refused plans, none a defect:* 10 outputs of four **excluded runs** the round skips (955
+      `source_audio_silent`; 1043 `rehearsal_duplicate`; 1051, 1098 `private_occasion`, X2): the measurement's
+      `eligible-runs.txt` omitted G8's "not excluded", so the round's membership is **421**, not 425
+      (`HistoricVideoRoundMembership` and both corpus-rerun actions already refuse excluded runs); 2 **no-sermon
+      services** whose composition review is the right answer (978 LCM evening, 1144 holiday club); 6 sermon ends
+      whose **K16 answer is banked under an older identity** (942, 1092, 1147, 1150 on stored sections; 1174, 1197
+      after recompose moves the join; the identity hashes the prompt's lines), which the round asks live and step
+      4's version bump re-asks anyway; 4 **edge-word windows not decoded** (954 §796, 1197 §165081, 1284 §3561 new
+      after recompose; 1261's sermon never decoded), which the round decodes (the replay forbids HTTP).
+      *98 unassessable rulings:* 7 sit on those refused plans. 73 are **section-boundary rulings on sections with no
+      clip** (readings, prayers, `other`, sermon sections), which `analyze.py` only scores against clip plans; scored
+      against the section's own bounds (`bounds.py`) 54 are met and 19 miss: 9 at no output edge (structure only:
+      1025, 1028, 1034 ×2, 1120, 1224, 1259, 1314, 1268 §4738); 6 whose output edge is met or covered by an output
+      ruling (1053, 1186, 1073 §267201 ×2, 1148, 1070 by `1773110fc`); 2 already listed above as open misses
+      (1262 §3286 reading start = "1262 §3289", 1262 §3289 = "1262 §4913"); 2 **internal joins of D21's split
+      sermons** (1073 part end 2694.92, ruled mid-sentence at 2697.92 on 10-18; 1268 join 1856.66, ruled
+      mid-sentence, inward of 1855.0), which wait with the five join eithers for a join shape. The other 18, plus
+      canary13:073 (scored as a false open miss against the wrong song), are **19 rulings whose section id now
+      holds a neighbouring section** (canary 13: 949, 1012; canary 15 pairs: 1036, 1300; reading-end 949;
+      endings 1036; full-pass 1255): those runs gained an earlier section after the pages were built, and the
+      sync matches rows by `section_order`, so each later id holds the next item (949's "I Will Sing Of The Lamb"
+      §4857 is now the reading; 1036's "Holy Holy Holy" §1479 is now the sermon). A register defect like F7's,
+      unfixed: `capture.php` already re-keys "… opens/ends (" titles, but `gather.py` and `analyze.py` do not,
+      and canary 15's "Song: …" titles match neither.
    Membership check passed: all 96 runs in `deleted-clips.json` are in the 425 eligible runs.
    **3a. Prerequisite found by step 3 — re-detection discarded unchanged sections' evidence (built
    10-29 night; operator: "Build it", then option "1"; corpus re-measure running, then suite and commit).**
