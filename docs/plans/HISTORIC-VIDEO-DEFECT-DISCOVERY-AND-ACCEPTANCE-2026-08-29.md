@@ -189,6 +189,16 @@ queue and route state are in the archive; a historical “final” label is not 
    ended at 1556; ruled 1567.44, round 1569.55); **1272 §3403/§3404** the known early `song_end_fade` at the dip.
    Sub-second regressions (961 §828, 1042, 1094, 1281, 1379, 1292 §3653) stay listed above. Still to triage: 71
    unruled non-K16 and 39 unruled K16 moves.
+   **Sermon Ends To Hear answered 10-30** (source `ends-to-hear-20261030`): 1004 either, 1005 B, **1070 A — "B clips
+   the preachers amen"**. Cause: `CueSafeExtractionPlan::beforeWordHeardElsewhere()` (1108's rule, 10-18) ends a
+   spoken part where another decode heard the next word begin, and another decode's copy of the *last kept* word
+   (1070's "Amen." at 1629.07 against 1628.78) passes as the next word. Class scan
+   (`page1-triage-20261030/duplicate-onset-scan.php`, `duplicate-onset-scan.json`): of 2,353 planned segment ends, 15
+   sit on the onset of a word decoded again < 0.6 s after an identical one — a clip where the repeated word is the
+   last kept one (1070; to check: 1001 §312.2 "Amen.", 1133 "Amen.", 1033 "pray", 1083 "Why"), a sliver of a dropped
+   word otherwise (1371 "Let's"). **Proposed fix, awaits go:** test-first from 1070, a heard word with the last kept
+   word's text starting within 0.6 s of it is that word, not the next one; replay the 15, then the ruled-endings
+   suite.
    4. (b), (c), then step 4.1–4.4; (d) is unaffected: its six ends (1004, 1005, 1115, 1127, 1157, 1219) are
       unchanged by the reword's measured draw. Publish (d) with whatever (a) and step 4.0's 958 add.
    Membership check passed: all 96 runs in `deleted-clips.json` are in the 425 eligible runs.

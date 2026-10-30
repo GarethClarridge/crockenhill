@@ -551,6 +551,13 @@ for run, section_id, edge, points, note in SETTLED:
                     'expect': 'keep' if len(points) == 1 else 'either', 'ruled_time': None, 'note': 'Claude review 10-30: '+note,
                     'answer_source': 'claude-review', **({'points': list(points)} if len(points) > 1 else {})})
 
+# 10-30: Sermon Ends To Hear, the three moved sermon ends Claude's triage could not settle (A now, or for 1070 its 10-28
+# ruled end; B the round's). 1070's A: "B clips the preachers amen".
+records.extend(edge_listening_rulings(
+    'ends-to-hear-20261030', load('ends-to-hear-20261030/questions.json'),
+    [{**answer, 'choice': answer['choice'].lower()} for answer in saved('ends-to-hear-20261030/answers/rulings').values()],
+))
+
 # Answers the plan later closed with a reading of its own: the answer heard something true that no
 # cut can fix, so the cut heard stands.
 CLOSED = {
