@@ -1,9 +1,10 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-**Current worklist — reconciled 2026-10-29.** Historic outputs remain quarantined; no release batch
+**Current worklist — reconciled 2026-10-30.** Historic outputs remain quarantined; no release batch
 is authorised. The 10-21/22 round closed. Later shared-path fixes still need a measured round and
-current-output acceptance. The next blocker is 1288's decoded-onset leak, not a policy dispute
-about retaining the congregation's Amen. The proposed quiet-dip rule awaits listening/adoption.
+current-output acceptance. 1288's onset leak is fixed (§4.1a step 2). What remains before a freeze is
+§4.1a steps 3–4 in the order the 10-30 review sets (step 3, "Order of the remaining work"), two
+operator decisions (958's end; what disposes of a residual miss) and internal-disk headroom.
 
 This file owns **current video work and status**, not execution diaries or acceptance procedures.
 The complete prior text is preserved in the [execution record through 10-29](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md).
@@ -37,7 +38,7 @@ Containment is not acceptance; a missing or unassessable check is not a pass.
 | Stored review-state repair | Re-derive → recompute → backfill → demote applied locally 10-25. The earlier instruction to apply it is complete; fresh policy/output checks are still needed after processing. |
 | Song and speech edge fixes | Dependent openings, 1096's other-song title rule, 1120's song-order lyric extension, fading-song speech starts and the narrowed smeared-opening fix are committed. Six moved smeared starts were heard acceptable; 1250's internal start is met by the planner. They still need pipeline application and encoded-output verification. |
 | Internal-join regression coverage | Added 10-29 (`abd330797`), including part-specific identity; capture's `open_defect` handling corrected. 86 previously unguarded passing entries now checked; 17 failing entries remain inputs to the next measurement. |
-| K16 reword | Parked by operator: one gain (1131), one loss (968). Do not re-ask the corpus or build its two extra guards without a later adopted change. |
+| K16 reword | Parked 10-29 (one gain 1131, one loss 968), then measured on every end and **adopted as measured 10-30** (operator option 2). Build is §4.1a step 4; its two extra guards stay unbuilt. |
 | Audience/content policy | Decided (G10–G11); production enforcement is a verification task under programme §8, not an open policy question. |
 
 Earlier evidence: [10-03–10-16](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md),
@@ -133,8 +134,23 @@ queue and route state are in the archive; a historical “final” label is not 
    1273 §3416 and 1311 §4874; (d) the draft page `storage/scratch/shortened-ends-listening-20261029/`
    (6 questions: 1004, 1005, 1115, 1127, 1157, 1219; built, not published) plus whatever (a) adds;
    (e) the reword adoption (step 4). Analyse with `python3 combined-measure-20261029/analyze.py
-   combined-measure-20261029/no-stand-in`. Before any round: the internal disk had ≈ 4 GB free on 10-30
-   (runbook asks ≥ 10 GB; `storage/scratch` 26 GB, `laravel.log` 809 MB; nothing deleted without go).
+   combined-measure-20261029/no-stand-in`. Before any round: the internal disk had 4.4 GiB free on 10-30
+   (runbook asks ≥ 10 GB and its watcher pauses under it; `storage/scratch` 26 GB, `laravel.log` 809 MB;
+   the 10-25 binlog purge freed ≈ 22 GiB; nothing deleted without go).
+   **Order of the remaining work (review 10-30).** The step 3 replay and step 4's code interact: a banked
+   K16 answer is read only when its whole identity matches, and the identity carries `prompt_version`
+   (`SermonSongIntroductionCheck::question()`), while `measure.php` fakes OpenAI with no responses. After
+   step 4.1 a replay therefore finds no K16 answer for any end. So:
+   1. *Ledger first* (step 4.0): the rulings that score K16 ends are incomplete, and (a)'s "already covered
+      by a ruling" test reads them.
+   2. *(a), non-K16 moves, now* on `no-stand-in/`: subtract the moves an existing ruling the new cut meets
+      already covers, group the rest by `reason`, and only then size the pages.
+   3. *(a), K16-decided sermon ends:* judge the reword's measured end (`k16-reword-20261029/measured*.json`),
+      not `no-stand-in/`'s v2 end; either overlay it in `analyze.py` or give `measure.php` a read-only
+      stand-in from `answers/`. These are one-draw proposals; the round redraws them (step 4.5).
+   4. (b), (c), then step 4.1–4.4; (d) is unaffected: its six ends (1004, 1005, 1115, 1127, 1157, 1219) are
+      unchanged by the reword's measured draw. Publish (d) with whatever (a) and step 4.0's 958 add.
+   Membership check passed: all 96 runs in `deleted-clips.json` are in the 425 eligible runs.
    **3a. Prerequisite found by step 3 — re-detection discarded unchanged sections' evidence (built
    10-29 night; operator: "Build it", then option "1"; corpus re-measure running, then suite and commit).**
    *Problem.* `ServiceSectionSyncService::hasMaterialSignatureChange()` decides whether a re-detected
@@ -181,9 +197,17 @@ queue and route state are in the archive; a historical “final” label is not 
 4. **Dispose of residual misses.** 928 still loses one word at a speech start over fading music;
    this is separate from its internal end in step 2. The measured class is 2 of 30 fade ends (928
    and 1220, the latter ruled either). Merely classifying mixed words as unsung does not fix 928's
-   gap search. Record measured repair or containment for the class. 1131 remains an early-end miss
-   (current 1410.28; ruled 1461.42), with the K16 reword parked. Include all further material misses
-   from step 3; neither a recorded miss nor a fixture marked open is acceptance.
+   gap search. Record measured repair or containment for the class. 1131 is an early-end miss today
+   (current 1410.28; ruled 1461.42) that the adopted reword mends (below). Include all further material
+   misses from step 3; neither a recorded miss nor a fixture marked open is acceptance.
+   **Residual misses still needing a disposition (review 10-30):** 928's speech start over fading music
+   (class 2 of 30, 1220 ruled either); the 9 open misses from step 3 (late sermon/reading starts 1136,
+   1308, 1262 §3289; `song_end_fade` ends 1215 §2637, 1108 §1895, 1108 §1897; singles 1262 §3278,
+   1262 §4913, 1108 canary-11 start); the conflicting rulings 1115 and 1127 (on page (d)). Each gets one
+   of: a measured rule (only where the class has a single cause: `song_end_fade` missed 9 of 63, early and
+   late alike, so it has none), a code-found hold that keeps the output in review, or an accepted loss in
+   the operator's words. **Operator decision owed:** what counts as a finished disposition when no rule
+   fits, hold or accepted loss.
    **K16 class measured 10-29 night (step 3, `combined-measure-20261029/shortened-ends.json`):** of 188
    sermon ends the round would shorten, 176 drop only an announcement, lyrics or the congregation's
    Amen; 7 drop the closing prayer with an end that still reads as one (acceptable under K16 as softened
@@ -205,11 +229,27 @@ queue and route state are in the archive; a historical “final” label is not 
    housekeeping, a communion transition, an after-service invitation); worse **1375 and 1324, which
    take in quoted lyrics and the next hymn's title** — the reworded prompt's "even when it mentions,
    quotes or leads into the song" contradicts K16's "reading lyrics aloud alone does not establish that
-   they conclude the sermon"; 958 to hear (a point built round the hymn title "Facing a Task
-   Unfinished"). With the tied result: 9 better, 3 worse (968, 1375, 1324), 1 to hear.
+   they conclude the sermon"; 958 (a point built round the hymn title "Facing a Task
+   Unfinished") was listed to hear, but is already ruled: see step 0 (ii). With the tied result: 9 better,
+   3 worse (968, 1375, 1324), and 958 a fourth loss unless "either" is reaffirmed.
    **Adopt the reword as measured (operator 10-30: option 2, "Current version seems fine to me"; not
    refined for 1375/1324; plan only — do it in a fresh session).** The losses 968, 1375 and 1324 are
    accepted. The round then redraws every K16 end (§4.2 redraw stability; nothing banked to stop it).
+   0. *Ledger first (review 10-30).* `edge-rulings.json` does not hold the K16 answers that score this
+      change. (i) The 10-29 tied page (`k16-tied-listening-20261029/answers/rulings/`, 11 operator answers,
+      A = the current end, B = through to the song) was never gathered: `scripts/rulings/gather.py` has
+      sources for `three-ends` and `k16-reword` but none for it. Add it, re-gather and supersede the
+      agent-review rulings it contradicts: **1131** B (24:21.4 ≈ 1461.4) against the unsuperseded
+      `sermon-own-last-line-20261028` keep 1410.59; **1001** B (32:19.2) against
+      `sermon-own-line-songs-20261028` keep 1924.76 (respect the archive's mid-sentence note on 1001's
+      third answer). Then check the other nine (938 A, 1244 A; 956, 973, 1031, 1111, 1318, 1364 either)
+      against what the ledger holds; 1031, 1318 and 1364 have no current sermon-end ruling at all.
+      (ii) **958 is ruled, not unheard:** current `sermon-own-last-line-20261028` keep 1993.88 (agent
+      review, "matching the 10-28 preferred cut"); the operator's 10-28 either (1993.81 / 2017.775) is
+      superseded. The reword moves it to 2016.78, so under the ledger it is a fourth loss. **Operator
+      decision owed:** reaffirm "either" (2016.78 then acceptable) or accept the loss alongside 968, 1375
+      and 1324. (iii) 1140, 1375 and 1324 have no ruling: their gain and losses were read from the
+      transcript. Record each as an `answer_source: claude-review` ruling so the ratchet carries the decision.
    1. *Code, test first.* `SermonSongIntroductionCheck::SYSTEM_PROMPT` takes exactly the two
       replacements in `k16-reword-20261029/measure.php` (saved whole in `system-prompt.txt`) and
       `PROMPT_VERSION` 2 → 3, so every banked answer stops matching. `SermonSongIntroductionCheckTest`
@@ -228,13 +268,21 @@ queue and route state are in the archive; a historical “final” label is not 
       calls and need the block's calls re-asked the same way. Fixture `files` are lists of
       `{disk, path, content}`; the artifact kind is `sermon-song-introduction-<sha256 of identity>`.
    3. *Ruled endings.* Run them; every changed result is checked against its ruling, not adjusted to
-      pass. Expected: 1131 and 1140 newly met; 968, 1375 and 1324 newly missed, recorded as accepted
-      losses under this decision (with the operator's words) rather than silently re-expected.
+      pass. Of the named runs only 968 has a sermon-end fixture today (`run-968-2026-10-29`, its
+      three-ends and k16-reword rulings), so as captured the suite shows **968 newly missed and nothing
+      else**: 1131's fixture (`run-1131-2026-10-23`) holds only its start ruling, and 1140, 1375, 1324 and
+      958 have no fixture. Capture fixtures for the step 0 rulings first; then expect 1131 and 1140 newly
+      met and 968, 1375 and 1324 (and 958 unless reaffirmed) newly missed, recorded as accepted losses
+      under this decision (with the operator's words) rather than silently re-expected.
    4. Focused tests, PHPStan, Pint, the full parallel suite, Dusk; record; commit to master.
    5. *Live:* nothing to apply now. The round's `TranscribeOutputEdges` asks every K16 end afresh
       (≈ 1,000 calls, ≈ $0.50); compare its decided ends with `measured*.json` for the redraw change
       rate, and send only flips that change a heard cut to listening.
-5. **Validate, freeze and canary.** Focused tests, PHPStan, Pint and full parallel suite on final
+5. **Validate, freeze and canary.** Before freezing: ≥ 10 GB free on the internal disk (step 3);
+   the structure dispositions for 1273 §3416 and 1311 §4874; the item-churn finding (step 3a) measured
+   or explicitly deferred; and the round's checklist naming the four songs that reset and need
+   re-approval after it (981 §1043, 1020 §1340, 1304 §3875, 1305 §3888) and the 126 re-cut sections.
+   Focused tests, PHPStan, Pint and full parallel suite on final
    code; Dusk for browser behaviour. Follow runbook §§3/6 for live headroom, backups, frozen
    membership, worker revision and pause/resume. Inspect actual song-to-speech transitions and
    internal joins, and the audit's representative local acceptance journey before bulk expansion.
@@ -328,7 +376,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Next processing round | Not ready to freeze: complete §4.1a, including candidate answers/adoption, final checks and fresh membership. |
+| Next processing round | Not ready to freeze: complete §4.1a in the 10-30 order (ledger → edge moves → K16 build → validate), the two operator decisions (958; residual-miss disposition) and ≥ 10 GB internal disk. Membership (425) is counted. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |
