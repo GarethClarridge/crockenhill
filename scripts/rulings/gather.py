@@ -27,6 +27,7 @@ import sys
 from edge_listening import collect as edge_listening_rulings
 from queue_sample import collect as queue_sample_rulings
 from saved_answers import load as load_saved_answer, saved
+from section_binding import rebind as rebind_drifted_sections
 
 SCRATCH = 'storage/scratch'
 OUT = 'tests/Fixtures/Rulings/edge-rulings.json'
@@ -758,8 +759,15 @@ for ruling_id, ruled_at, run, section_id, edge, heard_range, note in RULED:
 # the cut heard, as RuledEndingsTestCase::latestRulings() and the round's analyze.py read it. Without that binding the
 # newest id-less ruling on a run replaced every other on the same edge, whatever its section (1304's §3879 start by a
 # §4884 one), and none was replaced by a later ruling that names its section (1221 §2718's 10-03 start by the 10-27
-# either). Sections: defect-fix-f7-20261030/export-sections.php.
-ruling_sections = load('defect-fix-f7-20261030/sections.json')
+# either).
+ruling_sections = load('section-id-drift-20261030/sections.json')
+
+# Rulings whose section id now holds another item (re-detection shifts rows by section_order) take the section they
+# were heard on; see section_binding.py. Sections: section-id-drift-20261030/export-sections.php.
+unbound = rebind_drifted_sections(records, ruling_sections)
+if unbound:
+    sys.exit(f"no section of the ruled type near the cut heard for {unbound}; check them or re-run export-sections.php")
+
 for record in records:
     if record['output'] == 'section' and record['section_id'] is None:
         column = 'start' if record['edge'] == 'start' else 'end'
@@ -791,6 +799,7 @@ summary = {
     'by_answer_source': dict(sorted(collections.Counter(r['answer_source'] for r in records if 'answer_source' in r).items())),
     'runs': len({r['run'] for r in records}),
     'superseded': sum(r['superseded'] for r in records),
+    're_bound': sum('page_section_id' in r for r in records),
     'left_out': dict(sorted(skipped.items())),
 }
 os.makedirs(os.path.dirname(OUT), exist_ok=True)

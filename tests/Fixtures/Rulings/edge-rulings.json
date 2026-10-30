@@ -77,7 +77,8 @@
    "operator": 21
   },
   "runs": 387,
-  "superseded": 651,
+  "superseded": 656,
+  "re_bound": 21,
   "left_out": {
    "canary11:not an edge question": 15,
    "canary13:defer": 4,
@@ -1383,7 +1384,7 @@
    "ruled_at": "2026-10-03T06:12:29.823Z",
    "run": 949,
    "output": "section",
-   "section_id": 4856,
+   "section_id": 4857,
    "section_type": "bible_reading",
    "title": "End of the reading “The crucifixion of Jesus” at 40:47.0 (2021-09-05)",
    "edge": "end",
@@ -1392,6 +1393,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "Yes, the last word \"Spirit\" is cut off",
+   "page_section_id": 4856,
    "superseded": false
   },
   {
@@ -1429,7 +1431,7 @@
    "ruled_time": null,
    "note": "",
    "bound_section_id": 4858,
-   "superseded": false
+   "superseded": true
   },
   {
    "id": "canary13:009-949-start",
@@ -1438,7 +1440,7 @@
    "ruled_at": "2026-10-08T07:47:52.551Z",
    "run": 949,
    "output": "section",
-   "section_id": 4857,
+   "section_id": 4858,
    "section_type": "song",
    "title": "I Will Sing Of The Lamb opens (2021-09-05 evening)",
    "edge": "start",
@@ -1447,6 +1449,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 4857,
    "superseded": false
   },
   {
@@ -1456,7 +1459,7 @@
    "ruled_at": "2026-10-08T07:48:05.720Z",
    "run": 949,
    "output": "section",
-   "section_id": 4857,
+   "section_id": 4858,
    "section_type": "song",
    "title": "I Will Sing Of The Lamb ends (2021-09-05 evening)",
    "edge": "end",
@@ -1465,6 +1468,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 4857,
    "superseded": false
   },
   {
@@ -1657,7 +1661,7 @@
    "ruled_at": "2026-10-08T07:48:43.325Z",
    "run": 949,
    "output": "section",
-   "section_id": 4859,
+   "section_id": 4860,
    "section_type": "song",
    "title": "Man Of Sorrows ends (2021-09-05 evening)",
    "edge": "end",
@@ -1666,7 +1670,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "page_section_id": 4859,
+   "superseded": true
   },
   {
    "id": "canary15:027-949-song-pair-end",
@@ -6137,7 +6142,7 @@
    "ruled_at": "2026-10-08T08:06:48.953Z",
    "run": 1012,
    "output": "section",
-   "section_id": 1288,
+   "section_id": 1289,
    "section_type": "song",
    "title": "O God Beyond All Praising ends (2026-03-22 morning)",
    "edge": "end",
@@ -6146,6 +6151,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 1288,
    "superseded": false
   },
   {
@@ -6155,7 +6161,7 @@
    "ruled_at": "2026-10-08T08:07:01.232Z",
    "run": 1012,
    "output": "section",
-   "section_id": 1290,
+   "section_id": 146883,
    "section_type": "short_talk",
    "title": "Isaiah points us to Jesus opens (2026-03-22 morning)",
    "edge": "start",
@@ -6164,6 +6170,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 1290,
    "superseded": false
   },
   {
@@ -6173,7 +6180,7 @@
    "ruled_at": "2026-10-08T08:07:13.921Z",
    "run": 1012,
    "output": "section",
-   "section_id": 1290,
+   "section_id": 146883,
    "section_type": "short_talk",
    "title": "Isaiah points us to Jesus ends (2026-03-22 morning)",
    "edge": "end",
@@ -6182,7 +6189,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "page_section_id": 1290,
+   "superseded": true
   },
   {
    "id": "endings:end-1012-146883",
@@ -6285,7 +6293,7 @@
    "ruled_at": "2026-10-08T08:08:05.359Z",
    "run": 1012,
    "output": "section",
-   "section_id": 1292,
+   "section_id": 1293,
    "section_type": "short_talk",
    "title": "Christian Prison Resourcing update opens (2026-03-22 morning)",
    "edge": "start",
@@ -6294,6 +6302,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 1292,
    "superseded": false
   },
   {
@@ -6303,7 +6312,7 @@
    "ruled_at": "2026-10-08T08:08:18.423Z",
    "run": 1012,
    "output": "section",
-   "section_id": 1292,
+   "section_id": 1293,
    "section_type": "short_talk",
    "title": "Christian Prison Resourcing update ends (2026-03-22 morning)",
    "edge": "end",
@@ -6312,7 +6321,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "page_section_id": 1292,
+   "superseded": true
   },
   {
    "id": "endings:end-1012-1293",
@@ -8488,7 +8498,7 @@
    "ruled_at": "2026-10-10T07:26:05.325Z",
    "run": 1036,
    "output": "section",
-   "section_id": 1476,
+   "section_id": 1475,
    "section_type": "short_talk",
    "title": "Short talk: The perfect gift (2025-12-21 morning)",
    "edge": "start",
@@ -8497,6 +8507,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 1476,
    "superseded": false
   },
   {
@@ -8506,7 +8517,7 @@
    "ruled_at": "2026-10-10T07:26:05.325Z",
    "run": 1036,
    "output": "section",
-   "section_id": 1476,
+   "section_id": 1475,
    "section_type": "short_talk",
    "title": "Short talk: The perfect gift (2025-12-21 morning)",
    "edge": "end",
@@ -8515,6 +8526,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 1476,
    "superseded": true
   },
   {
@@ -8524,7 +8536,7 @@
    "ruled_at": "2026-10-12",
    "run": 1036,
    "output": "section",
-   "section_id": 1476,
+   "section_id": 1475,
    "section_type": "talk",
    "title": "Ends on the Amen",
    "edge": "end",
@@ -8533,6 +8545,7 @@
    "expect": "outward",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 1476,
    "superseded": false
   },
   {
@@ -8615,7 +8628,7 @@
    "ruled_at": "2026-10-10T07:25:45.303Z",
    "run": 1036,
    "output": "section",
-   "section_id": 1479,
+   "section_id": 1478,
    "section_type": "song",
    "title": "Song: Holy Holy Holy in a Manger Lowly (2025-12-21 morning)",
    "edge": "start",
@@ -8624,6 +8637,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 1479,
    "superseded": false
   },
   {
@@ -8633,7 +8647,7 @@
    "ruled_at": "2026-10-10T07:25:45.303Z",
    "run": 1036,
    "output": "section",
-   "section_id": 1479,
+   "section_id": 1478,
    "section_type": "song",
    "title": "Song: Holy Holy Holy in a Manger Lowly (2025-12-21 morning)",
    "edge": "end",
@@ -8642,6 +8656,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 1479,
    "superseded": false
   },
   {
@@ -23869,7 +23884,7 @@
    "ruled_at": "2026-10-12T08:06:25.168Z",
    "run": 1255,
    "output": "section",
-   "section_id": 3181,
+   "section_id": 3180,
    "section_type": null,
    "title": "A to Z of Bible animals: the ant opens (2022-10-30 morning)",
    "edge": "start",
@@ -23878,7 +23893,8 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
-   "superseded": false
+   "page_section_id": 3181,
+   "superseded": true
   },
   {
    "id": "endings:end-1255-3181",
@@ -23887,7 +23903,7 @@
    "ruled_at": "2026-10-12",
    "run": 1255,
    "output": "section",
-   "section_id": 3181,
+   "section_id": 3180,
    "section_type": "talk",
    "title": "Other endings",
    "edge": "end",
@@ -23896,6 +23912,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 3181,
    "superseded": true
   },
   {
@@ -23905,7 +23922,7 @@
    "ruled_at": "2026-10-12T08:06:32.417Z",
    "run": 1255,
    "output": "section",
-   "section_id": 3181,
+   "section_id": 3180,
    "section_type": null,
    "title": "A to Z of Bible animals: the ant ends (2022-10-30 morning)",
    "edge": "end",
@@ -23914,6 +23931,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 3181,
    "superseded": false
   },
   {
@@ -29828,7 +29846,7 @@
    "ruled_at": "2026-10-10T07:31:38.824Z",
    "run": 1300,
    "output": "section",
-   "section_id": 4643,
+   "section_id": 214778,
    "section_type": "short_talk",
    "title": "Short talk: Evangelism training report (2021-11-07 morning)",
    "edge": "start",
@@ -29837,6 +29855,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 4643,
    "superseded": false
   },
   {
@@ -29846,7 +29865,7 @@
    "ruled_at": "2026-10-10T07:31:38.824Z",
    "run": 1300,
    "output": "section",
-   "section_id": 4643,
+   "section_id": 214778,
    "section_type": "short_talk",
    "title": "Short talk: Evangelism training report (2021-11-07 morning)",
    "edge": "end",
@@ -29855,6 +29874,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 4643,
    "superseded": false
   },
   {
@@ -29864,7 +29884,7 @@
    "ruled_at": "2026-10-10T07:31:14.883Z",
    "run": 1300,
    "output": "section",
-   "section_id": 4800,
+   "section_id": 4648,
    "section_type": "song",
    "title": "Song: O great God of highest heaven (2021-11-07 morning)",
    "edge": "start",
@@ -29873,6 +29893,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 4800,
    "superseded": false
   },
   {
@@ -29882,7 +29903,7 @@
    "ruled_at": "2026-10-10T07:31:14.883Z",
    "run": 1300,
    "output": "section",
-   "section_id": 4800,
+   "section_id": 4648,
    "section_type": "song",
    "title": "Song: O great God of highest heaven (2021-11-07 morning)",
    "edge": "end",
@@ -29891,6 +29912,7 @@
    "expect": "keep",
    "ruled_time": null,
    "note": "",
+   "page_section_id": 4800,
    "superseded": false
   },
   {

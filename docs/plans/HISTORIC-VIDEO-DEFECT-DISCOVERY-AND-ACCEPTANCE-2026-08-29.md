@@ -476,6 +476,17 @@ queue and route state are in the archive; a historical “final” label is not 
       §4857 is now the reading; 1036's "Holy Holy Holy" §1479 is now the sermon). A register defect like F7's,
       unfixed: `capture.php` already re-keys "… opens/ends (" titles, but `gather.py` and `analyze.py` do not,
       and canary 15's "Song: …" titles match neither.
+      **Re-bound 10-30 (operator: "Yes, do that fix")** in `scripts/rulings/section_binding.py` (tests
+      `test_section_binding.py`), run by `gather.py` before F7's binding and supersession, on a fresh export of every
+      ruled run's sections with titles (`section-id-drift-20261030/export-sections.php`, 227 runs). A ruling whose id
+      is gone, holds another type, or holds another title the page named (not edges3, whose titles are relabelled),
+      takes the section of its type, and title where one matches, whose edge is nearest the cut heard, within 30 s;
+      an edge within 5 s of the cut keeps the id (1012's 4.66 start: re-detection split that clip, and §1288 still
+      opens there). The page's id stays as `page_section_id`. **21 re-bound** (the 19 plus two already superseded);
+      6 supersessions move, each to a later ruling on the true section (949 "Man Of Sorrows" end by canary 15's pair,
+      949's song start canary 12 by canary 13, 1012 talk ends by the 10-12 endings, 1255 talk start by today's
+      either). Re-scored: all 15 live re-bound rulings with a clip are met unchanged; open misses 55 → 54,
+      unassessable 98 → 81. Ruled endings 650/650 (`section-id-drift-20261030/ruled-endings.log`).
    Membership check passed: all 96 runs in `deleted-clips.json` are in the 425 eligible runs.
    **3a. Prerequisite found by step 3 — re-detection discarded unchanged sections' evidence (built
    10-29 night; operator: "Build it", then option "1"; corpus re-measure running, then suite and commit).**
