@@ -136,7 +136,13 @@ queue and route state are in the archive; a historical “final” label is not 
    (e) the reword adoption (step 4). Analyse with `python3 combined-measure-20261029/analyze.py
    combined-measure-20261029/no-stand-in`. Before any round: the internal disk had 4.4 GiB free on 10-30
    (runbook asks ≥ 10 GB and its watcher pauses under it; `storage/scratch` 26 GB, `laravel.log` 809 MB;
-   the 10-25 binlog purge freed ≈ 22 GiB; nothing deleted without go).
+   the 10-25 binlog purge freed ≈ 22 GiB; nothing deleted without go). **Cleared 10-30 (operator: "Dump,
+   check, purge"): 5.6 → 12 GiB free.** Full dump `/Volumes/Sonnics/_pre-round-disk-clear-20261030-backup/`
+   (39 MB gz, SHA-256 in `SHA256SUMS`, `gzip -t` passes, completed 08:46:13, coordinate `binlog.000144` pos
+   5227245, 61 tables, no `USE`/`CREATE DATABASE`); restored with `sql_log_bin=0` into a side database, every
+   table's count equal to live, side database dropped; `PURGE BINARY LOGS TO 'binlog.000144'` (≈ 5.1 GB);
+   `laravel.log` truncated (839 MB); `storage/scratch/binlog.000067` (21 Aug, single copy) moved to
+   `/Volumes/Sonnics/_scratch-binlog-000067-20260821/` after `cmp`.
    **Order of the remaining work (review 10-30).** The step 3 replay and step 4's code interact: a banked
    K16 answer is read only when its whole identity matches, and the identity carries `prompt_version`
    (`SermonSongIntroductionCheck::question()`), while `measure.php` fakes OpenAI with no responses. After
@@ -456,7 +462,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Next processing round | Not ready to freeze: complete §4.1a in the 10-30 order (ledger done → edge moves → K16 build → validate), the listening pages (958 and E23 decided 10-30) and ≥ 10 GB internal disk. Membership (425) is counted. |
+| Next processing round | Not ready to freeze: complete §4.1a in the 10-30 order (ledger done → edge moves → K16 build → validate), the listening pages (958 and E23 decided 10-30); internal disk cleared to 12 GiB 10-30. Membership (425) is counted. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |
