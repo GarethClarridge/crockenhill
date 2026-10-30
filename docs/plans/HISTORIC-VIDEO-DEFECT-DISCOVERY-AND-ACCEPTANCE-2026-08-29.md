@@ -328,6 +328,18 @@ queue and route state are in the archive; a historical “final” label is not 
    (`defect-fix-f7-20261030/{before,after}/`): regressions 14 → 13 (1221 cleared), no new one; revived 19 met, 4
    unassessable, 3 missed by both cuts (1108 §1897 start, 1346 §4366 end, 1346 §4368 start: old canary rulings no
    cut since has met; neither cut moves there, so not the round's). Ruled-endings 650 OK.
+   **F1 MEASURED 10-30: no separating condition; the 11 go to the ear** (`defect-fix-f1-20261030/`). Over the 86
+   `song_start_sentence` moves ≥ 1 s (58 meet a ruling): the classifier hears speech over nearly all of them (a band
+   under speech still reads as speech); the music class separates 1106, 1245, 1260 (share ≥ 0.93, all others ≤ 0.38),
+   but `the_classifier_cannot_veto_a_song_opening_sentence_trim` keeps the trim of an announcement classified as music,
+   and 1260 drops "and sing.", that very case. A lyric line is dropped as often in ruled-right moves (1200's "I will give
+   thanks to you" is 1257's text; 1198, 1228, 939, 1292) as in the eleven. Lyric order on the transcript cues after the
+   cut (`lyrics.php`; the edge decodes stop at the cut): "repeated after" marks a read-out line (1228, 1273, 1295
+   §3773, 1306, 1357, all covered), but "continues" fires on 1130 only and also on covered 1223 and 1305, and six
+   defects show no lyric after the cut. So the triage's "sung opening dropped" calls, made from cue text, are unproven.
+   Page **"Sung Or Spoken"** https://claude.ai/artifact/RZ7kwPJXdZpNiz5MBhKTgs (`rulings`, ids `<run>-s<section>-start`,
+   A executed / B round; builder `song-openings-listening-20261030/`). On answers: a B-wrong set decides whether a
+   rule is worth building (candidate: the next cue is the next lyric line, nothing spoken between).
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
