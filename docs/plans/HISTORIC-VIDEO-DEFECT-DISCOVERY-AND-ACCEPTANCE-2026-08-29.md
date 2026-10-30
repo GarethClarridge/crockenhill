@@ -199,6 +199,18 @@ queue and route state are in the archive; a historical “final” label is not 
    word otherwise (1371 "Let's"). **Proposed fix, awaits go:** test-first from 1070, a heard word with the last kept
    word's text starting within 0.6 s of it is that word, not the next one; replay the 15, then the ruled-endings
    suite.
+   **1219 traced 10-30 (plan only, awaits go).** 1219's transcript (`local_whisper`) merges a whole-second
+   transcription with finer ones: 451 of 1,010 cues start on .9, and near the end they run ~11 s early ("Jesus
+   said," cued 3824.9, decoded 3835.70; the same passage repeats with true times from 3843.62). K16 chose the line
+   "and in no one else." and the cut went to its cue end, 3836.9, which the word pause then kept because a real
+   pause falls there — between "the" and "way" of "I am the way". The kept cue's text is never checked against the
+   decoded words at the cut. Scan (`page1-triage-20261030/line-word-scan.php`, `.json`): of 408 planned sermon ends
+   with decoded words at the cut, 14 lack the kept cue's last word there; 2 on whole-second cues (1219, and 1005,
+   ruled B right 10-30); most of the rest are decoder spellings (961 "discouragement(s)", 1108 "We delight" / "Be
+   the light"); to read: 944, 1024, 1071 ("Thank you." / "Let's pray together"), 1136 (decoded "Bye" ×5), 1355,
+   980, 1103, 1077. **Proposed fix:** test-first from 1219, a K16 end whose kept line's last words are not among the
+   decoded words before the cut finds that line in the decoded words of a wider window and ends after it, or holds
+   the end for review when it cannot; then replay the 14 and run the ruled-endings suite.
    4. (b), (c), then step 4.1–4.4; (d) is unaffected: its six ends (1004, 1005, 1115, 1127, 1157, 1219) are
       unchanged by the reword's measured draw. Publish (d) with whatever (a) and step 4.0's 958 add.
    Membership check passed: all 96 runs in `deleted-clips.json` are in the 425 eligible runs.
