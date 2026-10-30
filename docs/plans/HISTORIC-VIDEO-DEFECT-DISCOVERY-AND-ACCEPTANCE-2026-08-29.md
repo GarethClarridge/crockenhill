@@ -426,6 +426,19 @@ queue and route state are in the archive; a historical “final” label is not 
    (keep 1318.86), 1031 gains 463.90 beside the operator's either points. Tests: 1193 and the 1273 guard.
    **Defect-fix plan status 10-30:** F7, F4, F6 done; F1 closed (no defect); F2/F3 confirmed, evidence plan awaits go;
    F5 no guard (1297 is asked by the round's sentence check; 928, 990 recorded misses).
+   **F2 evidence MEASURED 10-30 (operator: "Go on F2 evidence"): stop condition met, no rule**
+   (`song-end-music-20261030/`: `export.php`, `score.py` via the local classifier server, same model and revision,
+   2 s windows on a 0.25 s hop; `analyze.py`, `report.json`). 59 stretches: 39 song-end moves ≥ 1 s, 1216, and 19
+   unmoved ruled-keep song ends as controls. For every music-end definition tried (cut-off 0.5/0.4/0.3/0.2 × hold
+   0/0.5/1/2 s), capping the round's end at the music's end loses more ruled ends than it gains (best: 24 met against
+   the round's 31, gaining 1, losing 8) and cuts 7–14 of the 19 controls short. No offset rescues it: ruled-right ends
+   sit −2.0 to +7.4 s from the measured music end (median +0.8), the six round-wrong targets −4.0 to +1.3, inside the
+   same range, and mostly before the music ends (where speech starts while music is still heard), while 1216, 1347
+   and 1111 were kept well past the speech's start. What the ear decides is whether the speech belongs to the next item,
+   which sound classes do not carry. **F2/F3 recorded as an accepted miss class** (6 of 9 heard ends: 1009, 1080 at the
+   executed cut; 1034, 1234, 1243, 1272 between, approximate times in their notes). Option, not started: a review hold
+   on song ends whose added stretch holds decoded words of a non-lyric cue (all six, and the covered 1216, 1111, 1347,
+   1012), so weekly runs ask instead of cutting.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
