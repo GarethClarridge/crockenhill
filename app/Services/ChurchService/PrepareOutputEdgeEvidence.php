@@ -61,10 +61,13 @@ class PrepareOutputEdgeEvidence
         $run->refresh();
         $knownEdges = array_merge(...array_map(array_values(...), $spans));
         $exposed = $this->sentenceCheck->outputEdges($run, array_values($run->serviceSections()->orderBy('start_time')->get()->all()), $composition['selected_section_ids']);
+        // A kept line its own decode did not hear is looked for at its later copies (1219).
+        $copies = array_map(static fn (float $time): array => [null, $time], $this->cutPlans->spokenEndsBesideSongs($run, $sermonSpans));
         $followup = [];
-        foreach ($exposed as [, $time]) {
+        foreach ([...$exposed, ...$copies] as [, $time]) {
             if (! array_any($knownEdges, static fn (float $known): bool => abs($known - $time) < 0.001)) {
                 $followup[] = ['start_time' => $time, 'end_time' => $time];
+                $knownEdges[] = $time;
             }
         }
         if ($followup !== []) {

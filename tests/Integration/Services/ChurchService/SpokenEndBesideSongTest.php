@@ -177,6 +177,71 @@ class SpokenEndBesideSongTest extends TestCase
         $this->assertSame([3704.54], $plans->spokenEndsBesideSongs($log, $spans), 'the edge step decodes the window the answer\'s end reads');
     }
 
+    /**
+     * 1219: the merged transcript carries the closing passage twice, on whole-second cues ~11 s early
+     * and again on true times. K16 kept "and in no one else." at its early cue (3834.9–3836.9), where
+     * the decode heard "Jesus said, I am the way and the truth": the end fell inside the quotation. The
+     * line ends where a later copy of it is heard, before the call to stand.
+     */
+    #[Test]
+    public function a_kept_line_not_heard_at_its_cue_ends_where_a_later_copy_of_it_is_heard(): void
+    {
+        [$log, $spans] = $this->closingPassageTwice();
+        $plans = app(CueSafeExtractionPlan::class);
+        $this->assertSame([3836.9], $plans->spokenEndsBesideSongs($log, $spans), 'the copies wait for the cut\'s own decode');
+        $this->bank($log, 3836.9, $this->wordsHeardAtTheEarlyCue());
+        $this->assertSame([3836.9, 3854.94], $plans->spokenEndsBesideSongs($log, $spans), 'the edge step decodes the later copy');
+        $this->bank($log, 3854.94, [
+            ['start' => 3852.60, 'end' => 3852.80, 'word' => ' and'],
+            ['start' => 3852.90, 'end' => 3853.05, 'word' => ' in'],
+            ['start' => 3853.20, 'end' => 3853.45, 'word' => ' no'],
+            ['start' => 3853.50, 'end' => 3853.80, 'word' => ' one'],
+            ['start' => 3853.90, 'end' => 3854.60, 'word' => ' else.'],
+            ['start' => 3855.52, 'end' => 3855.80, 'word' => " Let's"],
+        ]);
+
+        $plan = $plans->forSpans($log, $spans, sermonEnd: true);
+
+        $this->assertGreaterThanOrEqual(3854.6, $plan['segments'][0]['end_time']);
+        $this->assertLessThanOrEqual(3855.48, $plan['segments'][0]['end_time']);
+        $this->assertSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+    }
+
+    /** As 1219, but no decode heard the line at either copy: which one was said is left to the operator. */
+    #[Test]
+    public function a_kept_line_heard_at_none_of_its_copies_is_left_to_the_operator(): void
+    {
+        [$log, $spans] = $this->closingPassageTwice();
+        $this->bank($log, 3836.9, $this->wordsHeardAtTheEarlyCue());
+        $this->bank($log, 3854.94, [['start' => 3852.60, 'end' => 3854.60, 'word' => ' Thank you.']]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, $spans, sermonEnd: true);
+
+        $this->assertNotSame([], CueSafeExtractionPlan::unresolvedEdges($plan['cue_edge_widening']));
+    }
+
+    /** The congregation's later "Amen." copies the kept line's text, but the preacher's was heard at its cue: it stands. */
+    #[Test]
+    public function a_kept_line_heard_at_its_cue_stands_despite_a_later_copy(): void
+    {
+        [$log, $spans] = $this->closingPassageTwice();
+        $this->bank($log, 3836.9, [
+            ['start' => 3835.00, 'end' => 3835.20, 'word' => ' and'],
+            ['start' => 3835.30, 'end' => 3835.45, 'word' => ' in'],
+            ['start' => 3835.50, 'end' => 3835.75, 'word' => ' no'],
+            ['start' => 3835.80, 'end' => 3836.10, 'word' => ' one'],
+            ['start' => 3836.15, 'end' => 3836.60, 'word' => ' else.'],
+            ['start' => 3837.00, 'end' => 3837.25, 'word' => " Let's"],
+        ]);
+        $plans = app(CueSafeExtractionPlan::class);
+
+        $plan = $plans->forSpans($log, $spans, sermonEnd: true);
+
+        $this->assertSame([3836.9], $plans->spokenEndsBesideSongs($log, $spans));
+        $this->assertGreaterThanOrEqual(3836.6, $plan['segments'][0]['end_time']);
+        $this->assertLessThanOrEqual(3837.0, $plan['segments'][0]['end_time']);
+    }
+
     /** A song's recorded start is no boundary: a line past it that the answer keeps goes in whole. */
     #[Test]
     public function a_thought_continuing_past_the_songs_recorded_start_goes_in_whole(): void
@@ -426,6 +491,47 @@ class SpokenEndBesideSongTest extends TestCase
         }
 
         return $log->fresh();
+    }
+
+    /**
+     * 1219's closing passage (2023-07-16 morning), cued twice; K16 keeps the first "and in no one else.".
+     *
+     * @return array{0: MediaProcessingLog, 1: list<array{start_time: float, end_time: float}>}
+     */
+    private function closingPassageTwice(): array
+    {
+        $log = $this->service([
+            ['start' => 3820.9, 'end' => 3822.9, 'text' => 'great things he has done.'],
+            ['start' => 3824.9, 'end' => 3826.9, 'text' => 'Jesus said,'],
+            ['start' => 3826.9, 'end' => 3827.9, 'text' => 'I am the way,'],
+            ['start' => 3833.9, 'end' => 3834.9, 'text' => 'Our trust must be in him,'],
+            ['start' => 3834.9, 'end' => 3836.9, 'text' => 'and in no one else.'],
+            ['start' => 3836.9, 'end' => 3837.9, 'text' => "Let's stand, shall we?"],
+            ['start' => 3849.28, 'end' => 3851.62, 'text' => 'Our trust must be in him,'],
+            ['start' => 3852.52, 'end' => 3854.94, 'text' => 'and in no one else.'],
+            ['start' => 3855.48, 'end' => 3856.52, 'text' => "Let's stand shall we,"],
+        ], [['sermon', 2112.56, 3858.0], ['song', 3862.0, 4040.0]]);
+        $spans = [['start_time' => 2112.56, 'end_time' => 3858.0]];
+        $line = collect(app(SermonSongIntroductionCheck::class)->question($log, $spans)['lines'])
+            ->firstWhere('text', 'and in no one else.')['n'];
+        $this->introduction($log, $spans, [$line, false, $line], [$line, false, $line]);
+
+        return [$log, $spans];
+    }
+
+    /** @return list<array{start: float, end: float, word: string}> */
+    private function wordsHeardAtTheEarlyCue(): array
+    {
+        return [
+            ['start' => 3834.05, 'end' => 3834.60, 'word' => ' has done.'],
+            ['start' => 3835.70, 'end' => 3836.10, 'word' => ' Jesus'],
+            ['start' => 3836.10, 'end' => 3836.45, 'word' => ' said,'],
+            ['start' => 3836.60, 'end' => 3836.70, 'word' => ' I'],
+            ['start' => 3836.70, 'end' => 3836.85, 'word' => ' am'],
+            ['start' => 3836.85, 'end' => 3836.95, 'word' => ' the'],
+            ['start' => 3837.30, 'end' => 3837.55, 'word' => ' way'],
+            ['start' => 3837.60, 'end' => 3838.20, 'word' => ' and the truth.'],
+        ];
     }
 
     /** @param list<array{start: float, end: float, word: string}> $words */

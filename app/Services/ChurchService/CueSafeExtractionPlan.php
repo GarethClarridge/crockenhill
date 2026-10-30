@@ -361,8 +361,8 @@ class CueSafeExtractionPlan
                     $besideSong = true;
                     // Never asked is evidence not yet gathered, as undecoded words are: the edge
                     // step asks before it decodes. Asked with no line named leaves it to the operator.
-                    $songIntroduction = $introduction->read($log, $sectionSpans)
-                        ?? throw new OutputEdgeTimingsMissing(sprintf('edge_word_timings_missing: run %s has no answer on where its sermon ends beside the song (K16)', $log->processing_id));
+                    $songIntroduction = $this->whereKeptLineWasHeard($log, $cues, $introduction->read($log, $sectionSpans)
+                        ?? throw new OutputEdgeTimingsMissing(sprintf('edge_word_timings_missing: run %s has no answer on where its sermon ends beside the song (K16)', $log->processing_id)), $introductionJoin['end']);
                     $thoughtComplete = ($songIntroduction['end'] ?? null) !== null;
                     if ($thoughtComplete && abs($songIntroduction['end'] - $original) > 0.001) {
                         [$movedFrom, $original] = [$original, $songIntroduction['end']];
@@ -458,7 +458,7 @@ class CueSafeExtractionPlan
                 $lineDecision = $besideSong && $thoughtComplete ? $this->beforeNextLine(['time' => $time], $cues, $songIntroduction) : ['time' => $time];
                 $time = $lineDecision['time'];
                 $span[$key] = $time;
-                if ($time !== $original || $window !== null || $movedFrom !== null) {
+                if ($time !== $original || $window !== null || $movedFrom !== null || ! $thoughtComplete) {
                     $included = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] < max($time, $original) && $cue['end'] > min($time, $original)));
                     $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $movedFrom ?? $original,
                         'time' => $time, 'seconds_added' => abs($time - ($movedFrom ?? $original)), 'seconds_moved' => $time - ($movedFrom ?? $original),
@@ -538,9 +538,85 @@ class CueSafeExtractionPlan
         }
 
         $end = (float) $spans[array_key_last($spans)]['end_time'];
-        $answer = app(SermonSongIntroductionCheck::class)->read($log, $spans)['end'] ?? null;
+        $introduction = app(SermonSongIntroductionCheck::class);
+        $answer = $introduction->read($log, $spans);
+        $edges = ($answer['end'] ?? null) !== null && abs($answer['end'] - $end) > 0.001 ? [$answer['end']] : [];
+        $join = $answer === null ? null : $introduction->join($log, $spans);
+        if ($join !== null) {
+            foreach ($this->unheardKeptLineCopies($log, app(OutputEdgeWordTimings::class)->cues($log), $answer, $join['end']) as $copy) {
+                $edges[] = $copy['end'];
+            }
+        }
 
-        return $answer !== null && abs($answer - $end) > 0.001 ? [$answer] : [];
+        return $edges;
+    }
+
+    /**
+     * The line K16 keeps, where its words were said. A merged transcript can carry a passage twice:
+     * 1219's whole-second cues run ~11 s early, so "and in no one else." is cued at 3834.9–3836.9,
+     * where the decode heard "Jesus said, I am the way", and again on true times at 3852.52–3854.94.
+     * When the line's last word is not heard at its cue, the first later copy before the song whose
+     * decode heard it is the line; copies none of whose decodes heard it leave the end to the operator.
+     * A line heard at its cue, or with no later copy, stands (most unheard lines are decoder spellings).
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{end: float|null, ties_to_sermon: bool|null, line: string|null}  $introduction
+     * @return array{end: float|null, ties_to_sermon: bool|null, line: string|null, unheard_at?: float|null}
+     */
+    private function whereKeptLineWasHeard(MediaProcessingLog $log, array $cues, array $introduction, float $until): array
+    {
+        $copies = $this->unheardKeptLineCopies($log, $cues, $introduction, $until);
+        if ($copies === []) {
+            return $introduction;
+        }
+
+        $tokens = TranscriptCueEvidence::tokens((string) $introduction['line']);
+        foreach ($copies as $copy) {
+            if ($this->lastWordHeardAt($log, $cues, $copy['end'], (string) end($tokens))) {
+                return [...$introduction, 'end' => $copy['end'], 'unheard_at' => $introduction['end']];
+            }
+        }
+
+        return [...$introduction, 'end' => null, 'unheard_at' => $introduction['end']];
+    }
+
+    /**
+     * Later cues with the kept line's words before `$until`, when its own cue's decode did not hear its
+     * last word; none otherwise, or while that decode is still to be made.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{end: float|null, ties_to_sermon: bool|null, line: string|null}  $introduction
+     * @return list<array{start: float, end: float, text: string}>
+     */
+    private function unheardKeptLineCopies(MediaProcessingLog $log, array $cues, array $introduction, float $until): array
+    {
+        $tokens = $introduction['line'] === null ? [] : TranscriptCueEvidence::tokens($introduction['line']);
+        if ($introduction['end'] === null || $tokens === []) {
+            return [];
+        }
+        $end = $introduction['end'];
+        $copies = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] >= $end - 0.001
+            && $cue['start'] < $until && abs($cue['end'] - $end) > 0.001 && TranscriptCueEvidence::tokens($cue['text']) === $tokens));
+        if ($copies === []) {
+            return [];
+        }
+        try {
+            return $this->lastWordHeardAt($log, $cues, $end, end($tokens)) ? [] : $copies;
+        } catch (OutputEdgeTimingsMissing) {
+            return [];
+        }
+    }
+
+    /** @param  list<array{start: float, end: float, text: string}>  $cues */
+    private function lastWordHeardAt(MediaProcessingLog $log, array $cues, float $end, string $token): bool
+    {
+        $evidence = app(OutputEdgeWordTimings::class);
+        $window = $evidence->timingWindow($cues, $end, $log->duration);
+        if ($window === null) {
+            return true;
+        }
+
+        return in_array($token, TranscriptCueEvidence::tokens(implode(' ', array_column($evidence->read($log, $window)['words'], 'word'))), true);
     }
 
     /** The run's classifier timeline, or null when it has none or it cannot be read. */

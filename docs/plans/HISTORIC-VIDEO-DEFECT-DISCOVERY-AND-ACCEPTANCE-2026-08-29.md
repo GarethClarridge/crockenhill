@@ -214,7 +214,7 @@ queue and route state are in the archive; a historical “final” label is not 
    recaptured and refreshed (`same-word-fixture-refresh-20261030/`, prior files in `before/`; 1016's sermon join
    +0.29 s too). Full suite 10,914 with only those 7 stale live cuts before the refresh; ruled endings 650/650
    after; Dusk 63/63. The 3 known 1288 reds no longer fail.
-   **1219 traced 10-30 (plan only, awaits go).** 1219's transcript (`local_whisper`) merges a whole-second
+   **1219 traced 10-30.** 1219's transcript (`local_whisper`) merges a whole-second
    transcription with finer ones: 451 of 1,010 cues start on .9, and near the end they run ~11 s early ("Jesus
    said," cued 3824.9, decoded 3835.70; the same passage repeats with true times from 3843.62). K16 chose the line
    "and in no one else." and the cut went to its cue end, 3836.9, which the word pause then kept because a real
@@ -226,6 +226,20 @@ queue and route state are in the archive; a historical “final” label is not 
    980, 1103, 1077. **Proposed fix:** test-first from 1219, a K16 end whose kept line's last words are not among the
    decoded words before the cut finds that line in the decoded words of a wider window and ends after it, or holds
    the end for review when it cannot; then replay the 14 and run the ruled-endings suite.
+   **1219 fix BUILT 10-30 (operator: "Go — build it").** Measured first (`storage/scratch/line-reach-1219-20261030/`):
+   128 runs keep a line whose text recurs before the song (nearly all a congregation's "Amen."), 14 lack the kept
+   line's last word at the cut, and only 1219 is both; so the rule asks the copies only when the kept line's last word
+   is not heard at its cue, and leaves an unheard line with no copy standing (the other 13 are decoder spellings, not
+   moved or held). `CueSafeExtractionPlan::whereKeptLineWasHeard()`: the first later copy before the song whose decode
+   heard that word is the line; copies none of which heard it leave the end to the operator
+   (`spoken_end_thought_unresolved`). `spokenEndsBesideSongs()` returns the copies' ends once the cut's decode exists,
+   and `PrepareOutputEdgeEvidence` decodes them in its follow-up pass. A held K16 end on a section end in silence now
+   records its audit entry (it recorded none, so it was never held; reachable runs 1198, 980 unchanged). 1219's true
+   copy decoded on the live run (3851.52–3855.94: "and in no one else." to 3854.96). Replay of the 142 runs the rule
+   or the audit change can reach (`replay.log`, `no-stand-in/pilot.jsonl`; the 1070 pilot moved to
+   `page1-triage-20261030/pilot-1070-replay.jsonl`): 1 of 750 outputs changes, 1219's end 3836.9 → 3855.26, after
+   "else" and before "Let's stand" (3855.48). Tests: 1219's shape, the hold, the heard-line guard. Full suite
+   10,917, Dusk 63/63.
    **Unruled moves triaged 10-30** (the 71 non-K16 and 39 K16 rows of `moves-ge1s.json`; scripts and outputs in
    `storage/scratch/unruled-triage-20261030/`: `stretch.php` the dropped or added cue text and decoded words,
    `before-cut.php` what an end keeps, `classes.php` the classifier's shares of each moved stretch, `levels.php`).
