@@ -580,6 +580,21 @@ queue and route state are in the archive; a historical “final” label is not 
    published. (4) A rolled-back replay of one identity end to end, disks read-only, then the census again. (5) The
    identities ride in the next round as ordinary historic items: membership, custody (quarantine, no auto-publish)
    and the re-run actions need no change. This machine is not production, so a local round changes only local copies.
+   *Step 1 census — DONE 10-31* (`storage/scratch/weekly-retire-census-20261031/`, read-only): 23 live non-historic
+   livestream runs; every dated one has an `include` manifest item. **Different files, same services:** only 882
+   and 883 used the manifest's file (hash and size equal). The others used a compressed upload (`Sunday 1st March
+   2026.mp4`, 225–432 MB) where the manifest holds the master (OBS `.mkv` or YouTube backup, 1.3–16× larger), so
+   the re-import reads a better copy with its own timings. **884 is the reverse:** the weekly run read the 4.7 GB
+   master `10-33.mkv`, the manifest holds the 149 MB `Sunday 26th April 2026.mp4`; owed: re-import from the poorer
+   file, or correct the item first. **Who holds an identity shut today:** completed 883, 884, 888, 890, 893, 894,
+   908–914, 916, 917, 920, 921 (`skip-exists`, 18) and 915, 919 (`skip-pending-review`). 918, 882 and 904 failed
+   without blocking; 882 and 904 share identities with 916 and 913. Run 1 has no identity and no manifest item and
+   is out of scope. **References to a published sermon:** only `media_processing_logs.sermon_id` and
+   `sermon_scripture_filters` (both pipeline-derived); no other table or morph refers to one. The public address is
+   `/{year}/{month}/{slug}` and the podcast GUID is `sermon-{id}`, so keeping the row keeps both: **step 3 moves
+   the new cut into the published row** (id, slug and GUID unchanged) rather than a new row with a redirect, which
+   there is no table for. 11 of the 13 published slugs are still placeholders (`sunday-7th-may-2023`); keeping the
+   address keeps them, and re-slugging stays the separate `sermons:reslug-placeholders` question.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
