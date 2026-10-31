@@ -594,6 +594,24 @@ queue and route state are in the archive; a historical “final” label is not 
    the new cut into the published row** (id, slug and GUID unchanged) rather than a new row with a redirect, which
    there is no table for. 11 of the 13 published slugs are still placeholders (`sunday-7th-may-2023`); keeping the
    address keeps them, and re-slugging stays the separate `sermons:reslug-placeholders` question.
+   *Step 2 retirement — BUILT 10-31, not applied:* `historic-import:retire-run --operation=<round>` accepts a live
+   weekly livestream run with a date and service (item key = its identity); a published sermon is kept and recorded
+   `awaiting_replacement`, an unpublished one withdrawn as before; the record carries `lane`, `operation_id` and
+   `published_sections` (song clips leave every reader with their run, so step 3 must find and replace them too). A
+   historic run's published sermon is still refused. Two guards added, tests first: a run with a retirement record
+   never wins `ProcessingRunSupersessionService::reconcile` (only exclusion barred it, so a retired run with more
+   confirmed songs would have been un-superseded when the re-import projected), and is never
+   `BetterSermonRecording`'s holder. Dry run against operation 4 (`weekly-retire-census-20261031/retire-dry-run.txt`):
+   19 runs resolve; 14 sermons kept, 857 (909, 1.1 GiB) and 1310 (893, 114 MiB) would be withdrawn. **Corrections
+   to the census:** the blocking completed runs are 17, not 18; **918 must be retired too** (failed, blocks nothing,
+   but its published sermon 865 needs the replacement marker or the re-import leaves two). **893 and 894 must not
+   be retired as the manifest stands:** their items point at the X6 partial captures — `2024-01-21-morning` →
+   `11-04.mkv` (1189's 1,840 s sermon-only file, set aside as `duplicate_recording`) and `2024-11-17-morning` →
+   `11-02.mkv` (1126's 2,106 s sermon capture) — so a re-import would lose each service's songs and, for 893, re-run
+   the file X6 set aside. Their full 720p recordings survive on `historic_temp` (sizes equal; no hash was recorded).
+   890's item (`10-31.mkv`, 1378's full 1080p recording) is sound. Owed (operator): 893 and 894 either keep their
+   10-15 results and stay out, or their items are corrected to the full recordings like 884 (894's re-import would
+   then adopt 1126's 1080p sermon by the existing rule, as X6 wants).
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and

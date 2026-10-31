@@ -158,6 +158,21 @@ class BetterSermonRecordingTest extends TestCase
         $this->assertFalse($capture->fresh()?->holdsAdoptedSermon());
     }
 
+    /**
+     * 884: a weekly run retired into a round keeps its published sermon until release
+     * replaces it, so the re-import must cut its own rather than adopt the one it replaces.
+     */
+    #[Test]
+    public function a_retired_recording_keeping_its_sermon_is_never_the_holder(): void
+    {
+        $reimport = $this->recording(720, 490_906);
+        $retired = $this->recording(1080, 2_663_497);
+        $this->sermonOf($retired, 2000.0);
+        $retired->putRetirement(['recorded_by' => 'operator', 'note' => 'Re-imported in the round.']);
+
+        $this->assertNull(app(BetterSermonRecording::class)->holderFor($reimport, 2000.0));
+    }
+
     private function recording(int $height, int $bitRate): MediaProcessingLog
     {
         return MediaProcessingLog::factory()->create([

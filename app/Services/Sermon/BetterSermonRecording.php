@@ -17,7 +17,9 @@ use App\Models\Sermon;
  * better one, so a run whose own copy is worse adopts that sermon instead of cutting its
  * own (operator, 2026-10-15). Better means a higher resolution, then a higher bitrate, and
  * the held sermon must run at least {@see self::MINIMUM_COVERAGE} of this run's, so a
- * capture that started partway through never wins on picture alone.
+ * capture that started partway through never wins on picture alone. A retired run holds
+ * nothing: a weekly run retired into a round keeps its published sermon only until release
+ * replaces it with the re-import's cut.
  */
 class BetterSermonRecording
 {
@@ -46,7 +48,7 @@ class BetterSermonRecording
         foreach ($recordings as $recording) {
             $recordingQuality = self::quality($recording);
 
-            if ($recording->isExcluded() || $recordingQuality === null || $recordingQuality <= $quality
+            if ($recording->isExcluded() || $recording->retirementRecord() !== null || $recordingQuality === null || $recordingQuality <= $quality
                 || ($best !== null && $recordingQuality <= self::quality($best['holder']))) {
                 continue;
             }

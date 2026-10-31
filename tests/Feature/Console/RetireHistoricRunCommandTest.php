@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
 use App\Enums\SermonPublicationState;
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\HistoricImportAlert;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
@@ -88,6 +90,40 @@ class RetireHistoricRunCommandTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    /**
+     * A completed weekly livestream run with no operation, holding a published sermon on
+     * the public disk — the shape 910 (1 March 2026, sermon 858) has.
+     *
+     * @return array{0: MediaProcessingLog, 1: Sermon}
+     */
+    private function weeklyRunWithSermon(SermonPublicationState $state = SermonPublicationState::Published): array
+    {
+        Storage::fake('public');
+
+        $sermon = Sermon::factory()->create([
+            'publication_state' => $state,
+            'asset_disk' => 'public',
+            'video_file_path' => 'sermons/858/video.mp4',
+            'audio_file_path' => null,
+            'transcript_file_path' => null,
+            'thumbnail_file_path' => null,
+        ]);
+
+        Storage::disk('public')->put('sermons/858/video.mp4', 'video-bytes');
+
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'historic_import_operation_id' => null,
+            'status' => ProcessingStatus::Completed,
+            'current_step' => 'completed',
+            'sermon_id' => $sermon->id,
+            'extracted_date' => '2026-03-01',
+            'extracted_service' => 'morning',
+            'processing_metadata' => [],
+        ]);
+
+        return [$run, $sermon];
     }
 
     /** @return array<string, mixed> */
@@ -466,5 +502,108 @@ class RetireHistoricRunCommandTest extends TestCase
 
         $this->assertNull(Sermon::query()->find($sermon->id));
         $this->assertCount(2, $run->fresh()?->retirementRecord()['assets'] ?? []);
+    }
+
+    #[Test]
+    public function it_retires_a_weekly_run_into_the_operation_and_keeps_its_published_sermon(): void
+    {
+        [$run, $sermon] = $this->weeklyRunWithSermon();
+
+        $this->artisan('historic-import:retire-run', $this->applyArgs($run, 'Re-imported in the round (plan §4.1a step 3b).'))
+            ->assertSuccessful();
+
+        $run = $run->fresh();
+        $this->assertTrue($run?->isRetired());
+        $this->assertSame('weekly', $run?->retirementRecord()['lane'] ?? null);
+        $this->assertSame('2026-03-01-morning', $run?->retirementRecord()['manifest_item_key'] ?? null);
+        $this->assertSame($sermon->id, $run?->retirementRecord()['sermon']['id'] ?? null);
+        $this->assertTrue($run?->retirementRecord()['sermon']['awaiting_replacement'] ?? false);
+        $this->assertSame(SermonPublicationState::Published, $sermon->fresh()?->publication_state);
+        Storage::disk('public')->assertExists('sermons/858/video.mp4');
+    }
+
+    #[Test]
+    public function a_retired_weekly_run_stops_blocking_its_date(): void
+    {
+        [$run] = $this->weeklyRunWithSermon();
+
+        $this->artisan('historic-import:retire-run', $this->applyArgs($run, 'Re-imported in the round.'))->assertSuccessful();
+
+        $this->assertFalse(MediaProcessingLog::query()
+            ->where('extracted_date', '2026-03-01')
+            ->where('extracted_service', 'morning')
+            ->notSuperseded()
+            ->where('status', ProcessingStatus::Completed->value)
+            ->exists());
+    }
+
+    /** 909's sermon 857 is quarantined: nothing public to keep, so it is withdrawn as a historic run's is. */
+    #[Test]
+    public function it_withdraws_a_weekly_runs_unpublished_sermon(): void
+    {
+        [$run, $sermon] = $this->weeklyRunWithSermon(SermonPublicationState::Quarantined);
+
+        $this->artisan('historic-import:retire-run', $this->applyArgs($run, 'Re-imported in the round.'))->assertSuccessful();
+
+        $this->assertNull($sermon->fresh());
+        $this->assertFalse($run->fresh()?->retirementRecord()['sermon']['awaiting_replacement'] ?? true);
+        Storage::disk('public')->assertMissing('sermons/858/video.mp4');
+        Storage::disk('public')->assertExists("superseded/{$this->operation->operation_id}/{$sermon->id}/video-video.mp4");
+    }
+
+    /** 890, 909: published song clips leave every reader with their run; release must find them to replace. */
+    #[Test]
+    public function it_records_a_weekly_runs_published_sections(): void
+    {
+        [$run] = $this->weeklyRunWithSermon();
+        $published = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::Published,
+        ]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+        ]);
+
+        $this->artisan('historic-import:retire-run', $this->applyArgs($run, 'Re-imported in the round.'))->assertSuccessful();
+
+        $this->assertSame([$published->id], $run->fresh()?->retirementRecord()['published_sections'] ?? null);
+    }
+
+    #[Test]
+    public function it_still_refuses_a_historic_runs_published_sermon_while_keeping_a_weekly_ones(): void
+    {
+        [$historic, $historicSermon] = $this->completedRunWithSermon();
+        $historicSermon->forceFill(['publication_state' => SermonPublicationState::Published])->save();
+
+        $this->artisan('historic-import:retire-run', $this->applyArgs($historic))->assertFailed();
+
+        $this->assertFalse($historic->fresh()?->isRetired());
+    }
+
+    #[Test]
+    public function it_refuses_a_weekly_run_that_is_not_a_livestream(): void
+    {
+        [$run] = $this->weeklyRunWithSermon();
+        $run->forceFill(['processing_type' => MediaType::Audio])->save();
+
+        $this->artisan('historic-import:retire-run', $this->applyArgs($run, 'Re-imported in the round.'))
+            ->expectsOutputToContain('livestream')
+            ->assertFailed();
+
+        $this->assertFalse($run->fresh()?->isRetired());
+    }
+
+    #[Test]
+    public function it_refuses_a_weekly_run_without_a_service_identity(): void
+    {
+        [$run] = $this->weeklyRunWithSermon();
+        $run->forceFill(['extracted_date' => null])->save();
+
+        $this->artisan('historic-import:retire-run', $this->applyArgs($run, 'Re-imported in the round.'))
+            ->expectsOutputToContain('date and service')
+            ->assertFailed();
+
+        $this->assertFalse($run->fresh()?->isRetired());
     }
 }

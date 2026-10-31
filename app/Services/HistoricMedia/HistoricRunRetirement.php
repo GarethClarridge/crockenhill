@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Enums\MediaType;
 use App\Enums\ProcessingStatus;
+use App\Enums\SermonPublicationState;
+use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -33,6 +36,13 @@ use Throwable;
  * `superseded/{operation}/{sermon}/` on the same disk and its row is deleted,
  * leaving every existing sermon query correct with no change.
  *
+ * A weekly livestream run (no operation) may be retired *into* an operation, so the
+ * round re-imports its service from the manifest's source (plan §4.1a step 3b; the
+ * 09-04 findings §15 found no command for it). Its item key is its identity, which is
+ * the manifest's own key. Its published sermon is not withdrawn: it stays live,
+ * recorded as awaiting replacement, until release swaps the re-import's cut into it
+ * (R11, amended 10-31). An unpublished one is withdrawn as a historic run's is.
+ *
  * Deletion trigger: Delete once the historic import operation is closed out and
  * no further source replacements can arrive.
  */
@@ -51,10 +61,13 @@ class HistoricRunRetirement
      * @return list<array{
      *     run: MediaProcessingLog,
      *     item_key: string,
+     *     lane: string,
      *     status_now: string,
      *     sermon: ?Sermon,
+     *     keeps_sermon: bool,
      *     assets: list<array{role:string, disk:string, path:string, bytes:int}>,
      *     sections: int,
+     *     published_sections: list<int>,
      *     already_retired: bool,
      *     already_superseded: bool
      * }>
@@ -72,7 +85,10 @@ class HistoricRunRetirement
                 throw new RuntimeException("No processing run exists for [{$processingId}].");
             }
 
-            if ($run->historic_import_operation_id !== $operation->id) {
+            $weekly = $run->historic_import_operation_id === null;
+            $weeklyItemKey = $weekly ? $this->weeklyItemKey($run) : null;
+
+            if (! $weekly && $run->historic_import_operation_id !== $operation->id) {
                 throw new RuntimeException("Run [{$processingId}] does not belong to operation [{$operation->operation_id}].");
             }
 
@@ -96,14 +112,24 @@ class HistoricRunRetirement
             }
 
             $sermon = $this->sermonFor($run);
+            $keepsSermon = $weekly && $sermon?->publication_state === SermonPublicationState::Published;
 
             $entries[] = [
                 'run' => $run,
-                'item_key' => (string) (data_get($run->processing_metadata?->toArray(), 'historic_import.manifest_item_key') ?? '(unknown)'),
+                'item_key' => $weeklyItemKey
+                    ?? (string) (data_get($run->processing_metadata?->toArray(), 'historic_import.manifest_item_key') ?? '(unknown)'),
+                'lane' => $weekly ? 'weekly' : 'historic',
                 'status_now' => $run->status->value,
                 'sermon' => $sermon,
-                'assets' => $sermon instanceof Sermon ? $this->sermonWithdrawal->assetsFor($sermon) : [],
+                'keeps_sermon' => $keepsSermon,
+                'assets' => $sermon instanceof Sermon && ! $keepsSermon ? $this->sermonWithdrawal->assetsFor($sermon) : [],
                 'sections' => ServiceSection::query()->where('media_processing_log_id', $run->id)->count(),
+                'published_sections' => array_values(array_map('intval', ServiceSection::query()
+                    ->where('media_processing_log_id', $run->id)
+                    ->where('publication_status', ServiceSectionPublicationStatus::Published)
+                    ->orderBy('id')
+                    ->pluck('id')
+                    ->all())),
                 // A run superseded by another path — the projector reconciling
                 // duplicate runs against one service — is withdrawn but carries no
                 // operator disposition. It is not yet retired; it still needs one.
@@ -135,14 +161,17 @@ class HistoricRunRetirement
      * @param  list<array{
      *     run: MediaProcessingLog,
      *     item_key: string,
+     *     lane: string,
      *     status_now: string,
      *     sermon: ?Sermon,
+     *     keeps_sermon: bool,
      *     assets: list<array{role:string, disk:string, path:string, bytes:int}>,
      *     sections: int,
+     *     published_sections: list<int>,
      *     already_retired: bool,
      *     already_superseded: bool
      * }>  $entries
-     * @return array{retired: int, already_retired: int, sermons_deleted: int, assets_relocated: int}
+     * @return array{retired: int, already_retired: int, sermons_deleted: int, sermons_kept: int, assets_relocated: int}
      */
     public function apply(HistoricImportOperation $operation, array $entries, string $note): array
     {
@@ -153,6 +182,7 @@ class HistoricRunRetirement
         $retired = 0;
         $alreadyRetired = 0;
         $sermonsDeleted = 0;
+        $sermonsKept = 0;
         $assetsRelocated = 0;
 
         foreach ($entries as $entry) {
@@ -165,18 +195,21 @@ class HistoricRunRetirement
             }
 
             $sermon = $entry['sermon'];
+            $withdrawn = $entry['keeps_sermon'] ? null : $sermon;
             $moved = [];
 
-            if ($sermon instanceof Sermon) {
+            if ($withdrawn instanceof Sermon) {
                 $this->sermonWithdrawal->guardWithdrawable($sermon);
                 $moved = $this->sermonWithdrawal->relocate($sermon, $operation, $entry['assets']);
             }
 
             try {
-                DB::transaction(function () use ($run, $operation, $sermon, $entry, $note, $moved): void {
+                DB::transaction(function () use ($run, $operation, $sermon, $withdrawn, $entry, $note, $moved): void {
                     $run->putRetirement([
                         'recorded_by' => 'operator',
                         'note' => $note,
+                        'lane' => $entry['lane'],
+                        'operation_id' => $operation->operation_id,
                         'manifest_item_key' => $entry['item_key'],
                         'status_when_retired' => $entry['status_now'],
                         'superseded_before_retirement' => $entry['already_superseded'],
@@ -189,11 +222,13 @@ class HistoricRunRetirement
                             'duration' => $sermon->duration,
                             'asset_disk' => $sermon->asset_disk,
                             'publication_state' => $sermon->publication_state->value,
+                            'awaiting_replacement' => $entry['keeps_sermon'],
                         ] : null,
+                        'published_sections' => $entry['published_sections'],
                         'assets' => $moved,
                     ]);
 
-                    $sermon?->delete();
+                    $withdrawn?->delete();
 
                     // A run another path already superseded keeps the moment it
                     // was withdrawn; only the operator's disposition is new.
@@ -217,8 +252,8 @@ class HistoricRunRetirement
                 throw $exception;
             }
 
-            if ($sermon instanceof Sermon) {
-                $this->sermonWithdrawal->writeInventory($operation, $run, $sermon, $moved, 'retirement.json', [
+            if ($withdrawn instanceof Sermon) {
+                $this->sermonWithdrawal->writeInventory($operation, $run, $withdrawn, $moved, 'retirement.json', [
                     'retired_at' => now()->toIso8601String(),
                 ]);
             }
@@ -226,8 +261,10 @@ class HistoricRunRetirement
             $retired++;
             $assetsRelocated += count($moved);
 
-            if ($sermon instanceof Sermon) {
+            if ($withdrawn instanceof Sermon) {
                 $sermonsDeleted++;
+            } elseif ($sermon instanceof Sermon) {
+                $sermonsKept++;
             }
         }
 
@@ -235,8 +272,26 @@ class HistoricRunRetirement
             'retired' => $retired,
             'already_retired' => $alreadyRetired,
             'sermons_deleted' => $sermonsDeleted,
+            'sermons_kept' => $sermonsKept,
             'assets_relocated' => $assetsRelocated,
         ];
+    }
+
+    /**
+     * A weekly run is retired into a round only as a livestream with a service identity:
+     * the identity is the manifest item the round re-imports, keyed as the manifest keys it.
+     */
+    private function weeklyItemKey(MediaProcessingLog $run): string
+    {
+        if ($run->processing_type !== MediaType::Livestream) {
+            throw new RuntimeException("Run [{$run->processing_id}] is not a livestream run; only a livestream service can be re-imported.");
+        }
+
+        if ($run->extracted_date === null || $run->extracted_service === null) {
+            throw new RuntimeException("Run [{$run->processing_id}] has no date and service, so no manifest item can re-import it.");
+        }
+
+        return $run->extracted_date->toDateString().'-'.$run->extracted_service->value;
     }
 
     private function sermonFor(MediaProcessingLog $run): ?Sermon

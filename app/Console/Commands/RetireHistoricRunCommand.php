@@ -16,6 +16,10 @@ use Throwable;
  * imported again from the new source instead of being blocked forever by the
  * result of the old one.
  *
+ * A weekly livestream run is retired *into* the named operation, so the round
+ * re-imports its service; its published sermon stays live until release replaces it
+ * (plan §4.1a step 3b).
+ *
  * Use this and not `historic-import:exclude-run` when the recording changed. An
  * exclusion is terminal — it says no run of this source can succeed — and it
  * deliberately leaves the run's own status alone, so it never unblocks a date.
@@ -26,13 +30,13 @@ use Throwable;
 class RetireHistoricRunCommand extends Command
 {
     protected $signature = 'historic-import:retire-run
-                            {--operation= : Exact immutable historic operation that owns the runs}
+                            {--operation= : Exact immutable historic operation that owns the runs, or re-imports a weekly run}
                             {--processing-id=* : Exact processing ID to retire; repeat for every run}
                             {--note= : The operator note that justifies the retirement}
                             {--apply : Write the retirement (default: dry-run)}
                             {--yes : Confirm the guarded --apply operation}';
 
-    protected $description = 'Withdraw a historic run whose source was replaced so its identity can be imported again';
+    protected $description = 'Withdraw a historic run whose source was replaced, or a weekly run, so its identity can be imported again';
 
     public function handle(HistoricRunRetirement $retirement): int
     {
@@ -57,7 +61,11 @@ class RetireHistoricRunCommand extends Command
                         $entry['run']->processing_id,
                         $entry['item_key'],
                         $entry['status_now'],
-                        $sermon instanceof Sermon ? "#{$sermon->id} ".$sermon->slug : '(none)',
+                        match (true) {
+                            ! $sermon instanceof Sermon => '(none)',
+                            $entry['keeps_sermon'] => "#{$sermon->id} {$sermon->slug} (kept until replaced)",
+                            default => "#{$sermon->id} ".$sermon->slug,
+                        },
                         count($entry['assets']).' file(s), '.self::formatBytes(
                             array_sum(array_column($entry['assets'], 'bytes')),
                         ),
@@ -80,7 +88,8 @@ class RetireHistoricRunCommand extends Command
             $this->line('Note: '.($note === '' ? '(none given)' : $note));
             $this->line('Retirement withdraws the run: its sections drop out of every reader, its sermon row is');
             $this->line('deleted and the sermon assets move to a superseded prefix on the same disk. The identity');
-            $this->line('becomes dispatchable again. Nothing published can be retired.');
+            $this->line('becomes dispatchable again. A historic run with a published sermon cannot be retired; a');
+            $this->line("weekly run's published sermon stays live until release replaces it with the re-import's cut.");
 
             if (! $apply) {
                 $this->warn('DRY RUN: nothing was written and no file was moved. Re-run with --apply --yes for this exact selection.');
@@ -91,10 +100,11 @@ class RetireHistoricRunCommand extends Command
             $result = $retirement->apply($operation, $entries, $note);
 
             $this->info(sprintf(
-                'Retired %d run(s); already retired: %d; sermons withdrawn: %d; assets relocated: %d.',
+                'Retired %d run(s); already retired: %d; sermons withdrawn: %d; sermons kept until replaced: %d; assets relocated: %d.',
                 $result['retired'],
                 $result['already_retired'],
                 $result['sermons_deleted'],
+                $result['sermons_kept'],
                 $result['assets_relocated'],
             ));
 

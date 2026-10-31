@@ -71,6 +71,28 @@ class ProcessingRunSupersessionServiceTest extends TestCase
     }
 
     #[Test]
+    public function a_retired_run_never_wins_its_service_back(): void
+    {
+        // A weekly run retired into a round (plan §4.1a step 3b) still projects onto the
+        // service; when the re-import projects beside it, the retired run must stay out.
+        $churchService = $this->churchService();
+
+        $retiredRun = $this->processingRun($churchService, status: 'completed');
+        $this->sections($retiredRun, [0.9, 0.95, 0.98], songMatch: ServiceSectionSongMatchType::Confirmed);
+        $retiredRun->putRetirement(['recorded_by' => 'operator', 'note' => 'Re-imported in the round.']);
+        $retiredRun->forceFill(['superseded_at' => now()])->save();
+
+        $reimport = $this->processingRun($churchService, status: 'completed');
+        $this->sections($reimport, [0.3]);
+
+        $result = $this->service->reconcile($churchService);
+
+        $this->assertTrue($result['winner']->is($reimport));
+        $this->assertSame([$retiredRun->id], $result['superseded']);
+        $this->assertNotNull($retiredRun->fresh()->superseded_at);
+    }
+
+    #[Test]
     public function a_failed_run_does_not_win_on_confidence_alone(): void
     {
         // Reproduces run 936 (service 544): re-detection merged a completed run's
