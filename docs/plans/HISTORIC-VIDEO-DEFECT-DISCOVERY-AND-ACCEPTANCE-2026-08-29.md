@@ -506,6 +506,20 @@ queue and route state are in the archive; a historical “final” label is not 
    PHPStan clean. Still open: the eight sub-second / unruled moves (1104, 1284, 1271, 992, 1259, 971, 1363 and 946's
    either) were not heard; fade lengths are the E7 minimum on all but 1313 (3.0 s). Where a cue opening in music
    alone is wrong even faded, the cue's start is not the speech's start and Q1 (detection) stays the work.
+   **Committed `43c7028e7`.** *The eight unheard moves triaged 10-31, none needs the ear*
+   (`storage/scratch/sub-second-fade-triage-20261031/`, `diag.php` → `diag.json`, read-only): 946 lands on its
+   earlier either point; 971, 1259, 1363 have music to the window boundary and the speech from the cue's start (the
+   round's hard cut took the head of "Well", "Indeed,", "Let's"), better by E24; 1271 both cuts follow "please sit
+   down." (459.31) with ≈ 10 s quiet after; 1284 no lyric lost (lyrics end 379, whole-second cue 383, no decoded
+   words); 1104 both cuts inside a smeared "Amen.", the 1.5 s fade over the held "own", the shape the Fade Rule
+   Check heard right. **992 §163678 is a defect:** the recording ends (1581.5) before "Restore, O Lord" is sung; the
+   section is the leader reading its words and "Let's stand and sing this one through together." with no music
+   (music ≤ 0.02 throughout). Its cues are one or two words each, so the rule's "first worded cue" is "together."
+   and the end moves 1580.74 → 1580.08 into the sentence. The rule checks speech in the cue's window, never music.
+   *Guard, not built:* music in the cue's window or the one before (971 0.69, 1259 0.65, 1363 0.60 before; 992
+   0.01; every heard end ≥ 0.27 in its own window), so 992 alone of the 21 moves reverts. *Structure defect, new:* the
+   round cut a song video of 992 §163678 (1565.38–1580.74) with no singing in it, against the music-span ruling (sung
+   or wholly instrumental); no ruling or plan line covered it before.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
