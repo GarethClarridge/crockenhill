@@ -541,7 +541,7 @@ queue and route state are in the archive; a historical “final” label is not 
    17, only 992 and 1381 §167073 reach a clip (`pending_approval`), both already held as `short_song_clip`, so no
    decision changes today; the hold adds the diagnosis and stops a longer spoken item publishing itself. Banked
    boundary evidence under VERSION 11 is stale until the backfill (operator's word) or the round re-assesses it.
-   **Step 3b, weekly runs join the round by retire and re-import — PLANNED 10-31 (route revised), awaits go**
+   **Step 3b, weekly runs join the round by retire and re-import — PLANNED 10-31 (route revised; sermons replaced, B), awaits go**
    (operator: weekly processing "should be the same as the historic processing"; chose "join the historic rounds",
    then "retire and re-import sounds sensible" over teaching the round tools a second kind of run). The chain is
    already shared; the runs are not. *Why they were skipped:* [Findings 2026-09-04] §15: a live completed weekly run
@@ -559,23 +559,27 @@ queue and route state are in the archive; a historical “final” label is not 
    copies are not settled. Retirement **refuses a published sermon** (`HistoricSermonWithdrawal::guardWithdrawable`)
    because it deletes the row, and 13 of the 17 sermons are published (843, 851, 858–867, 870). R11 already says a
    published sermon's edge may not be set.
-   *Owed (operator), before any build:* what happens to a published sermon. **A (recommended):** retiring a weekly
-   run with a published sermon supersedes the run and leaves the sermon live; the re-import adopts that sermon as
-   894 adopted 1051 and cuts none, so songs, talks and structure get the round's full treatment and the published
-   sermon is untouched (consistent with R11; the K16 reword and sermon-end rules do not reach these 13). **B:** the
-   re-import cuts a new quarantined sermon, and release replaces the published one, keeping its slug and URL — a
-   new path that sets a published sermon's edge, so it needs R11 amended.
+   *Decided (operator 10-31, "B - replace them"; R11 amended):* the re-import cuts a new quarantined sermon like any
+   historic item, and release **replaces** the retired run's published sermon with it, keeping its public address.
+   Until release the published sermon stays live; nothing published is withdrawn early. The sermon-end rules (K16
+   reword, Amen rules) reach these 13. Release today publishes only a quarantined sermon
+   (`HistoricSermonPublicationService::commit`) and has no notion of replacing one; retirement deletes a sermon row
+   and refuses a published one.
    *Steps, each measured first and waiting for go:* (1) read-only census per identity: manifest item present, its
    source the same recording the weekly run used (hash or size and duration), the round's dispatch resolution
-   (`skip-exists` / `skip-pending-review` today); 890/893/894 checked against their X6 adoptions. (2) Retirement for
-   a non-historic run: `retire-run` (or a sibling) accepts a live weekly livestream run with no operation, records
-   the retirement, supersedes it, and under A keeps a published sermon in place (a non-published sermon is withdrawn
-   as now); 915 and 919 the same. Tests first. (3) Adoption: the re-import adopts the retired weekly run's published
-   sermon (A) instead of cutting a second, extending `BetterSermonRecording`'s rule to "a retired run's published
-   sermon for this service". Tests first. (4) A rolled-back replay of one identity end to end, disks read-only, then
-   the census again. (5) The identities ride in the next round as ordinary historic items: membership, custody
-   (quarantine, no auto-publish) and the re-run actions need no change. This machine is not production, so a local
-   round changes only local copies.
+   (`skip-exists` / `skip-pending-review` today); 890/893/894 checked against their X6 adoptions; and what refers to
+   each published sermon (public URL shape, slug, foreign keys, song usage, analytics), which decides step 3's
+   mechanism. (2) Retirement for a non-historic run: `retire-run` (or a sibling) accepts a live weekly livestream run
+   with no operation, records the retirement and supersedes it; a published sermon stays in place and is marked as
+   awaiting replacement by that identity; a non-published sermon is withdrawn as now; 915 and 919 the same. The
+   re-import must not adopt the old sermon (`BetterSermonRecording` skips a retired holder). Tests first. (3) Release
+   replaces: when a released sermon's identity carries a published sermon awaiting replacement, the swap happens in
+   the same transaction — either the new cut moves into the published row (id, slug and URL unchanged) or the new
+   row takes the slug and the old row's URL redirects 301 — chosen from step 1's references; the old assets go under
+   `superseded/` with an inventory, as retirement does now. Tests first, including rollback leaving the old sermon
+   published. (4) A rolled-back replay of one identity end to end, disks read-only, then the census again. (5) The
+   identities ride in the next round as ordinary historic items: membership, custody (quarantine, no auto-publish)
+   and the re-run actions need no change. This machine is not production, so a local round changes only local copies.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
