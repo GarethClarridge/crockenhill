@@ -585,8 +585,7 @@ queue and route state are in the archive; a historical “final” label is not 
    and 883 used the manifest's file (hash and size equal). The others used a compressed upload (`Sunday 1st March
    2026.mp4`, 225–432 MB) where the manifest holds the master (OBS `.mkv` or YouTube backup, 1.3–16× larger), so
    the re-import reads a better copy with its own timings. **884 is the reverse:** the weekly run read the 4.7 GB
-   master `10-33.mkv`, the manifest holds the 149 MB `Sunday 26th April 2026.mp4`; owed: re-import from the poorer
-   file, or correct the item first. **Who holds an identity shut today:** completed 883, 884, 888, 890, 893, 894,
+   master `10-33.mkv`, the manifest holds the 149 MB `Sunday 26th April 2026.mp4`; **decided (operator 10-31): correct the item first** — point `2026-04-26-morning` at `10-33.mkv` (hash-checked) before the round that carries it; the manifest is bound to operation 4 by hash, so how a corrected item reaches a round (amended manifest and rebinding, or a per-item source override) is measured with step 2. **Who holds an identity shut today:** completed 883, 884, 888, 890, 893, 894,
    908–914, 916, 917, 920, 921 (`skip-exists`, 18) and 915, 919 (`skip-pending-review`). 918, 882 and 904 failed
    without blocking; 882 and 904 share identities with 916 and 913. Run 1 has no identity and no manifest item and
    is out of scope. **References to a published sermon:** only `media_processing_logs.sermon_id` and
