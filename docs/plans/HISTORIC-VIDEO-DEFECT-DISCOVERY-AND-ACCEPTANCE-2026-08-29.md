@@ -119,8 +119,7 @@ queue and route state are in the archive; a historical “final” label is not 
    1108 §1897; singles 1262 §3278, 1262 §4913, 1108 canary-11 start. Section rulings on sermon sections
    (§1610, §3705, §2410) are judged on the sermon video's edge there. `gather.py` maps every
    `wrong_place` answer to `outward`; four are structure answers ("the middle of a different song"):
-   1012 and 1282 are superseded, **1273 §3416 and 1311 §4874 stand** and need a structure disposition,
-   not an edge score.
+   1012 and 1282 are superseded, and 1273 §3416 and 1311 §4874 are **settled (disposed 10-31, (c) below)**.
    **Classes measured for step 4:** 38 sermon starts lie > 5 s after their section start, nearly all
    unchanged by the round; 2 ruled late (1136, 1308). `song_end_fade` places 234 song ends; of 63 ruled,
    54 met and 9 missed, early (941 §751, 976 §958, 1272 §3403) and late (1215, 1108 ×2) alike, so no
@@ -131,7 +130,7 @@ queue and route state are in the archive; a historical “final” label is not 
    (a) the edge moves — 451 outputs move, 380 edges by ≥ 1 s (runbook §5: each ≥ 1 s move goes on a
    page unless a ruling the new cut meets already covers it; group the rest by `reason`);
    (b) 22 refused plans and 87 unassessable rulings, each with a cause; (c) structure dispositions for
-   1273 §3416 and 1311 §4874; (d) the draft page `storage/scratch/shortened-ends-listening-20261029/`
+   1273 §3416 and 1311 §4874 (**done 10-31**, below); (d) the draft page `storage/scratch/shortened-ends-listening-20261029/`
    (6 questions: 1004, 1005, 1115, 1127, 1157, 1219; built, not published) plus whatever (a) adds;
    (e) the reword adoption (step 4). Analyse with `python3 combined-measure-20261029/analyze.py
    combined-measure-20261029/no-stand-in`. Before any round: the internal disk had 4.4 GiB free on 10-30
@@ -653,8 +652,7 @@ queue and route state are in the archive; a historical “final” label is not 
    round (processing on the operator's word).
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
-   1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
-   1311 §4874 stay open on their own lines; the five sermon-join eithers wait for a join shape in the register.
+   1292 §3653) are re-scored after each replay; 1288 merged Amens stay open on their own line (1273 §3416 and 1311 §4874 are disposed, (c) below); the five sermon-join eithers wait for a join shape in the register.
    *Order:* F7 (no pipeline code, cleans the scoring every replay reads), F1, F2, F3, F4, F5, F6. F1 and F2 share no
    code path; F4 and F5 both touch spoken starts, so F5's replay runs after F4 is in. One replay per part keeps each
    move attributable.
@@ -699,6 +697,15 @@ queue and route state are in the archive; a historical “final” label is not 
       949's song start canary 12 by canary 13, 1012 talk ends by the 10-12 endings, 1255 talk start by today's
       either). Re-scored: all 15 live re-bound rulings with a clip are met unchanged; open misses 55 → 54,
       unassessable 98 → 81. Ruled endings 650/650 (`section-id-drift-20261030/ruled-endings.log`).
+   **(c) disposed 10-31: neither is a structure defect now; nothing to build.** Both "wrong place" answers were
+   heard on canary 13's morning cuts (10-08): 1273 §3416 "All Heaven Declares" opening at 546.4, inside "Come People
+   Of The Risen King"; 1311 §4874, the third "I Will Sing Of The Lamb" between the baptisms, opening at 1543.24,
+   halfway through. Re-detection moved both before canary 14 that evening, which heard the new starts as right
+   (`canary14:006-1273-start` 563.64, the previous song's end; `canary14:014-1311-start` 1514.14, after Ralph's
+   baptism). Those rulings carried no section id until F7 (`4d72f2ab4`) bound them to §3416 and §4874, which
+   superseded the two structure answers; the 10-29 "stand" reading predates that binding. Today's sections (563.64–675.06;
+   1514.1–1593.26) and the replay's cuts (`no-stand-in/`, executed = A = B: 563.64–675.89, 1514.14–1585.26) meet
+   every live ruling on both songs (ends: canary 13 keep 675.893; 10-20 either 1583.17 / 1585.26).
    Membership check passed: all 96 runs in `deleted-clips.json` are in the 425 eligible runs.
    **3a. Prerequisite found by step 3 — re-detection discarded unchanged sections' evidence (built
    10-29 night; operator: "Build it", then option "1"; corpus re-measure running, then suite and commit).**
@@ -836,7 +843,7 @@ queue and route state are in the archive; a historical “final” label is not 
       (≈ 1,000 calls, ≈ $0.50); compare its decided ends with `measured*.json` for the redraw change
       rate, and send only flips that change a heard cut to listening.
 5. **Validate, freeze and canary.** Before freezing: ≥ 10 GB free on the internal disk (step 3);
-   the structure dispositions for 1273 §3416 and 1311 §4874; the item-churn finding (step 3a) measured
+   the structure dispositions for 1273 §3416 and 1311 §4874 (done 10-31, step 3 (c)); the item-churn finding (step 3a) measured
    or explicitly deferred; and the round's checklist naming the four songs that reset and need
    re-approval after it (981 §1043, 1020 §1340, 1304 §3875, 1305 §3888) and the 126 re-cut sections.
    Focused tests, PHPStan, Pint and full parallel suite on final
