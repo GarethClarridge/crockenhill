@@ -898,7 +898,9 @@ queue and route state are in the archive; a historical “final” label is not 
    - **Owed before the snapshot (finding 10-31): 1377 and 1378 are still superseded** (`superseded_at` set, by 909 and
      890), so `rerun-extract` would refuse 1377 ("superseded or retired"); retirement superseded the weekly runs but
      nothing re-ran the reconcile. `services:supersede-duplicate-runs --service=795 --service=790` (dry run) makes
-     1377 and 1378 the winners again; it needs `--execute` on the operator's word.
+     1377 and 1378 the winners again; it needs `--execute` on the operator's word. **Applied 10-31 20:09Z
+     (operator: "Do step 1"):** 1377 and 1378 live (`superseded_at` null); 909 → by 1377, 890 and 889 (a 10-15 weekly
+     duplicate) → by 1378; retirement records unchanged; both services' review recomputed to `needs_review`.
    - *Routes.* `reExtract`, never recompose: 942, 974, 1363 (hand edits); 1378 (banked edge evidence invalid, runbook
      §4.2). Held sermons by `sermons:re-extract --held-section`. Every K16 end is asked afresh (≈ 1,000 calls,
      ≈ $0.50) by `TranscribeOutputEdges`, prayer-last sermons included.
@@ -913,7 +915,7 @@ queue and route state are in the archive; a historical “final” label is not 
      168 MB/s; clone `../crockenhill-round` at `8189bfdea` (150 commits behind; lockfiles unchanged, so `vendor/`
      stands), `sail-8.4/app` present, `docker-compose.round.yml` tracked. Re-measure all of it immediately before the
      freeze (runbook §6).
-   - *Then, each on the operator's word:* the reconcile above; backup (dump + private storage + binlogs, SHA-256, to
+   - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 
 Detailed measurements and prior interpretations are in the
