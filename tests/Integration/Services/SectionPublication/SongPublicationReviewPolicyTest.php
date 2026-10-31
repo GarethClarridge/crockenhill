@@ -18,6 +18,7 @@ use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\SectionPublication\SongQuietIntroduction;
+use App\Services\ChurchService\SectionPublication\SongSectionWithoutMusic;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongMusicalIntroduction;
 use Database\Factories\SongFactory;
@@ -655,6 +656,42 @@ class SongPublicationReviewPolicyTest extends TestCase
         $this->assertContains(SongQuietIntroduction::RISK_KIND, array_column($this->policy->assess($section)['reasons'], 'kind'));
     }
 
+    /**
+     * 992 §163678 (10-31): the recording ends before "Restore, O Lord" is sung, and the clip is the
+     * leader reading its words. The classifier hears no music anywhere in it. Unaccompanied singing
+     * sounds the same to it (1252's "Happy Birthday"), so a reviewer hears which it is.
+     */
+    #[Test]
+    public function it_holds_a_song_clip_with_no_music_heard_in_it(): void
+    {
+        $section = $this->timedSong([[0, 1000, 0.02, 0.85]]);
+
+        $reasons = $this->policy->assess($section)['reasons'];
+
+        $this->assertContains(SongSectionWithoutMusic::RISK_KIND, array_column($reasons, 'kind'));
+    }
+
+    #[Test]
+    public function it_does_not_hold_a_song_clip_with_music_heard_in_it(): void
+    {
+        $section = $this->timedSong([[0, 700, 0.02, 0.85], [700, 705, 0.45, 0.3], [705, 1000, 0.02, 0.85]]);
+
+        $reasons = $this->policy->assess($section)['reasons'];
+
+        $this->assertNotContains(SongSectionWithoutMusic::RISK_KIND, array_column($reasons, 'kind'));
+    }
+
+    /** A run with no classifier timeline (every weekly run today) has nothing to judge music by. */
+    #[Test]
+    public function it_does_not_judge_music_without_a_timeline(): void
+    {
+        $section = $this->section('full', ['livestream']);
+
+        $reasons = $this->policy->assess($section)['reasons'];
+
+        $this->assertNotContains(SongSectionWithoutMusic::RISK_KIND, array_column($reasons, 'kind'));
+    }
+
     #[Test]
     public function it_does_not_hold_a_clip_whose_wordless_time_before_it_is_short(): void
     {
@@ -682,6 +719,18 @@ class SongPublicationReviewPolicyTest extends TestCase
         ], [['time' => 590.0, 'rms' => -20.0], ['time' => 600.0, 'rms' => -20.0], ['time' => 840.0, 'rms' => -20.0]], duration: 1000.0);
         $path = 'service-transcripts/test-'.$section->processingLog->processing_id.'.classes.json';
         Storage::disk('local')->put($path, AudioTimelineFixture::json([[0, $lastWordsEnd, 0.02, 0.85], [$lastWordsEnd, 600, $music ? 0.7 : 0.03, 0.02], [600, 1000, 0.7, 0.02]], 1000.0));
+        $section->processingLog->forceFill(['audio_timeline_path' => $path])->save();
+
+        return $section->fresh();
+    }
+
+    /** @param list<array{0: float, 1: float, 2: float, 3: float}> $windows */
+    private function timedSong(array $windows): ServiceSection
+    {
+        config(['media-processing.storage.service_artifact_disk' => 'local']);
+        $section = $this->section('full', ['livestream']);
+        $path = 'service-transcripts/test-'.$section->processingLog->processing_id.'.classes.json';
+        Storage::disk('local')->put($path, AudioTimelineFixture::json($windows, 1000.0));
         $section->processingLog->forceFill(['audio_timeline_path' => $path])->save();
 
         return $section->fresh();

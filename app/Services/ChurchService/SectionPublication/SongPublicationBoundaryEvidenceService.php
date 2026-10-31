@@ -39,6 +39,7 @@ use Illuminate\Support\Facades\Storage;
  *     lyric_edges: list<array<string, mixed>>,
  *     looped_transcript: list<array<string, mixed>>,
  *     song_content: array<string, mixed>|null,
+ *     song_music: array<string, mixed>|null,
  *     speech_under_loop: array<string, mixed>|null,
  *     song_ends: list<array<string, mixed>>,
  *     inputs_fingerprint: string,
@@ -105,9 +106,11 @@ final class SongPublicationBoundaryEvidenceService
      * answered start took in. Records {@see SongQuietIntroduction} under `quiet_introduction`.
      * 11 (2026-10-25): S8 keeps decode loops as observations, never clip-review risks;
      * S9 lowers the automatic duration floor to 55 seconds.
+     * 12 (2026-10-31): records {@see SongSectionWithoutMusic} under `song_music`, so a clip the
+     * classifier hears no music in (992 §163678, the words read before the song) reaches a reviewer.
      * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
      */
-    public const VERSION = 11;
+    public const VERSION = 12;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
@@ -127,6 +130,7 @@ final class SongPublicationBoundaryEvidenceService
         private readonly SongLyricsOutsideSection $lyricsOutsideSection,
         private readonly SongLoopedTranscript $loopedTranscript,
         private readonly SongSectionWithoutSong $sectionWithoutSong,
+        private readonly SongSectionWithoutMusic $sectionWithoutMusic,
         private readonly SongSpeechUnderLoop $speechUnderLoop,
         private readonly SongOpeningAndClosing $openingAndClosing,
         private readonly SongQuietIntroduction $quietIntroduction,
@@ -176,6 +180,7 @@ final class SongPublicationBoundaryEvidenceService
                 'lyric_edges' => [],
                 'looped_transcript' => $looped,
                 'song_content' => null,
+                'song_music' => null,
                 'speech_under_loop' => null,
                 'song_ends' => [],
                 'quiet_introduction' => null,
@@ -252,6 +257,13 @@ final class SongPublicationBoundaryEvidenceService
             $risks[] = ['kind' => SongSectionWithoutSong::RISK_KIND, 'detail' => $songContent['detail']];
         }
 
+        $timeline = $this->audioTimeline($section);
+        $songMusic = $this->sectionWithoutMusic->observe($section, $timeline);
+
+        if (($songMusic['risk'] ?? false) === true) {
+            $risks[] = ['kind' => SongSectionWithoutMusic::RISK_KIND, 'detail' => $songMusic['detail']];
+        }
+
         $speechUnderLoop = $this->speechUnderLoop->observe($section, $inputs['loop_blocks'], $sound);
 
         if (($speechUnderLoop['risk'] ?? false) === true) {
@@ -275,7 +287,7 @@ final class SongPublicationBoundaryEvidenceService
         }
 
         $quietIntroduction = $inputs['transcript'] instanceof ChurchServiceTranscript
-            ? $this->quietIntroduction->observe($section, $inputs['transcript'], $this->audioTimeline($section))
+            ? $this->quietIntroduction->observe($section, $inputs['transcript'], $timeline)
             : null;
 
         if (($quietIntroduction['risk'] ?? false) === true) {
@@ -299,6 +311,7 @@ final class SongPublicationBoundaryEvidenceService
             'lyric_edges' => $lyricEdges,
             'looped_transcript' => $looped,
             'song_content' => $songContent,
+            'song_music' => $songMusic,
             'speech_under_loop' => $speechUnderLoop,
             'song_ends' => $songEnds,
             'quiet_introduction' => $quietIntroduction,

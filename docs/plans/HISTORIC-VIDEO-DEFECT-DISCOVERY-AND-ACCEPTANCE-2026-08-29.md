@@ -520,6 +520,24 @@ queue and route state are in the archive; a historical “final” label is not 
    0.01; every heard end ≥ 0.27 in its own window), so 992 alone of the 21 moves reverts. *Structure defect, new:* the
    round cut a song video of 992 §163678 (1565.38–1580.74) with no singing in it, against the music-span ruling (sung
    or wholly instrumental); no ruling or plan line covered it before.
+   **Both built 10-31 (operator: "Do both of those … shouldn't we measure across the whole corpus?").** *Guard:*
+   `speechOverMusic()` also needs music ≥ `MUSIC_UNDER_SPEECH` 0.2 in the line's window or the one before. Guard
+   fixtures captured `--current` (`storage/scratch/music-guard-fixtures-20261031/`): 992 §163678 back at 1580.74
+   (`song_end_silence`), 971 §1086 605.00, 1259 §3243 4370.80, 1363 §215989 3275.11 still at the line; the 10-23
+   fixtures of 992/1259/1363 take the older path from older evidence (992's to the same "together." cut, as
+   `song_end_fade`), so they could not test it. Test fails without the guard (992 at 1580.08). Replay of the 20 runs against the rule's (`diff.py`, `pilot-guard.jsonl`): 2 of 268 outputs change, 992 §163678 in both plan sets, 1580.08 → 1580.74; nothing else.
+   *Corpus measure* (`storage/scratch/song-sections-without-music-20261031/`, read-only, every run not superseded):
+   318 runs with song sections, 1,305 sections; **no weekly run has a classifier timeline** (all 72 weekly song
+   sections), so neither the F2 rule nor any music evidence reaches weekly runs today. Of 1,233 timed (all historic),
+   17 have no window with music ≥ `MUSIC_CUTOFF` (all ≤ 0.19; the next lowest has 0.40), 7 more under 25 % music
+   share. The 17 are not all spoken: 1252 "Happy Birthday", 1352 and 1138 §2121 "Unidentified singing", 938 "The
+   Lord's My Shepherd" are, by title, sung unaccompanied, which the classifier hears as speech or neither. So the
+   music score cannot tell a reading from singing, and **dropping the song video was not built**; instead
+   `SongSectionWithoutMusic` (risk `song_section_without_music`, boundary evidence `song_music`, VERSION 12,
+   catalogue `song-section-without-music`) holds any timed song clip with no music window for a reviewer. Of the
+   17, only 992 and 1381 §167073 reach a clip (`pending_approval`), both already held as `short_song_clip`, so no
+   decision changes today; the hold adds the diagnosis and stops a longer spoken item publishing itself. Banked
+   boundary evidence under VERSION 11 is stale until the backfill (operator's word) or the round re-assesses it.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and

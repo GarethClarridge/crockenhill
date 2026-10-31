@@ -28,6 +28,7 @@ use App\Services\ChurchService\SectionPublication\SongOpeningAndClosing;
 use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\SectionPublication\SongQuietIntroduction;
+use App\Services\ChurchService\SectionPublication\SongSectionWithoutMusic;
 use App\Services\ChurchService\SectionPublication\SongSectionWithoutSong;
 use App\Services\ChurchService\SectionPublication\SongSpeechUnderLoop;
 use App\Services\ChurchService\Structure\DeadFeedInsideSection;
@@ -926,6 +927,17 @@ class DetectorCatalogue
                 unit: DetectorUnit::Section,
                 summary: "Lyrics of this song are sung outside the section's bounds, so the cut lost part of the performance it claims.",
                 owningClass: SongLyricsOutsideSection::class,
+            ),
+            new DetectorEntry(
+                id: 'song-section-without-music',
+                surface: DetectorSurface::SongBoundaryEvidence,
+                signals: [SongSectionWithoutMusic::RISK_KIND],
+                status: DetectorStatus::Promoted,
+                severity: DetectorSeverity::WrongMetadata,
+                unit: DetectorUnit::Section,
+                summary: 'The classifier hears no music anywhere in the song clip: its words may be spoken rather than sung (992 §163678), or it may be sung unaccompanied (1252).',
+                owningClass: SongSectionWithoutMusic::class,
+                decision: 'Built 2026-10-31 as a review hold, not a drop: of 1,233 timed song sections 17 have no music window, and some are unaccompanied singing, which a music score cannot tell from speech.',
             ),
             new DetectorEntry(
                 id: 'song-possible-quiet-introduction',
