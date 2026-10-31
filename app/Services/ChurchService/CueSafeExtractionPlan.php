@@ -130,6 +130,14 @@ class CueSafeExtractionPlan
     private const SPEECH_OVER_MUSIC = 0.2;
 
     /**
+     * The classifier's music score from which that speech is over music, in the window the line
+     * opens in or the one before it (the music can stop as a window ends: 971, 1259, 1363, 0.60–0.69
+     * before). Every moved end has at least 0.22 (1104); 992 §163678, a song section of the leader
+     * reading the words with the recording ending before the singing, has 0.02.
+     */
+    private const MUSIC_UNDER_SPEECH = 0.2;
+
+    /**
      * How far before a song's end its singing may stop and speech start inside the section: the
      * window around the end reaches back over the cues touching it (1028 §1400's benediction
      * started 29 s before it, 1108 §1896's "Thank you, Aled" 15 s).
@@ -2342,7 +2350,8 @@ class CueSafeExtractionPlan
      * the cut (E7). Under music a decoded first word smears over seconds, and the silence the end
      * rule finds comes after the speech: 1243 §3024 ran on through "Let's join together in prayer.
      * Let's pray." to the quiet after it. A line opening in music alone has not shown speech there
-     * (1216 §2655's opens 6.5 s before it is said), so the end rule below stands.
+     * (1216 §2655's opens 6.5 s before it is said), so the end rule below stands; nor has a line
+     * with no music near it (992 §163678's "together." ends a spoken sentence).
      *
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}|null  $window  The window around the song's end
@@ -2372,7 +2381,8 @@ class CueSafeExtractionPlan
     }
 
     /**
-     * The first transcript line from a song's end, where the window it opens in holds speech.
+     * The first transcript line from a song's end, where the window it opens in holds speech and
+     * music is still playing there or in the window before.
      *
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return array{start: float, end: float, text: string}|null
@@ -2387,8 +2397,12 @@ class CueSafeExtractionPlan
             && $cue['start'] <= $end + self::SONG_END_REACH && TranscriptCueEvidence::hasWords($cue)));
         usort($after, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
         $window = $after !== [] ? $timeline->windowAt($after[0]['start']) : null;
+        if ($window === null || $timeline->windows[$window]['speech'] < self::SPEECH_OVER_MUSIC) {
+            return null;
+        }
+        $music = max($timeline->windows[$window]['music'], $window > 0 ? $timeline->windows[$window - 1]['music'] : 0.0);
 
-        return $window !== null && $timeline->windows[$window]['speech'] >= self::SPEECH_OVER_MUSIC ? $after[0] : null;
+        return $music >= self::MUSIC_UNDER_SPEECH ? $after[0] : null;
     }
 
     /**

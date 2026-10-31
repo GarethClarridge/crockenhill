@@ -180,6 +180,30 @@ class RuledEndingsRegressionTest extends RuledEndingsTestCase
         $this->assertContains('song_change_dip', array_column($after['cue_edge_widening'], 'reason'));
     }
 
+    /**
+     * Speech over a song's last music ends the song at its line (register E24) only where music is
+     * playing there or in the window before (10-31). 992's recording ends before "Restore, O Lord" is
+     * sung: its section is the leader reading the words and "Let's stand and sing this one through
+     * together." with no music anywhere, and its one-word line "together." ends that sentence, so the
+     * song keeps its end after it. In 971, 1259 and 1363 the music stops as a window ends and the
+     * speech opens the next: they still end at the speech's line.
+     */
+    #[Test]
+    #[TestWith(['guard-20261031-992-s163678-end', 163678, 1580.74, 'song_end_silence'])]
+    #[TestWith(['guard-20261031-971-s1086-end', 1086, 605.00, CueSafeExtractionPlan::SONG_END_SPEECH_OVER_MUSIC])]
+    #[TestWith(['guard-20261031-1259-s3243-end', 3243, 4370.80, CueSafeExtractionPlan::SONG_END_SPEECH_OVER_MUSIC])]
+    #[TestWith(['guard-20261031-1363-s215989-end', 215989, 3275.11, CueSafeExtractionPlan::SONG_END_SPEECH_OVER_MUSIC])]
+    public function speech_ends_a_song_at_its_line_only_over_music(string $name, int $sectionId, float $expected, string $reason): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3)."/Fixtures/RuledEndings/{$name}.json.gz")), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($log->serviceSections()->findOrFail($sectionId));
+
+        $this->assertEqualsWithDelta($expected, end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE);
+        $this->assertSame($reason, collect($plan['cue_edge_widening'])->last(static fn (array $entry): bool => $entry['edge'] === 'end')['reason']);
+    }
+
     #[Test]
     public function a_next_song_does_not_use_a_dip_when_the_previous_song_ends_at_speech(): void
     {
