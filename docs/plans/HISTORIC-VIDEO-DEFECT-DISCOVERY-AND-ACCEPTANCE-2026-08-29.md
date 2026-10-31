@@ -748,8 +748,17 @@ queue and route state are in the archive; a historical “final” label is not 
    residual); 2 move between two catalogue songs both titled "Great Is The Lord" (318/317; 977 §1009,
    1305 §3886: an OpenLP duplicate for curation); 1344 §4342's fuzzy title-hint match no longer stands
    (current policy). Refusals 27 → 22 and unassessable rulings 93 → 87 against the stand-in pass. No
-   provider call, job or file write in any pass. Separate finding, unmeasured: the projection recreates the run's own items
-   each round; check what an item carries that churn could lose before deciding it matters.
+   provider call, job or file write in any pass. Separate finding: the projection recreates the run's own items
+   each round. **Measured 10-31, harmless; nothing to build** (`storage/scratch/item-churn-20261031/`, read-only on
+   the replay's sections A/B and today's rows): 1,085 sections on 260 runs get a new item (433 prayers, 253 sermons,
+   182 talks, 157 readings, 30 notices, 18 songs, 12 welcomes). The 1,084 items they leave are all `livestream`-
+   sourced, in 259 services none of which has a reviewed canonical revision (reviewed services are staged, never
+   synced), and carry only projection output (`section_summary`, `source_evidence`, `livestream_projection`, 157
+   `scripture_reference`): no occurrence state or manual decision, no canonical identity, no usage report, no other
+   section's expected or matched item, no route. None has planned provenance, so none is in the ensemble prompt and
+   churn cannot change a draw's input hash. Of the 18 songs, 17 keep their song (several rebind from the run's item
+   to an email or OpenLP one); 977 §1009 is the "Great Is The Lord" duplicate above. Cost: ~1,084 soft-deleted rows
+   per round.
 4. **Dispose of residual misses** (rule decided 10-30: register E23 — measured class, no mend without breaking a heard-right edge, no substantive loss → recorded soft miss; 928's one word accepted under it). 928 still loses one word at a speech start over fading music;
    this is separate from its internal end in step 2. The measured class is 2 of 30 fade ends (928
    and 1220, the latter ruled either). Merely classifying mixed words as unsung does not fix 928's
@@ -871,7 +880,7 @@ queue and route state are in the archive; a historical “final” label is not 
    Step 5 unchanged: the round asks every K16 end afresh. **Step 4 of §4.1a is done; next is step 5 (validate, freeze).**
 5. **Validate, freeze and canary.** Before freezing: ≥ 10 GB free on the internal disk (step 3);
    the structure dispositions for 1273 §3416 and 1311 §4874 (done 10-31, step 3 (c)); the item-churn finding (step 3a) measured
-   or explicitly deferred; and the round's checklist naming the four songs that reset and need
+   or explicitly deferred (measured 10-31: harmless); and the round's checklist naming the four songs that reset and need
    re-approval after it (981 §1043, 1020 §1340, 1304 §3875, 1305 §3888) and the 126 re-cut sections.
    Focused tests, PHPStan, Pint and full parallel suite on final
    code; Dusk for browser behaviour. Follow runbook §§3/6 for live headroom, backups, frozen
