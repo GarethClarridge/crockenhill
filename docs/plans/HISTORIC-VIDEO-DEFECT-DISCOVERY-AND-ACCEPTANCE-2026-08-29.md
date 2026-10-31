@@ -887,6 +887,34 @@ queue and route state are in the archive; a historical “final” label is not 
    membership, worker revision and pause/resume. Inspect actual song-to-speech transitions and
    internal joins, and the audit's representative local acceptance journey before bulk expansion.
    Stop expansion on regressions or unassessable results. Acceptance follows the round, not its label.
+   **Round checklist (drafted 10-31; read-only checks run 10-31 20:00Z; nothing frozen, dispatched or backed up):**
+   - *Membership, 423 re-runs + 15 imports.* The 421 measured runs (`combined-measure-20261029/eligible-runs.txt`, 425
+     less the excluded 955, 1043, 1051, 1098), which hold all 96 runs of the 126 deleted clips (`deleted-clips.json`;
+     the diff must show each with a new recorded clip); **1377 and 1378**, handed back from retired 909 and 890, never
+     in the combined measurement (canary one of them); the **15 re-imported identities** through
+     `sermons:import-historic-videos --manifest … --only=<keys>` under operation 4 (883, 888, 908, 910–921's items;
+     release folds each cut into the kept published sermon, `RetiredRunReplacement`). Not members: 884, 893, 894
+     (keep their results), 1126, run 1.
+   - **Owed before the snapshot (finding 10-31): 1377 and 1378 are still superseded** (`superseded_at` set, by 909 and
+     890), so `rerun-extract` would refuse 1377 ("superseded or retired"); retirement superseded the weekly runs but
+     nothing re-ran the reconcile. `services:supersede-duplicate-runs --service=795 --service=790` (dry run) makes
+     1377 and 1378 the winners again; it needs `--execute` on the operator's word.
+   - *Routes.* `reExtract`, never recompose: 942, 974, 1363 (hand edits); 1378 (banked edge evidence invalid, runbook
+     §4.2). Held sermons by `sermons:re-extract --held-section`. Every K16 end is asked afresh (≈ 1,000 calls,
+     ≈ $0.50) by `TranscribeOutputEdges`, prayer-last sermons included.
+   - *After the round:* re-approve 981 §1043, 1020 §1340, 1304 §3875, 1305 §3888 (their spans change at detection);
+     check the 126 re-cut clips; compare decided K16 ends with `k16-reword-20261029/measured*.json` (redraw change
+     rate, §4.2) and send only flips that change a heard cut to listening; 977 §1009 / 1305 §3886 "Great Is The Lord"
+     duplicate for curation.
+   - *Freeze checks, 10-31 20:00Z:* git clean at `dbf6b2903`; `SPEAKER_IDENTIFICATION_ENABLED=false`; queues empty on
+     DB 0/1 (only `:notify` tokens), `failed_jobs` 517 (old; the watcher's baseline); main's workers booted 19:48:44Z,
+     after the last commit; internal disk 56 GiB free (Docker sees 57 GiB), Staging 485 GiB, **Sonnics 53 GiB (98 %
+     full)** against a backup of ≈ 14 GiB private storage plus the dump; Staging and Sonnics at 5 Gb/s, Staging read
+     168 MB/s; clone `../crockenhill-round` at `8189bfdea` (150 commits behind; lockfiles unchanged, so `vendor/`
+     stands), `sail-8.4/app` present, `docker-compose.round.yml` tracked. Re-measure all of it immediately before the
+     freeze (runbook §6).
+   - *Then, each on the operator's word:* the reconcile above; backup (dump + private storage + binlogs, SHA-256, to
+     Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
