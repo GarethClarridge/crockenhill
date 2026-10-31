@@ -643,6 +643,14 @@ queue and route state are in the archive; a historical “final” label is not 
    runs (908, 909, 911, 913, 917, 918, 920, 921), 890's four are quarantined; the 13 published sermons have no
    `asset_disk` (public default) and no operation. *Left:* apply the 17 retirements (operator's word), then the
    round. Release itself runs only where the round's release runs; nothing here publishes.
+   **Retirements APPLIED 10-31 (operator: "Apply it")** to operation 4 (`weekly-retire-census-20261031/
+   retire-apply-17.txt`): 17 runs retired and superseded, 13 published sermons kept awaiting replacement (842, 851,
+   858–867, 870), 857 withdrawn (4 files under `quarantine/superseded/<operation>/857/` with `retirement.json`;
+   1377's `sermon_id` nulled by the foreign key, so its re-run cuts its own), none of the 17 still blocks its
+   identity, 884/893/894 untouched. Before applying, the Staging drive's Docker bind had gone stale after the drives
+   were unplugged (owner-only folders read as empty in every container); `diskutil verifyVolume` plus a Docker
+   Desktop restart cleared it. *Next:* the 15 re-imported identities and the 1377/1378 re-runs ride in the next
+   round (processing on the operator's word).
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
