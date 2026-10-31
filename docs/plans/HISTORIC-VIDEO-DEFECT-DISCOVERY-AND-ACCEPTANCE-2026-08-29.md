@@ -609,9 +609,12 @@ queue and route state are in the archive; a historical “final” label is not 
    `11-04.mkv` (1189's 1,840 s sermon-only file, set aside as `duplicate_recording`) and `2024-11-17-morning` →
    `11-02.mkv` (1126's 2,106 s sermon capture) — so a re-import would lose each service's songs and, for 893, re-run
    the file X6 set aside. Their full 720p recordings survive on `historic_temp` (sizes equal; no hash was recorded).
-   890's item (`10-31.mkv`, 1378's full 1080p recording) is sound. Owed (operator): 893 and 894 either keep their
-   10-15 results and stay out, or their items are corrected to the full recordings like 884 (894's re-import would
-   then adopt 1126's 1080p sermon by the existing rule, as X6 wants).
+   890's item (`10-31.mkv`, 1378's full 1080p recording) is sound. **Decided (operator 10-31): correct both items
+   to the full recordings, like 884,** then retire and re-import; 893 cuts its own sermon (1189 stays excluded) and
+   894's re-import adopts 1126's 1080p sermon by the existing rule, as X6 wants. *Next (awaits go):* the manifest
+   correction for 884, 893 and 894 (measure how a corrected item reaches a round under operation 4's hash binding,
+   find 884's `10-33.mkv`, hash the two `historic_temp` copies), then step 3, release replacing a kept sermon and the
+   published sections. Apply the retirement (19 runs plus 918) only after both, on the operator's word.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
