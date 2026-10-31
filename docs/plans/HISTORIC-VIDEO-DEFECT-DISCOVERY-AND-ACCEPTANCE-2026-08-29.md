@@ -615,6 +615,17 @@ queue and route state are in the archive; a historical “final” label is not 
    correction for 884, 893 and 894 (measure how a corrected item reaches a round under operation 4's hash binding,
    find 884's `10-33.mkv`, hash the two `historic_temp` copies), then step 3, release replacing a kept sermon and the
    published sections. Apply the retirement (19 runs plus 918) only after both, on the operator's word.
+   **Superseded the same day — manifest correction is not possible under operation 4.** The importer's lock per
+   item is `historic-video\0{manifestHash}\0{item_key}` (`HistoricVideoImporter::manifestItemDedupKey`), so an
+   amended manifest re-keys all 474 items; and a *completed* own run counts as done even when superseded
+   (`completedOwnJobKeys`), so `2024-01-21-morning` (1189) and `2024-11-17-morning` (1126) can never dispatch
+   again. Operation 4 runs per identity: 1378 (890's, full `10-31.mkv`, 1080p), 1189 (893's, excluded), 1126
+   (894's), 1377 (909's, full `10-31.mkv`, 1080p), each superseded by reconcile in favour of the weekly run; the
+   other 16 identities have none. **Decided (operator 10-31): 893 and 894 keep their 10-15 results and are not
+   retired; 884 is left out** (keeps its July cut from the 4.7 GB master; the 884/893/894 corrections above are
+   withdrawn). **Retirement set, 17:** re-imported — 883, 888, 908, 910, 911, 912, 913, 914, 915, 916, 917, 918,
+   919, 920, 921; handed back to their operation 4 run, which the round re-runs as an ordinary member — 890 (→ 1378)
+   and 909 (→ 1377). Note 1377 still points at 909's sermon 857 (`sermon_id`), which retirement withdraws.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
