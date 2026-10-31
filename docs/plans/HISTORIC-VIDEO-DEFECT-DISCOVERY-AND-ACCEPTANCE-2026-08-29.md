@@ -541,6 +541,28 @@ queue and route state are in the archive; a historical “final” label is not 
    17, only 992 and 1381 §167073 reach a clip (`pending_approval`), both already held as `short_song_clip`, so no
    decision changes today; the hold adds the diagnosis and stops a longer spoken item publishing itself. Banked
    boundary evidence under VERSION 11 is stale until the backfill (operator's word) or the round re-assesses it.
+   **Step 3b, weekly runs join the round — PLANNED 10-31, awaits go** (operator: weekly processing "should be the
+   same as the historic processing"; chose "join the historic rounds"). The chain is already shared; the runs are
+   not. *Population* (live, non-historic livestream runs): 23. Completed with songs and never re-run since
+   July (no timeline, no edge decodes, no K16): **884, 888, 908, 909, 910, 911, 912, 913, 914, 916, 917, 920, 921**
+   (13); retried on 10-15 code in the follow-up round (X6), so they have a timeline but none of the rules since:
+   890, 893, 894; failed: 918 (3 songs, sermon 865), 915, 919 (identities they hold shut), 882, 904; no songs: 883
+   (sermon 842), run 1. Archived audio is recorded for 13 of the 17 with songs; 884, 888, 914 have none.
+   *Owed before any build (operator):* (i) **this reverses the 09-04 decision** on 14 of them ([Findings
+   2026-09-04] §16: "leave the 14 skipped and repair them where they stand rather than superseding them back into
+   the pass"); confirm that the 10-31 choice replaces it. (ii) Their sermons are published (843, 851, 857–867,
+   870), and a weekly-lane run's outputs go to the public disks and may auto-publish; a round output is
+   quarantined until release. A round re-run of a weekly run must take historic custody (quarantine, no
+   auto-publish) whatever its lane. This machine is not production, so a local round changes only local copies.
+   *Steps, each measured first and waiting for go:* (1) read-only census per run: audio and video source present
+   and the same recording the run used (the three missing audio records re-attached by
+   `BackfillAudioTimeline`'s exact-name rule or refused), service identity against the manifest (X6 adoptions, the
+   superseded historic duplicates 1126/1189/1377/1378); (2) membership: the round's eligible set gains these runs,
+   recorded with their lane; (3) the re-run actions (`RetranscribeForCorpusRerun`, `RedetectForCorpusRerun`,
+   `RecomposeForCorpusRerun`, `ExtractForCorpusRerun`) accept a run without a historic staging context, reading
+   its source from where its own lane stored it; (4) custody: a corpus re-run's outputs are quarantined and never
+   auto-published, keyed on the corpus re-run stamp, not on `historic_import_operation_id`; (5) tests for each,
+   then a guarded rolled-back replay of the 17 (`measure.php` route) before they ride in a round.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
