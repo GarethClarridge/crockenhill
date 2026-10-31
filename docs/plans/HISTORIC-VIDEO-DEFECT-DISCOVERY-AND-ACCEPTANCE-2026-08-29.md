@@ -541,28 +541,41 @@ queue and route state are in the archive; a historical “final” label is not 
    17, only 992 and 1381 §167073 reach a clip (`pending_approval`), both already held as `short_song_clip`, so no
    decision changes today; the hold adds the diagnosis and stops a longer spoken item publishing itself. Banked
    boundary evidence under VERSION 11 is stale until the backfill (operator's word) or the round re-assesses it.
-   **Step 3b, weekly runs join the round — PLANNED 10-31, awaits go** (operator: weekly processing "should be the
-   same as the historic processing"; chose "join the historic rounds"). The chain is already shared; the runs are
-   not. *Population* (live, non-historic livestream runs): 23. Completed with songs and never re-run since
-   July (no timeline, no edge decodes, no K16): **884, 888, 908, 909, 910, 911, 912, 913, 914, 916, 917, 920, 921**
-   (13); retried on 10-15 code in the follow-up round (X6), so they have a timeline but none of the rules since:
-   890, 893, 894; failed: 918 (3 songs, sermon 865), 915, 919 (identities they hold shut), 882, 904; no songs: 883
-   (sermon 842), run 1. Archived audio is recorded for 13 of the 17 with songs; 884, 888, 914 have none.
-   *Owed before any build (operator):* (i) **this reverses the 09-04 decision** on 14 of them ([Findings
-   2026-09-04] §16: "leave the 14 skipped and repair them where they stand rather than superseding them back into
-   the pass"); confirm that the 10-31 choice replaces it. (ii) Their sermons are published (843, 851, 857–867,
-   870), and a weekly-lane run's outputs go to the public disks and may auto-publish; a round output is
-   quarantined until release. A round re-run of a weekly run must take historic custody (quarantine, no
-   auto-publish) whatever its lane. This machine is not production, so a local round changes only local copies.
-   *Steps, each measured first and waiting for go:* (1) read-only census per run: audio and video source present
-   and the same recording the run used (the three missing audio records re-attached by
-   `BackfillAudioTimeline`'s exact-name rule or refused), service identity against the manifest (X6 adoptions, the
-   superseded historic duplicates 1126/1189/1377/1378); (2) membership: the round's eligible set gains these runs,
-   recorded with their lane; (3) the re-run actions (`RetranscribeForCorpusRerun`, `RedetectForCorpusRerun`,
-   `RecomposeForCorpusRerun`, `ExtractForCorpusRerun`) accept a run without a historic staging context, reading
-   its source from where its own lane stored it; (4) custody: a corpus re-run's outputs are quarantined and never
-   auto-published, keyed on the corpus re-run stamp, not on `historic_import_operation_id`; (5) tests for each,
-   then a guarded rolled-back replay of the 17 (`measure.php` route) before they ride in a round.
+   **Step 3b, weekly runs join the round by retire and re-import — PLANNED 10-31 (route revised), awaits go**
+   (operator: weekly processing "should be the same as the historic processing"; chose "join the historic rounds",
+   then "retire and re-import sounds sensible" over teaching the round tools a second kind of run). The chain is
+   already shared; the runs are not. *Why they were skipped:* [Findings 2026-09-04] §15: a live completed weekly run
+   holds its identity shut (`checkExistence` skips it as done), `historic-import:retire-run` takes only a historic
+   run, and re-processing published services was a content change; §16 recorded the operator's choice to repair in
+   place. The 10-31 choice replaces §16. *Population* (live, non-historic livestream runs): 23. Completed with songs
+   and never re-run since July: **884, 888, 908, 909, 910, 911, 912, 913, 914, 916, 917, 920, 921** (13); retried on
+   10-15 code (X6), with superseded historic duplicates beside them: 890 (adopts 1378's sermon 869), 893 (own sermon
+   1310 over 1189), 894 (adopts 1126's sermon 1051); failed: 918 (3 songs, sermon 865), 915, 919 (identities they
+   hold shut), 882, 904; no songs: 883 (sermon 842), run 1. 909's sermon 857 is quarantined; 1377, its historic
+   duplicate, was superseded 09-07.
+   *What the record shows (read-only, 10-31):* a historic re-import of a weekly service lands on the same church
+   service and **cuts a second sermon** (1126 → 1051 beside 894's; 1378 → 869 beside 890's), and
+   `BetterSermonRecording` settles which one the service keeps only when one recording is better; same-quality
+   copies are not settled. Retirement **refuses a published sermon** (`HistoricSermonWithdrawal::guardWithdrawable`)
+   because it deletes the row, and 13 of the 17 sermons are published (843, 851, 858–867, 870). R11 already says a
+   published sermon's edge may not be set.
+   *Owed (operator), before any build:* what happens to a published sermon. **A (recommended):** retiring a weekly
+   run with a published sermon supersedes the run and leaves the sermon live; the re-import adopts that sermon as
+   894 adopted 1051 and cuts none, so songs, talks and structure get the round's full treatment and the published
+   sermon is untouched (consistent with R11; the K16 reword and sermon-end rules do not reach these 13). **B:** the
+   re-import cuts a new quarantined sermon, and release replaces the published one, keeping its slug and URL — a
+   new path that sets a published sermon's edge, so it needs R11 amended.
+   *Steps, each measured first and waiting for go:* (1) read-only census per identity: manifest item present, its
+   source the same recording the weekly run used (hash or size and duration), the round's dispatch resolution
+   (`skip-exists` / `skip-pending-review` today); 890/893/894 checked against their X6 adoptions. (2) Retirement for
+   a non-historic run: `retire-run` (or a sibling) accepts a live weekly livestream run with no operation, records
+   the retirement, supersedes it, and under A keeps a published sermon in place (a non-published sermon is withdrawn
+   as now); 915 and 919 the same. Tests first. (3) Adoption: the re-import adopts the retired weekly run's published
+   sermon (A) instead of cutting a second, extending `BetterSermonRecording`'s rule to "a retired run's published
+   sermon for this service". Tests first. (4) A rolled-back replay of one identity end to end, disks read-only, then
+   the census again. (5) The identities ride in the next round as ordinary historic items: membership, custody
+   (quarantine, no auto-publish) and the re-run actions need no change. This machine is not production, so a local
+   round changes only local copies.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and
