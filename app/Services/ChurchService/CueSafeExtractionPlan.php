@@ -366,6 +366,15 @@ class CueSafeExtractionPlan
         // K16: a sermon followed by a song ends where the banked introduction answer says.
         $introduction = $sermonEnd ? app(SermonSongIntroductionCheck::class) : null;
         $introductionJoin = $introduction?->join($log, $spans);
+        // The output as composed: the K16 question and the operator's answers are about it.
+        $composedSpans = $spans;
+        $introductionAnswer = $introductionJoin === null ? null : $introduction->read($log, $composedSpans);
+        $keptLine = $introductionAnswer === null ? null : $this->whereKeptLineWasHeard($log, $cues, $introductionAnswer, $introductionJoin['end']);
+        // 962: the answer ends the sermon at its own last line, before a part of its own that follows
+        // (the Lord's Prayer); the video ends there, so a part the end falls before is not in it.
+        while (($keptLine['end'] ?? null) !== null && count($spans) > 1 && $keptLine['end'] <= $spans[array_key_last($spans)]['start_time'] + 0.001) {
+            array_pop($spans);
+        }
         $last = array_key_last($spans);
         $sectionSpans = $spans;
         $audit = [];
@@ -389,8 +398,8 @@ class CueSafeExtractionPlan
                     $besideSong = true;
                     // Never asked is evidence not yet gathered, as undecoded words are: the edge
                     // step asks before it decodes. Asked with no line named leaves it to the operator.
-                    $songIntroduction = $this->whereKeptLineWasHeard($log, $cues, $introduction->read($log, $sectionSpans)
-                        ?? throw new OutputEdgeTimingsMissing(sprintf('edge_word_timings_missing: run %s has no answer on where its sermon ends beside the song (K16)', $log->processing_id)), $introductionJoin['end']);
+                    $songIntroduction = $keptLine
+                        ?? throw new OutputEdgeTimingsMissing(sprintf('edge_word_timings_missing: run %s has no answer on where its sermon ends beside the song (K16)', $log->processing_id));
                     $thoughtComplete = ($songIntroduction['end'] ?? null) !== null;
                     if ($thoughtComplete && abs($songIntroduction['end'] - $original) > 0.001) {
                         [$movedFrom, $original] = [$original, $songIntroduction['end']];
@@ -531,7 +540,7 @@ class CueSafeExtractionPlan
         } else {
             $spans = $this->withDeadFeedOpeningCheck($log, $cues, $spans, $audit);
         }
-        $audit = $this->withAnswerIdentity($log, $sectionSpans, $songEnds, $sermonEnd, $cues, $levels, $timeline, $audit);
+        $audit = $this->withAnswerIdentity($log, $composedSpans, $songEnds, $sermonEnd, $cues, $levels, $timeline, $audit);
         $spans = $this->withAnsweredEdges($log, $spans, $audit);
         $spans = $this->withUnresolvedIntervals($log, $sectionSpans, $spans, $audit);
         $spans = $this->withOperatorEdges($log, $sectionSpans, $spans, $audit, $edgeAnswers);

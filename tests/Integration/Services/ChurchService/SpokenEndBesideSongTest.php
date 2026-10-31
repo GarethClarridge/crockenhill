@@ -369,6 +369,39 @@ class SpokenEndBesideSongTest extends TestCase
     }
 
     /**
+     * 962 (K16 reword, 2026-10-31): the sermon output takes in the Lord's Prayer as a part of its own,
+     * and the answer ends the sermon at its own last line, before that part starts (operator 10-29:
+     * either 3757.1 or through the prayer). The video ends there; the part the end falls before is
+     * dropped, not cut back to a span that ends before it starts.
+     */
+    #[Test]
+    public function an_end_before_a_trailing_part_drops_that_part(): void
+    {
+        $log = $this->service([
+            ['start' => 3750.0, 'end' => 3754.0, 'text' => 'This is the hope we have in Christ.'],
+            ['start' => 3754.0, 'end' => 3757.1, 'text' => "Let's pray together."],
+            ['start' => 3758.5, 'end' => 3762.0, 'text' => 'Our Father, who art in heaven,'],
+            ['start' => 3795.0, 'end' => 3801.5, 'text' => 'for ever and ever. Amen.'],
+            ['start' => 3803.0, 'end' => 3806.0, 'text' => 'Lord, teach us how to pray aright'],
+        ], [['sermon', 1956.64, 3757.86], ['prayer', 3757.86, 3802.0], ['song', 3802.41, 4030.64]],
+            timeline: [[3700, 3802, 0.01, 0.8], [3802, 4030, 0.8, 0.02]]);
+        $spans = [['start_time' => 1956.64, 'end_time' => 3757.86], ['start_time' => 3757.86, 'end_time' => 3802.0]];
+        $this->introduction($log, $spans, [2, false, 2], [2, false, 2]);
+        $this->bank($log, 3757.1, [
+            ['start' => 3755.2, 'end' => 3755.9, 'word' => ' pray'],
+            ['start' => 3756.0, 'end' => 3757.05, 'word' => ' together.'],
+            ['start' => 3758.5, 'end' => 3758.8, 'word' => ' Our'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log, $spans, sermonEnd: true);
+
+        $this->assertCount(1, $plan['segments']);
+        $this->assertSame(1956.64, $plan['segments'][0]['start_time']);
+        $this->assertGreaterThanOrEqual(3757.05, $plan['segments'][0]['end_time']);
+        $this->assertLessThan(3758.5, $plan['segments'][0]['end_time']);
+    }
+
+    /**
      * Never asked is evidence not yet gathered, as undecoded words are: the plan waits for the
      * edge step, which asks before it decodes. A re-cut route that plans first (`sermons:re-extract`)
      * therefore goes on to the edge step instead of refusing the run.
