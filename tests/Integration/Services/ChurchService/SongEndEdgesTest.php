@@ -834,6 +834,49 @@ class SongEndEdgesTest extends TestCase
         $this->assertLessThanOrEqual(435.64, $plan['segments'][0]['end_time']);
     }
 
+    /**
+     * 1243 §3024 (heard 10-30, register E24): "Let's join together in prayer. Let's pray." is said over
+     * the last of the music, in a window the classifier hears as music and speech at once (0.42, 0.38),
+     * and the quiet comes only after "pray". Speech after a song belongs to the next item: the song
+     * ends as the speech starts and its music fades out under the cut. Heard faded, right; the cut at
+     * the quiet ("neither" as a hard cut) took the whole line.
+     */
+    #[Test]
+    public function a_song_ends_where_speech_starts_over_its_last_music_and_fades(): void
+    {
+        $sung = ['start' => 321.64, 'end' => 328.92, 'text' => 'Your love is gracious, O my God.'];
+        $invitation = ['start' => 331.06, 'end' => 334.72, 'text' => "Let's join together in prayer. Let's pray."];
+        $prayer = ['start' => 340.64, 'end' => 345.74, 'text' => 'Lord, as we sit here on another Sunday morning,'];
+        $section = $this->song(191.23, 328.92, [$sung, $invitation, $prayer],
+            [[300, 334.8, self::LOUD], [334.8, 340.5, self::SILENT], [340.5, 360, -30.0]],
+            timeline: [[300, 330, 0.75, 0.01], [330, 335, 0.42, 0.38], [335, 340, 0.01, 0.02], [340, 360, 0.01, 0.84]]);
+        $this->bank($section, 328.92, [
+            ['start' => 326.22, 'end' => 328.38, 'word' => ' gracious,'],
+            ['start' => 328.38, 'end' => 328.81, 'word' => ' oh'],
+            ['start' => 328.81, 'end' => 329.24, 'word' => ' my'],
+            ['start' => 329.24, 'end' => 329.91, 'word' => ' God.'],
+            ['start' => 330.22, 'end' => 332.06, 'word' => " Let's"],
+            ['start' => 332.06, 'end' => 333.24, 'word' => ' join'],
+            ['start' => 333.24, 'end' => 333.60, 'word' => ' together'],
+            ['start' => 333.60, 'end' => 333.82, 'word' => ' in'],
+            ['start' => 333.82, 'end' => 334.14, 'word' => ' prayer.'],
+            ['start' => 334.26, 'end' => 334.38, 'word' => " Let's"],
+            ['start' => 334.42, 'end' => 334.74, 'word' => ' pray.'],
+        ]);
+        $this->bank($section, 340.64, [
+            ['start' => 340.64, 'end' => 340.67, 'word' => ' Lord,'],
+            ['start' => 340.78, 'end' => 341.01, 'word' => ' as'],
+            ['start' => 341.01, 'end' => 341.35, 'word' => ' we'],
+        ]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta(331.06, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame(CueSafeExtractionPlan::SONG_END_SPEECH_OVER_MUSIC, $this->endEdge($plan)['reason']);
+        // The fade spans the gap from the last sung sound ("God." to 329.91), at least 1.5 s.
+        $this->assertEqualsWithDelta(1.5, $plan['audio_fade_out'], 0.001);
+    }
+
     /** @param array{cue_edge_widening: list<array<string, mixed>>} $plan
      * @return array<string, mixed>
      */

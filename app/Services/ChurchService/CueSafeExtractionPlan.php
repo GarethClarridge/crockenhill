@@ -122,6 +122,14 @@ class CueSafeExtractionPlan
     private const SONG_END_FADE_MAX = 4.0;
 
     /**
+     * The classifier's speech score from which the window a transcript line opens in holds speech
+     * over a song's last music. The five song ends heard right at the line's start with the fade
+     * opened in windows of 0.25–0.49; the lines that open before anyone speaks (1012, 1111, 1216),
+     * in 0.00–0.08. Over the round, any value from 0.1 to 0.25 moves the same ruled ends.
+     */
+    private const SPEECH_OVER_MUSIC = 0.2;
+
+    /**
      * How far before a song's end its singing may stop and speech start inside the section: the
      * window around the end reaches back over the cues touching it (1028 §1400's benediction
      * started 29 s before it, 1108 §1896's "Thank you, Aled" 15 s).
@@ -190,6 +198,12 @@ class CueSafeExtractionPlan
      * deliberate, so the cut is no longer a question.
      */
     public const SONG_END_FADE = 'song_end_fade';
+
+    /**
+     * The audit reason for a song end where speech starts over its last music: the end is the
+     * speech's first transcript line, and the music under it fades ({@see self::songEnd()}).
+     */
+    public const SONG_END_SPEECH_OVER_MUSIC = 'song_end_speech_over_music';
 
     /**
      * The audit reason for a cut widened over speech recovery left without words (F11): it goes
@@ -912,7 +926,7 @@ class CueSafeExtractionPlan
             $window = app(OutputEdgeWordTimings::class)->timingWindow($cues, $songEnd, $log->duration);
             $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log));
 
-            if (! in_array($decision['reason'] ?? null, ['song_end_silence', 'song_end_speech', self::SONG_END_FADE], true)) {
+            if (! in_array($decision['reason'] ?? null, ['song_end_silence', 'song_end_speech', self::SONG_END_FADE, self::SONG_END_SPEECH_OVER_MUSIC], true)) {
                 continue;
             }
 
@@ -1111,9 +1125,16 @@ class CueSafeExtractionPlan
                 return $spans;
             }
             $previousEnd = $previousPlan['segments'] === [] ? null : end($previousPlan['segments'])['end_time'];
-            if ($previousEnd === null || abs($previousEnd - $dip['time']) > self::CUE_BOUNDARY_TOLERANCE
-                || ! array_any($previousPlan['cue_edge_widening'], static fn (array $entry): bool => $entry['edge'] === 'end'
-                    && $entry['reason'] === 'song_change_dip' && abs($entry['time'] - $dip['time']) <= self::CUE_BOUNDARY_TOLERANCE)) {
+            $endsAtDip = $previousEnd !== null && abs($previousEnd - $dip['time']) <= self::CUE_BOUNDARY_TOLERANCE
+                && array_any($previousPlan['cue_edge_widening'], static fn (array $entry): bool => $entry['edge'] === 'end'
+                    && $entry['reason'] === 'song_change_dip' && abs($entry['time'] - $dip['time']) <= self::CUE_BOUNDARY_TOLERANCE);
+            // A song ending at speech over its last music, before the dip, leaves the dip as where the
+            // next song's introduction starts: 1272's "Bless you." (heard 10-30) and §3404 at 885.5 (10-21).
+            // Speech the song ends at otherwise keeps the next song's own start (977 §1005).
+            $endsAtSpeechBeforeDip = $previousEnd !== null && $previousEnd <= $dip['time'] + self::CUE_BOUNDARY_TOLERANCE
+                && array_any($previousPlan['cue_edge_widening'], static fn (array $entry): bool => $entry['edge'] === 'end'
+                    && $entry['reason'] === self::SONG_END_SPEECH_OVER_MUSIC);
+            if (! $endsAtDip && ! $endsAtSpeechBeforeDip) {
                 return $spans;
             }
         }
@@ -2315,6 +2336,62 @@ class CueSafeExtractionPlan
     }
 
     /**
+     * Speech after a song belongs to the next item (operator, 2026-10-30, register E24): where the
+     * first transcript line from the song's end opens in a window the classifier hears speech in,
+     * even under the music, the song ends at that line, and the music still playing fades out under
+     * the cut (E7). Under music a decoded first word smears over seconds, and the silence the end
+     * rule finds comes after the speech: 1243 §3024 ran on through "Let's join together in prayer.
+     * Let's pray." to the quiet after it. A line opening in music alone has not shown speech there
+     * (1216 §2655's opens 6.5 s before it is said), so the end rule below stands.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}|null  $window  The window around the song's end
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
+     * @return array<string, mixed>|null
+     */
+    private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline): ?array
+    {
+        $decision = $this->songEndBySoundOrSpeech($log, $cues, $window, $end, $levels, $timeline);
+        $line = $decision !== null ? $this->speechOverMusic($cues, $end, $timeline) : null;
+
+        if ($line === null || $decision['time'] <= $line['start'] + self::CUE_BOUNDARY_TOLERANCE) {
+            return $decision;
+        }
+
+        $lastSound = $end;
+        $words = $window !== null ? $this->withWindow(app(OutputEdgeWordTimings::class)->read($log, $window)['words'], $window) : [];
+
+        foreach ($words as $word) {
+            if ($word['end'] <= $line['start'] && $this->isSung($word, $timeline)) {
+                $lastSound = max($lastSound, $word['end']);
+            }
+        }
+
+        return ['time' => $line['start'], 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
+            'reason' => self::SONG_END_SPEECH_OVER_MUSIC, 'speech_cue' => $line, 'fade_out' => $this->fadeOut($line['start'], $lastSound)];
+    }
+
+    /**
+     * The first transcript line from a song's end, where the window it opens in holds speech.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @return array{start: float, end: float, text: string}|null
+     */
+    private function speechOverMusic(array $cues, float $end, ?AudioTimeline $timeline): ?array
+    {
+        if ($timeline === null) {
+            return null;
+        }
+
+        $after = array_values(array_filter($cues, static fn (array $cue): bool => $cue['start'] >= $end - self::SONG_END_LEAD
+            && $cue['start'] <= $end + self::SONG_END_REACH && TranscriptCueEvidence::hasWords($cue)));
+        usort($after, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+        $window = $after !== [] ? $timeline->windowAt($after[0]['start']) : null;
+
+        return $window !== null && $timeline->windows[$window]['speech'] >= self::SPEECH_OVER_MUSIC ? $after[0] : null;
+    }
+
+    /**
      * A song ends when someone starts talking or at silence, whichever comes first (operator,
      * 2026-10-06), not at its last word: a sung last word is held, and the outro has no words at
      * all. Silence is the run's level below its threshold for a second after the song's last
@@ -2337,7 +2414,7 @@ class CueSafeExtractionPlan
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
      * @return array<string, mixed>|null
      */
-    private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline): ?array
+    private function songEndBySoundOrSpeech(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline): ?array
     {
         $evidence = app(OutputEdgeWordTimings::class);
         $singing = $this->singingStops($timeline, $end);

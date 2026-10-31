@@ -113,14 +113,18 @@ class RuledEndingsRegressionTest extends RuledEndingsTestCase
         $this->assertEqualsWithDelta(1706.0, end($plan['segments'])['end_time'], self::FIDELITY_TOLERANCE, json_encode($plan['cue_edge_widening'], JSON_THROW_ON_ERROR));
     }
 
-    /** 1012, 1088 and 946 end at the silence after the band stops: B or either on the Song End Silence page (10-28). */
+    /**
+     * 1012, 1088 and 946 end at the silence after the band stops: B or either on the Song End Silence page (10-28).
+     * 946's "Well, let's pray again." opens over the last music, so it ends there, faded (register E24): its
+     * earlier either point, 378.52.
+     */
     #[Test]
     #[TestWith(['listening-held-word-20261021-1211-s175128-end', 175128, 4387.835])]
     #[TestWith(['canary13-041-1250-end', 3124, 421.82])]
     #[TestWith(['listening-held-word-20261021-1012-s1291-end', 1291, 997.466])]
     #[TestWith(['listening-held-word-20261021-1023-s1364-end', 1364, 2500.34])]
     #[TestWith(['listening-held-word-20261021-1088-s1778-end', 1778, 545.327])]
-    #[TestWith(['listening-held-word-20261021-946-s780-end', 780, 379.699])]
+    #[TestWith(['listening-held-word-20261021-946-s780-end', 780, 378.52])]
     #[TestWith(['listening-held-word-20261021-1213-s175130-end', 175130, 4330.48])]
     public function song_ends_distinguish_held_words_from_the_following_speech(string $name, int $sectionId, float $expected): void
     {
@@ -140,7 +144,6 @@ class RuledEndingsRegressionTest extends RuledEndingsTestCase
     #[TestWith(['run-1267-2026-10-23', 3347, 3348])]
     #[TestWith(['run-1267-2026-10-23', 3348, 3349])]
     #[TestWith(['run-1267-2026-10-23', 3349, 3350])]
-    #[TestWith(['run-1272-2026-10-23', 3403, 3404])]
     #[TestWith(['run-1307-2026-10-23', 4652, 4653])]
     public function the_next_song_starts_at_the_previous_songs_change_dip(string $name, int $beforeId, int $afterId): void
     {
@@ -153,6 +156,28 @@ class RuledEndingsRegressionTest extends RuledEndingsTestCase
 
         $this->assertContains('song_change_dip', array_column($before['cue_edge_widening'], 'reason'));
         $this->assertEqualsWithDelta(end($before['segments'])['end_time'], $after['segments'][0]['start_time'], self::FIDELITY_TOLERANCE);
+    }
+
+    /**
+     * 1272: "Bless you." is said over the last of "Father God I Wonder" (heard 10-30: the song ends
+     * there, faded, register E24), and "Great Is Thy Faithfulness" opens at the dip after it (heard
+     * 10-21: 885.5). The dip still marks where the next song's introduction starts; without it the
+     * song's own start rule took its first line.
+     */
+    #[Test]
+    public function the_next_song_starts_at_the_dip_after_speech_over_the_previous_songs_music(): void
+    {
+        $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/run-1272-2026-10-23.json.gz')), true, flags: JSON_THROW_ON_ERROR);
+        $log = $this->rebuild($fixture);
+        $planner = app(CueSafeExtractionPlan::class);
+
+        $before = $planner->forSection($log->serviceSections()->findOrFail(3403));
+        $after = $planner->forSection($log->serviceSections()->findOrFail(3404));
+
+        $this->assertEqualsWithDelta(882.98, end($before['segments'])['end_time'], self::FIDELITY_TOLERANCE);
+        $this->assertSame(CueSafeExtractionPlan::SONG_END_SPEECH_OVER_MUSIC, collect($before['cue_edge_widening'])->last(static fn (array $entry): bool => $entry['edge'] === 'end')['reason']);
+        $this->assertEqualsWithDelta(885.5, $after['segments'][0]['start_time'], self::FIDELITY_TOLERANCE);
+        $this->assertContains('song_change_dip', array_column($after['cue_edge_widening'], 'reason'));
     }
 
     #[Test]

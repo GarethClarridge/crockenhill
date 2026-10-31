@@ -424,7 +424,7 @@ queue and route state are in the archive; a historical “final” label is not 
    bounded, 3 change, all ends that finished their last word: **1193 889.00 → 889.43**, 1031 462.72 → 463.90 (after
    "joy.", which 462.72 cut into), 1375 1318.00 → 1318.86 (after "life."). Register: 1375's review end superseded
    (keep 1318.86), 1031 gains 463.90 beside the operator's either points. Tests: 1193 and the 1273 guard.
-   **Defect-fix plan status 10-30:** F7, F4, F6 done; F1 closed (no defect); F2/F3 confirmed, evidence plan awaits go;
+   **Defect-fix plan status 10-30:** F7, F4, F6 done; F1 closed (no defect); F2/F3 confirmed, evidence plan awaits go (later: measured, then REOPENED with fades, below);
    F5 no guard (1297 is asked by the round's sentence check; 928, 990 recorded misses).
    **F2 evidence MEASURED 10-30 (operator: "Go on F2 evidence"): stop condition met, no rule**
    (`song-end-music-20261030/`: `export.php`, `score.py` via the local classifier server, same model and revision,
@@ -439,6 +439,73 @@ queue and route state are in the archive; a historical “final” label is not 
    executed cut; 1034, 1234, 1243, 1272 between, approximate times in their notes). Option, not started: a review hold
    on song ends whose added stretch holds decoded words of a non-lyric cue (all six, and the covered 1216, 1111, 1347,
    1012), so weekly runs ask instead of cutting.
+   **F2/F3 REOPENED 10-30: the accepted-miss record above is withdrawn** (operator: "Speech always belongs to the next
+   item. The only questions are: can we accurately detect when the music stops and the speech starts, and what do we
+   do with speech overlapping music … isn't this why we introduced fades?"; register E24). The measurement above asked
+   whether speech "belongs" and scored music-end estimates against rulings heard as hard cuts: the Speech Over The Last
+   Chords page clipped every version with a 0.03 s anti-click fade only, never E7's 1.5–4 s fade, so a "keep the
+   longer end" answer (1216 "B cuts off the music", 1254, 1334, 1347, 1111, 1012) judged an abrupt outro, not where the
+   speech belongs. And the pipeline gives those ends no fade either: `songEnd()`'s `song_end_silence` return carries
+   no `fade_out` (only `song_end_speech` and `song_end_fade` do), so a song end that runs past speech to the later
+   quiet is also cut hard. Trace (`storage/scratch/song-end-fade-20261030/diag.php`, today's code reproduces the
+   round on 12 of 13; 1272 now plans 891.88, not the round's 879.99): in 10 of the 13 the speech cue is found, and
+   `$silenceUntil`'s extension past the cue's start (954, 1216, 1366, all heard as hard cuts) lets the quiet after
+   the speech win; first decoded words under the music smear over 2–4 s (1347 "Let's" 696.04–699.87, 1216 "Well,"
+   1350.04–1352.31, 1334 "Let's" from 1205.48, inside the song), so a decoded onset is not yet the speech's start.
+   *Next:* re-ask the 9 and the four speech-keeping rulings (1216, 1111, 1347, 1012) with A = the song ending at its
+   speech cue's start with the E7 fade, B = the round's end as the pipeline would render it (hard for
+   `song_end_silence`). Page **"Song Ends With The Fade"** https://claude.ai/artifact/CpwEnD2Ezt35hACn5ttkKP
+   (`rulings`, ids `<run>-s<section>-end`; builder `song-end-fade-20261030/build.php`, A's speech-cue starts picked by
+   hand; A's fade is E7's minimum 1.5 s on 12 of 13, since the lyrics run up to the speech). *First answers, 10-30:*
+   1012 either, 1111 either, 1216 B; operator: none of the three has speech in it. So the four "speech-keeping"
+   rulings above kept no speech: their longer ends stop before the speech, and the claim that they judged a hard cut
+   over speech is withdrawn for them. A (the speech cue's start) was 1.9–6.5 s early on all three: under music the
+   transcript line opens before it is said (1216's "Well, let's pray" opens 6.5 s early, recorded in `songEnd()` since
+   10-26; 1012's "I've asked Laurie" decodes as a 2.5 s smear, speech heard from ≈1000). A cue's start is not the
+   speech's start (Q1), so the rule cannot be "end at the speech cue"; the remaining nine are read with that in mind.
+   *Page cut to six and ANSWERED 10-30* (source `song-end-fade-20261030`, answers in `answers/rulings/`; 1034, 1254,
+   1334, 1347 left out, their cue opening early as above): **A with the fade right for 1009, 1080, 1234, 1243, 1272;
+   1315 either.** 1234, 1243 and 1272 were "neither" heard as hard cuts; with E7's 1.5 s fade (4 s on 1272) the
+   speech-cue start is right, so the fade answers Q2. *Q1 signal, from the 13:* the classifier's speech score in the 5 s
+   window holding the cue's start is 0.25–0.49 on all five A-right ends (speech mixed into the music, under
+   `SPEECH_CUTOFF` 0.5, which is why `speechAfterSong()`/`cueIsOnlyMusic()` passed over them) and 0.00–0.08 on the
+   three heard early (1012, 1111, 1216) and the four left out (1034, 1254, 1334; speech only in the next window).
+   1347 (0.45) is the one untested reading; 1315 (0.02) took either. *Candidate rule, not built:* a song end that
+   reaches a speech cue whose start window holds speech mixed with music (≥ ~0.2) ends at that cue's start with E7's
+   fade, and the silence search does not run past it; a cue opening in music alone keeps today's path. Measure first
+   on every song end in the round (how many move, against the ruled song ends) before a test from 1243.
+   *Measured 10-30 (operator: "Go ahead"; `song-end-fade-20261030/measure.php`, `analyze.py`, `report.json`; the
+   page's nine answers gathered into the register, superseding the hard-cut rulings on the same ends):* 1,194 song
+   ends in the round, 206 ruled. 174 run past their first worded cue; at 148 of those the cue opens in a window with
+   speech < 0.1 (the 1216 kind), which the rule leaves alone. The threshold barely matters: 26 moves at 0.1, 21 at
+   0.2–0.25, 19 at 0.3. At 0.2: 21 move, all earlier, 9 ruled; 5 gained (the page's own five, so circular), 3 lost,
+   all against hard-cut rulings from before E24 — 1272 §3400 lands at 254.08, between its either points 253.145 and
+   259.775; 1269 §3362 at 605.02, 1.9 s before its earlier either point 606.92; 1347 at 696.88 against its 10-28 keep
+   699.36, never heard faded. 13 unruled: four large (1146 −5.9, 1248 −6.4, 1215 −2.5, 929 −2.0), 1313 −1.4, and
+   eight under 1.1 s, all but one where the cue's window is already speech ≥ 0.5 (fragments such as "together.",
+   "'s pray" at 992, 1363 open mid-sentence). Not built: the losses and the large unruled moves need the ear first. Page
+   **"Fade Rule Check"** https://claude.ai/artifact/1eKfJQGGJUeG6pQ2fj1iWi (`rulings`, ids `<run>-s<section>-end`, A the
+   rule's cut with its fade, B today's end, hard; builder `song-end-fade-check-20261030/`): 1269, 1272 §3400, 1347,
+   929, 1146, 1215, 1248, 1313. On answers: drop speech ≥ 0.5 cues from the rule, test-first from 1243, build, replay.
+   *Fade Rule Check ANSWERED 10-30:* A for 1269, 1272 §3400, 929, 1146, 1215, 1248; either 1347, 1313; no B, no
+   neither. 929 (0.59) and 1215 (0.51) open in speech ≥ 0.5 and are right at A, so the rule keeps them. Gathered
+   (`gather.py`; `export-sections.php` now takes extra runs, for runs whose first section ruling is new): at 0.2,
+   21 moves, 14 ruled, **11 gained, 0 lost** (met 180 → 191 of 211). **BUILT 10-30 (uncommitted)** (operator: "Go
+   ahead"): `CueSafeExtractionPlan::songEnd()` now wraps the old rule (`songEndBySoundOrSpeech()`): where the first
+   worded cue from the song's end opens in a window with speech ≥ `SPEECH_OVER_MUSIC` 0.2 and the end runs past it,
+   the song ends at that cue's start with E7's fade, reason `song_end_speech_over_music` (also accepted by
+   `afterSongSound()`, so the spoken part after starts with its speech: 1271 §3390 → 459.64). Replay of the 20 runs
+   (`song-end-fade-20261030/replay-*.log`, baseline = HEAD without the rule, `diff.py`): first 1272 §3404 lost its
+   start dip (885.5, ruled keep 10-21) and fell to `song_start_sentence` 895.93, taking "Great is thy faithfulness";
+   `atSongChangeDip()` now lets a next song start at the dip when the song before ends at speech over its music
+   before it (977 §1005's `song_end_speech` guard unchanged). Final diff: 43 of 268 outputs, the 21 song ends in
+   both plan sets and 1271 §3390; nothing else. Tests: 1243 shape (`SongEndEdgesTest`), 1272 dip start
+   (`RuledEndingsRegressionTest`, moved out of the shared-dip set), 946's held-word expectation → its earlier either
+   point 378.52. Full suite 10,925: only 7 stale fixture live cuts (the intended moves); refreshed
+   (`song-end-fade-fixture-refresh-20261030/`, prior files in `before/`); ruled endings 650/650; Dusk 63/63; Pint,
+   PHPStan clean. Still open: the eight sub-second / unruled moves (1104, 1284, 1271, 992, 1259, 971, 1363 and 946's
+   either) were not heard; fade lengths are the E7 minimum on all but 1313 (3.0 s). Where a cue opening in music
+   alone is wrong even faded, the cue's start is not the speech's start and Q1 (detection) stays the work.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and

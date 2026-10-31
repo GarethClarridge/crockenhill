@@ -684,6 +684,23 @@ for source in ('song-openings-listening-20261030', 'song-ends-listening-20261030
         [{**answer, 'choice': answer['choice'].lower()} for answer in saved(f'{source}/answers/rulings').values()],
     ))
 
+# 10-30, F2 reopened (register E24): Song Ends With The Fade, A the song ending at its speech cue's start with E7's
+# fade, B the round's end as rendered. The page was cut from 13 questions to 6 after the first three answers (1012,
+# 1111, 1216: no speech in either version), so the first version's questions are kept beside the page's.
+source = 'song-end-fade-20261030'
+records.extend(edge_listening_rulings(
+    source, [*load(f'{source}/questions-v1.json'), *[q for q in load(f'{source}/questions.json')
+                                                    if q['id'] not in {v1['id'] for v1 in load(f'{source}/questions-v1.json')}]],
+    [{**answer, 'choice': answer['choice'].lower()} for answer in saved(f'{source}/answers/rulings').values()],
+))
+
+# 10-30: Fade Rule Check, the eight song ends the F2 rule moves that lost a hard-cut ruling or moved unruled by over
+# 1 s; A the rule's cut with its fade, B the end before the rule.
+records.extend(edge_listening_rulings(
+    'song-end-fade-check-20261030', load('song-end-fade-check-20261030/questions.json'),
+    [{**answer, 'choice': answer['choice'].lower()} for answer in saved('song-end-fade-check-20261030/answers/rulings').values()],
+))
+
 # 10-30, defect-fix plan F4: a spoken start no longer opens on the closing Amen before it. 1255 §3180's start (its
 # full-pass id §3181, re-keyed by capture) was heard right in the full pass, before the 10-28 Amen ruling, with the
 # congregation's answering "Amen." (559.98–560.34) at its head; as the triage's thirteen sermon ends, either stands.
