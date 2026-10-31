@@ -38,7 +38,7 @@ Containment is not acceptance; a missing or unassessable check is not a pass.
 | Stored review-state repair | Re-derive → recompute → backfill → demote applied locally 10-25. The earlier instruction to apply it is complete; fresh policy/output checks are still needed after processing. |
 | Song and speech edge fixes | Dependent openings, 1096's other-song title rule, 1120's song-order lyric extension, fading-song speech starts and the narrowed smeared-opening fix are committed. Six moved smeared starts were heard acceptable; 1250's internal start is met by the planner. They still need pipeline application and encoded-output verification. |
 | Internal-join regression coverage | Added 10-29 (`abd330797`), including part-specific identity; capture's `open_defect` handling corrected. 86 previously unguarded passing entries now checked; 17 failing entries remain inputs to the next measurement. |
-| K16 reword | Parked 10-29 (one gain 1131, one loss 968), then measured on every end and **adopted as measured 10-30** (operator option 2). Build is §4.1a step 4; its two extra guards stay unbuilt. |
+| K16 reword | Parked 10-29 (one gain 1131, one loss 968), then measured on every end and **adopted as measured 10-30** (operator option 2). **Built 10-31** (§4.1a step 4, `PROMPT_VERSION` 3, 962 trailing-part fix); losses 968, 1375, 1324 accepted, 1096 a further open miss; its two extra guards stay unbuilt. |
 | Audience/content policy | Decided (G10–G11); production enforcement is a verification task under programme §8, not an open policy question. |
 
 Earlier evidence: [10-03–10-16](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md),
@@ -842,6 +842,33 @@ queue and route state are in the archive; a historical “final” label is not 
    5. *Live:* nothing to apply now. The round's `TranscribeOutputEdges` asks every K16 end afresh
       (≈ 1,000 calls, ≈ $0.50); compare its decided ends with `measured*.json` for the redraw change
       rate, and send only flips that change a heard cut to listening.
+   **BUILT 10-31 (operator: "Yes", then "Yes to all three" on the findings below).** Step 1: the reword is
+   `SermonSongIntroductionCheck::SYSTEM_PROMPT` byte for byte (sha256 `43233283…`, the hash every measured answer was
+   asked under), `PROMPT_VERSION` 3; tests red first (version pin, a v2 answer not read, the rule sent). Step 2
+   (`storage/scratch/k16-rebank-20261031/`: `rebank.php` → `mapping.json`, `apply.py`): 1,069 artifacts in 591
+   fixtures re-banked, 1,044 from `answers/` and 25 asked (11 distinct prompts, **25 Luna calls**); each v2 identity
+   was checked to hash to its kind after two repairs (`putJson` drops a whole-second time's `.0`, 1087's 2083.0; some
+   fixtures were re-saved with sorted keys). Today's `decision()` moves 26 artifacts on 10 runs. Step 3 found what the
+   plan missed: every moved end first fails its fixture's pinned live cut, so only then can its ruling be read —
+   - **962 was a planner defect:** its sermon output ends with the Lord's Prayer as a part of its own; the answer ends
+     the sermon at 3757.1, before that part starts, and the last span inverted (`PublicationPlanValidator` threw).
+     `CueSafeExtractionPlan::forSpans()` now drops a part the K16 end falls before (test
+     `an_end_before_a_trailing_part_drops_that_part`); the question and operator-answer identities keep the output as
+     composed. 962 → 3757.26, at the operator's either (3757.1 / 3798.94).
+   - **Three new end windows decoded** read-only with local Whisper (`decode.php`, nothing banked on the runs; identities
+     from each fixture's own rebuild) and added to their fixtures (`add-words.py`): 1071 1051.64–1058.64, 1096
+     3678.98–3683.74, 1275 4119.42–4124.78.
+   - **Pinned cuts re-pinned** from each fixture's replay (`refresh-live.py`, prior files in `before/`) on 11
+     fixtures, `captured_on` 10-31 so the rulings since apply. Outcomes: 1131 met (1461.74 v keep 1461.42); 1044, 1183,
+     1275 at an either point; 968 the accepted loss, recorded `operator-20261030:968-sermon-end` (either 2670.9 /
+     2672.68, the operator's 10-30 words); **1071** drops "Let's pray together. Thank you." before an unrecorded prayer,
+     recorded `claude-review-20261031:1071-sermon-end` either 1057.7 / 1060.04 under the 10-28 sermon-end ruling;
+     **1096 is a further loss the measurement mislabelled "better":** already an open miss (outward from 3692.28: the
+     invitation to talk after the service clipped), the reword ends earlier still, on "…God's Son, the Lord Jesus."
+     (3682.99), dropping the invitation whole. Its end fixture carries no fixture-level gate, so it stays an open miss
+     on its ruling; a K16 "evangelistic invitation after the sermon" class is unmeasured.
+   Step 4: ruled endings 658/658, full parallel suite 10,953 (1 skipped), PHPStan, Pint, rulings unit tests, Dusk 63/63.
+   Step 5 unchanged: the round asks every K16 end afresh. **Step 4 of §4.1a is done; next is step 5 (validate, freeze).**
 5. **Validate, freeze and canary.** Before freezing: ≥ 10 GB free on the internal disk (step 3);
    the structure dispositions for 1273 §3416 and 1311 §4874 (done 10-31, step 3 (c)); the item-churn finding (step 3a) measured
    or explicitly deferred; and the round's checklist naming the four songs that reset and need
@@ -940,7 +967,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Next processing round | Not ready to freeze: complete §4.1a in the 10-30 order (ledger done → edge moves → K16 build → validate), the listening pages (958 and E23 decided 10-30); internal disk cleared to 12 GiB 10-30. Membership (425) is counted. |
+| Next processing round | Not ready to freeze: complete §4.1a in the 10-30 order (ledger, edge moves and K16 build done 10-31 → validate), the listening pages (958 and E23 decided 10-30); internal disk cleared to 12 GiB 10-30. Membership (425) is counted. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |

@@ -759,6 +759,9 @@ RULED = [
     ('operator-20261030:958-sermon-end', '2026-10-30T01:53:01Z', 958, None, 'end', (1993.88, 2016.78),
      'Plan §4.1a step 4.0, operator 10-30: "either" reaffirmed; the K16 reword\'s end (2016.78, the point built '
      'round "Facing a Task Unfinished") is acceptable alongside the ruled 1993.88.'),
+    ('operator-20261030:968-sermon-end', '2026-10-30T01:35:08Z', 968, None, 'end', (2670.9, 2672.68),
+     'Plan §4.1a step 4, operator 10-30 (option 2, "Current version seems fine to me"): the K16 reword adopted as '
+     'measured, its loss on 968 accepted; the reword\'s end (2670.9) stands beside the 10-29 keep (2672.68).'),
 ]
 # 10-24: song starts set by the operator's Intro Rule, Song Intros and Song Openings answers
 # (listening-intro-rule-20261024/record-starts.php; register D6 amended 10-24). They were stored as operator
@@ -771,6 +774,17 @@ for ruling_id, ruled_at, run, section_id, edge, heard_range, note in RULED:
                     'output': 'sermon' if section_id is None else 'section', 'section_id': section_id, 'section_type': None, 'title': None, 'edge': edge,
                     'heard': heard_range[1] if edge == 'end' else heard_range[0], 'answer': None, 'expect': 'either',
                     'ruled_time': None, 'note': note, 'points': list(heard_range)})
+
+# 10-31, K16 reword build (plan §4.1a step 4): 1071's recording ends after "Let's pray together. Thank you.", with no
+# prayer recorded. The reword ends the sermon on its own last line, "…all these other things will be added unto you."
+# (decoded to 1057.40); the 10-28 rule lets a dropped prayer go when the end still makes sense, so the 10-12 keep
+# (1060.04) and the reword's end are either.
+records.append({'id': 'claude-review-20261031:1071-sermon-end', 'source': 'claude-review-20261031', 'ruled_on': '2026-10-31',
+                'ruled_at': '2026-10-31T12:00:00Z', 'run': 1071, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon',
+                'title': None, 'edge': 'end', 'heard': 1060.04, 'answer': None, 'expect': 'either', 'ruled_time': None,
+                'note': 'Claude review 10-31: ends "…all these other things will be added unto you."; drops "Let\'s pray together. '
+                        'Thank you." before an unrecorded prayer (sermon end ruling 10-28: a dropped prayer is fine when the end '
+                        'makes sense).', 'answer_source': 'claude-review', 'points': [1057.7, 1060.04]})
 
 # A section ruling the page recorded without a section id is on the run's section of its type whose edge is nearest
 # the cut heard, as RuledEndingsTestCase::latestRulings() and the round's analyze.py read it. Without that binding the

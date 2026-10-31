@@ -477,7 +477,7 @@ TXT;
             'sermon_end' => 3024.83,
             'song_start' => 3072.7,
             'model' => (string) config('media-processing.service_structure.model'),
-            'prompt_version' => 2,
+            'prompt_version' => 3,
             'transcript' => hash('sha256', $prompt),
             'media_processing' => MediaProcessingVersion::signature(),
         ];
@@ -491,6 +491,45 @@ TXT;
 
         $this->assertSame(['asked' => false, 'end' => 3064.4, 'ties_to_sermon' => true], $check->prepare($log->fresh(), $this->spans()));
         OpenAI::assertNothingSent();
+    }
+
+    /**
+     * The reworded prompt (operator 2026-10-30, adopted as measured) asks a different question, so an
+     * answer banked under version 2 is not read: the round asks every end afresh.
+     */
+    #[Test]
+    public function an_answer_banked_under_the_previous_prompt_version_is_not_read(): void
+    {
+        $log = $this->service();
+        $check = app(SermonSongIntroductionCheck::class);
+        $identity = [...$check->question($log, $this->spans())['identity'], 'prompt_version' => 2];
+        $kind = 'sermon-song-introduction-'.hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $kind, [
+            'identity' => $identity, 'calls_completed' => true, 'end' => 3064.4, 'ties_to_sermon' => true, 'line' => $this->cues()[5]['text'],
+        ]);
+
+        $this->assertNull($check->read($log->fresh(), $this->spans()));
+
+        $this->answers([2, true, 6], [2, true, 6]);
+        $this->assertTrue($check->prepare($log->fresh(), $this->spans())['asked']);
+        OpenAI::assertSent(Chat::class, 2);
+    }
+
+    /**
+     * K16 as reworded 2026-10-29: the sermon's own conclusion stays even when it mentions, quotes or
+     * leads into the song (1131 and 1140 lost their last point under version 2).
+     */
+    #[Test]
+    public function the_model_is_told_a_conclusion_that_names_the_song_is_the_sermons_own(): void
+    {
+        $log = $this->service();
+        $this->answers([2, true, 6], [2, true, 6]);
+
+        app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans());
+
+        OpenAI::assertSent(Chat::class, static fn (string $method, array $parameters): bool => str_contains($parameters['messages'][0]['content'],
+            "- The sermon's own conclusion or application is part of the sermon even when it mentions, quotes or leads into the song: it stays when it is fundamentally the sermon that happens to mention the song.")
+            && str_contains($parameters['messages'][0]['content'], '"sermon_last_line": <number of the last line of the sermon itself, including its own conclusion or application even when that names the song; before any line whose purpose is to introduce or announce the song>'));
     }
 
     #[Test]

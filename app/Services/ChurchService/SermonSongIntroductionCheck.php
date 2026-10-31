@@ -35,6 +35,10 @@ use OpenAI\Laravel\Facades\OpenAI;
  * The preacher must say how the song relates to the sermon: reading its words aloud is not a tie
  * on its own (operator, 2026-10-16, on 1040, 1311 and 932).
  *
+ * The sermon's own conclusion or application stays in it even when it names, quotes or leads into
+ * the song (K16 reworded 2026-10-29, adopted as measured 2026-10-30, version 3): 1131 and 1140 lost
+ * their last point under version 2. Its measured losses (968, 1375, 1324) are accepted.
+ *
  * The classifier scores 5 s windows, so the first music window says only that the music starts
  * somewhere in it: 1224's "…destruction, | and despair." was spoken at the start of a mixed window.
  * Lines starting in that window may complete a sentence; lines after it are never in the sermon.
@@ -45,7 +49,7 @@ use OpenAI\Laravel\Facades\OpenAI;
 class SermonSongIntroductionCheck
 {
     /** Bumped whenever the prompt changes, so answers to an older question are not reused. */
-    public const PROMPT_VERSION = 2;
+    public const PROMPT_VERSION = 3;
 
     private const ARTIFACT_PREFIX = 'sermon-song-introduction-';
 
@@ -83,9 +87,10 @@ You read the end of a sermon in a church-service transcript and what is said bet
 - A bare announcement (the song's name or number, "let's stand and sing"), the introduction to a song that is not connected to the sermon, notices and housekeeping do not belong.
 - A "let's stand and sing" call on its own is never included, even at the end of an introduction that is.
 - It is not about length: a long introduction that ties the song to the sermon belongs; a short one that does not, does not.
+- The sermon's own conclusion or application is part of the sermon even when it mentions, quotes or leads into the song: it stays when it is fundamentally the sermon that happens to mention the song. A brief remark that the song fits the theme is part of the introduction, not the sermon.
 - The video is one continuous stretch. If notices or housekeeping (anything more than announcing the song) come between the sermon and the introduction, the video ends at the sermon's own last line.
 Transcript punctuation and line breaks are automatic, and some words are misheard.
-Answer in JSON: {"sermon_last_line": <number of the last line of the sermon itself, before any introduction or announcement of the song>, "ties_to_sermon": <true when the video takes in an introduction that ties the song to the sermon, otherwise false>, "video_last_line": <number of the last line in the sermon video>, "reason": "<one sentence>"}
+Answer in JSON: {"sermon_last_line": <number of the last line of the sermon itself, including its own conclusion or application even when that names the song; before any line whose purpose is to introduce or announce the song>, "ties_to_sermon": <true when the video takes in an introduction that ties the song to the sermon, otherwise false>, "video_last_line": <number of the last line in the sermon video>, "reason": "<one sentence>"}
 TXT;
 
     /**
