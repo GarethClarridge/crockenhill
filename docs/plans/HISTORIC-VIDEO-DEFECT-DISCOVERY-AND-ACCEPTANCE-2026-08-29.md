@@ -626,6 +626,23 @@ queue and route state are in the archive; a historical “final” label is not 
    withdrawn). **Retirement set, 17:** re-imported — 883, 888, 908, 910, 911, 912, 913, 914, 915, 916, 917, 918,
    919, 920, 921; handed back to their operation 4 run, which the round re-runs as an ordinary member — 890 (→ 1378)
    and 909 (→ 1377). Note 1377 still points at 909's sermon 857 (`sermon_id`), which retirement withdraws.
+   *Step 3 release replacement — BUILT 10-31* (`RetiredRunReplacement`, called by
+   `HistoricSermonPublicationService::releaseRecords` after the commit and on a completed retry; HIR7's claim,
+   ledger and commit unchanged). A released cut whose date and service match a weekly run retired into this
+   operation with `awaiting_replacement` is folded into that published sermon in one transaction: the pipeline's
+   columns (paths, disk, operation, run link, title, reference, preacher, summary, quality, duration …) move;
+   id, slug, date, service, state, download count and display choices stay, so the URL and the podcast GUID
+   (`sermon-{id}`; the feed carries the latest 100, about 8 of the 13) are unchanged. The cut's run, sections and
+   speaker samples are re-pointed, its scripture filters dropped (the observer rebuilds the row's from the new
+   reference), the cut deleted; the old files stay on disk, recorded as `replaced_content` in the retirement and
+   in the journal (`sermon_replaced`). The attempt's membership hash now comes from the named ids (sorted, unique:
+   the same list as before, so no existing attempt changes), and a folded id resolves to its row, so a retry is
+   still an exact no-op. Song clips: when the re-import's clip of a song is released, the retired run's published
+   clip of the same song in the same service is withdrawn (state quarantined, bytes kept, `song_video_withdrawn`);
+   a song the re-import does not release keeps its old clip. Census: 14 published song videos sit on the retired
+   runs (908, 909, 911, 913, 917, 918, 920, 921), 890's four are quarantined; the 13 published sermons have no
+   `asset_disk` (public default) and no operation. *Left:* apply the 17 retirements (operator's word), then the
+   round. Release itself runs only where the round's release runs; nothing here publishes.
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
    1292 §3653) are re-scored after each replay; 1288 merged Amens and the structure dispositions for 1273 §3416 and

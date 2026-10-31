@@ -501,11 +501,11 @@ class HistoricSermonReleaseOwnershipTest extends TestCase
             $service,
             $operation,
             null,
-            array_values(Sermon::query()
+            Sermon::query()
                 ->where('historic_import_operation_id', $operation->id)
                 ->orderBy('id')
-                ->get()
-                ->all()),
+                ->pluck('id')
+                ->all(),
             [],
             [],
             'public',

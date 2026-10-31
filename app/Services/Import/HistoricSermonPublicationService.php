@@ -83,6 +83,7 @@ class HistoricSermonPublicationService
         private readonly HistoricReleaseObjectStore $objects,
         private readonly HistoricReleaseDestinationGuard $destinations,
         private readonly HistoricReleaseReviewHolds $reviewHolds,
+        private readonly RetiredRunReplacement $replacements,
     ) {}
 
     public function release(HistoricImportOperation $operation, Sermon $sermon): Sermon
@@ -141,14 +142,17 @@ class HistoricSermonPublicationService
         $attempt = $this->claim(
             $operation,
             $authorisation,
-            $sermons,
+            $this->memberSermonIds($sermonIds),
             $songVideos,
             $songUsageReports,
             $targetDiskName,
         );
 
         if ($attempt->state === HistoricImportReleaseAttempt::StateCompleted) {
-            return $this->alreadyReleased($attempt, $sermons, $songVideos, $songUsageReports);
+            return $this->replacements->replace(
+                $operation,
+                $this->alreadyReleased($attempt, $sermons, $songVideos, $songUsageReports),
+            );
         }
 
         $this->assertQuarantined($sermons, $songVideos, $songUsageReports);
@@ -216,7 +220,24 @@ class HistoricSermonPublicationService
             throw $exception;
         }
 
-        return $released;
+        return $this->replacements->replace($operation, $released);
+    }
+
+    /**
+     * The batch's sermons as named, which is what its attempt is bound to. Until a cut can be
+     * folded into the sermon it replaces ({@see RetiredRunReplacement}) the loaded records were
+     * exactly these ids in this order; after a fold the named cut no longer exists, and a retry
+     * must still find the attempt that completed it.
+     *
+     * @param  list<int>  $sermonIds
+     * @return list<int>
+     */
+    private function memberSermonIds(array $sermonIds): array
+    {
+        $ids = array_values(array_unique(array_map('intval', $sermonIds)));
+        sort($ids);
+
+        return $ids;
     }
 
     /**
@@ -253,14 +274,14 @@ class HistoricSermonPublicationService
      * object the dead attempt created is not written twice.
      *
      * @param  array<string, mixed>|null  $authorisation
-     * @param  list<Sermon>  $sermons
+     * @param  list<int>  $sermonIds
      * @param  list<SongVideo>  $songVideos
      * @param  list<SongUsageReport>  $songUsageReports
      */
     private function claim(
         HistoricImportOperation $operation,
         ?array $authorisation,
-        array $sermons,
+        array $sermonIds,
         array $songVideos,
         array $songUsageReports,
         string $targetDiskName,
@@ -269,7 +290,7 @@ class HistoricSermonPublicationService
             $authorisation ?? ['unauthorised_direct_release' => true],
         );
         $membershipHash = CanonicalJson::hash([
-            'sermon_ids' => array_map(static fn (Sermon $sermon): int => $sermon->id, $sermons),
+            'sermon_ids' => $sermonIds,
             'song_video_ids' => array_map(static fn (SongVideo $video): int => $video->id, $songVideos),
             'song_usage_report_ids' => array_map(
                 static fn (SongUsageReport $report): int => $report->id,
@@ -827,6 +848,14 @@ class HistoricSermonPublicationService
             ->where('historic_import_operation_id', $operation->id)
             ->orderBy('id')
             ->get();
+
+        foreach (array_diff(array_unique($sermonIds), $sermons->modelKeys()) as $missingId) {
+            $folded = $this->replacements->foldedInto($operation, (int) $missingId);
+
+            if ($folded instanceof Sermon && $folded->historic_import_operation_id === $operation->id) {
+                $sermons->push($folded);
+            }
+        }
 
         if ($sermons->count() !== count(array_unique($sermonIds))) {
             throw new RuntimeException(
