@@ -527,8 +527,11 @@ queue and route state are in the archive; a historical “final” label is not 
    fixtures of 992/1259/1363 take the older path from older evidence (992's to the same "together." cut, as
    `song_end_fade`), so they could not test it. Test fails without the guard (992 at 1580.08). Replay of the 20 runs against the rule's (`diff.py`, `pilot-guard.jsonl`): 2 of 268 outputs change, 992 §163678 in both plan sets, 1580.08 → 1580.74; nothing else.
    *Corpus measure* (`storage/scratch/song-sections-without-music-20261031/`, read-only, every run not superseded):
-   318 runs with song sections, 1,305 sections; **no weekly run has a classifier timeline** (all 72 weekly song
-   sections), so neither the F2 rule nor any music evidence reaches weekly runs today. Of 1,233 timed (all historic),
+   318 runs with song sections, 1,305 sections; the 72 weekly song sections have no timeline because their 17 runs
+   were processed 05-08 – 07-10 and never re-run (3 of them, 890/893/894, have one), not because weekly processing
+   lacks it: the livestream chain both kinds share has run `ClassifyServiceAudio` before detection since `734205f44`
+   (09-26), pinned by `ProcessingPipelineBuilderTest`, and the chain's historic branches are queue, nested-job and
+   storage plumbing, not cut decisions. Of 1,233 timed (all historic),
    17 have no window with music ≥ `MUSIC_CUTOFF` (all ≤ 0.19; the next lowest has 0.40), 7 more under 25 % music
    share. The 17 are not all spoken: 1252 "Happy Birthday", 1352 and 1138 §2121 "Unidentified singing", 938 "The
    Lord's My Shepherd" are, by title, sung unaccompanied, which the classifier hears as speech or neither. So the
