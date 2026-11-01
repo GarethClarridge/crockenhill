@@ -7,7 +7,7 @@ omission still stands: the 10-24 class scan (`storage/scratch/class-scan-2026102
 `song-opening-lyrics-in-gap.json`) lists it as one of three real cropped openings (1011, 1240,
 1345), "From Heaven You Came" §1285 losing 36.9 s of transcribed lyrics before its 519.73 s clip
 start, with the mechanism not investigated. A 10-29 note that called this near-silent bleed cited
-no recorded check, so 1011 is not a source limitation until its opening is heard. The 13
+no recorded check. **Heard 11-01:** not a source limitation — a quiet solo voice from about 459 s before the band; ruled E25 (whole song from the first sung line, flagged); 1240 and 1345 are met by the operator's 10-24 by-ear starts. Fix planned in video plan §4.1a step 5, "Quiet sung openings". The 13
 stale `song_videos` bindings found in the 10-24 class scan were cleared after a backed-up repair;
 do not count the old bindings as current defects. The 10-24 re-cuts changed song clips on 17 runs
 and re-encoded 16 sermon videos; their saved packets/reviews require output-hash comparison and

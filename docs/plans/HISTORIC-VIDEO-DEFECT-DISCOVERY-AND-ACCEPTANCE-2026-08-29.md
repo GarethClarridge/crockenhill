@@ -935,6 +935,36 @@ queue and route state are in the archive; a historical “final” label is not 
      "and tear | you | to pieces.") and 1140 (would drop "how can you not glorify God?", its last point): both worse, so
      it stays on earlier parts, now firing only on a line with no sentence end in it (1140's shape; the 150 parts
      unchanged).
+   - **Quiet sung openings (E25, 11-01) — PLANNED, not built; before the freeze.** The 10-24 class scan's three
+     cropped openings: 1240 and 1345 are already cut at the operator's by-ear starts (3863, 1740; the replay's
+     `no-stand-in/` plans use them). 1011 §1285 is not a muted feed, as the 10-24 note and this session first read it:
+     heard 11-01 on "The Muted Song Opening" (https://claude.ai/artifact/NBiE8sAgQjJRzN2WftVv4J), it is a solo voice
+     from about 459 (−55 to −70 dB, below the run's −54 dB threshold) before the congregation and band at 520 (−24 dB);
+     the clip starts at 519.73, partway through the song. Ruled E25: start at the first sung line, publish whole, flag.
+     *Mechanism:* `SongSpeechEdges` trimmed the start 38 s ("the sound before it has the pauses of speech"); the
+     corrections after it cannot see a quiet solo — `SongLyricsOutsideSection::sungOpening()` gates on loudness,
+     `SongMusicalIntroduction` and the 11-01 scan on music ≥ 0.4 (1011's solo reads 0.18), and the solo's first verse
+     has no transcript line, so a lyric walk would stop at 477, still mid-song. *Instrument:* the stored timeline's own
+     `singing`/`speech` scores separate it with no new calls — heard-sung 1011/1240/1345 singing 0.037–0.054, speech
+     0.013–0.030; readings 1102/1292/1174/971 and 1011's announcement singing ≤ 0.001, speech 0.72–0.84. The 11-01
+     scan (`storage/scratch/song-start-trim-20261101/`: 205 trimmed starts, 50 with own-lyric lines in the trimmed
+     lead-in) judged by music alone, so its "none sung" is withdrawn.
+     1. *Measure (read-only):* every song start in the round whose stretch back to the previous item (or a dead feed)
+        reads as singing and not speech, transcribed or not — not only `SongSpeechEdges` trims. Report seconds left
+        out, that stretch's loudness against the song body, publication status (the corrections skip published,
+        approved and rejected sections), and the thresholds the calibration set supports. A listening page only for
+        what the scores cannot settle.
+     2. *Failing test first:* 1011 from `run-1011-2026-10-28`; ruling `operator-20261101:1011-s1285-start` (about
+        459) in `gather.py`, superseding `claude-review-20261030:1011-s1285-start` (my 10-30 "either", wrong).
+     3. *Build where step 1 points:* most likely the musical-introduction walk reading a window as introduction when
+        it is music *or singing* and not speech, starting at the first sound after the speech or dead feed. A
+        published class member is a separate decision, not a silent exception.
+     4. *Flag:* the song clip's counterpart of `sermons.partial_recording`, set by the pipeline when the start was
+        taken over singing far quieter than the body (threshold from step 1; 1011 ≈ 35 dB), shown wherever the clip
+        is shown (G10: authenticated-only) and carried through promotion like `00e3134c8`; wording and whether an
+        admin toggle is wanted, as for sermons, to confirm with the operator.
+     5. *Verify:* guarded rolled-back replay over the round's runs (never in the staging context), ruled endings,
+        suite, Dusk. Each step on the operator's word.
    - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 
@@ -1026,7 +1056,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Next processing round | Not ready to freeze: §4.1a steps 3–4 done 10-31; checklist drafted (step 5); 1377/1378 reconciled 10-31. Internal-join fix built 11-01. Owed: the step 5 freeze checks, each later step on the operator's word. Membership: 423 re-runs + 15 re-imports. |
+| Next processing round | Not ready to freeze: §4.1a steps 3–4 done 10-31; checklist drafted (step 5); 1377/1378 reconciled 10-31. Internal-join fix built 11-01. Owed: quiet sung openings (E25, planned 11-01) and the step 5 freeze checks, each later step on the operator's word. Membership: 423 re-runs + 15 re-imports. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |
