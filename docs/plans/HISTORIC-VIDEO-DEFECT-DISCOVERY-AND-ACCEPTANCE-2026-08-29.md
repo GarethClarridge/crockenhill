@@ -3,8 +3,7 @@
 **Current worklist — reconciled 2026-10-30.** Historic outputs remain quarantined; no release batch
 is authorised. The 10-21/22 round closed. Later shared-path fixes still need a measured round and
 current-output acceptance. 1288's onset leak is fixed (§4.1a step 2). §4.1a steps 3–4 are done (10-31) and the
-round checklist is drafted (step 5). What remains before a freeze is the internal-join fix (K16 asks only the last
-sermon span; operator 11-01 "Fix before the round") and the step 5 freeze checks.
+round checklist is drafted (step 5). The internal-join fix is built (11-01, step 5). What remains before a freeze is the step 5 freeze checks.
 
 This file owns **current video work and status**, not execution diaries or acceptance procedures.
 The complete prior text is preserved in the [execution record through 10-29](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md).
@@ -915,6 +914,24 @@ queue and route state are in the archive; a historical “final” label is not 
      168 MB/s; clone `../crockenhill-round` at `8189bfdea` (150 commits behind; lockfiles unchanged, so `vendor/`
      stands), `sail-8.4/app` present, `docker-compose.round.yml` tracked. Re-measure all of it immediately before the
      freeze (runbook §6).
+   - **Internal-join fix, BUILT 11-01 (operator: "Fix before the round").** K16 asked only where the output's *last*
+     part ends, so an earlier part with a song before the next part ran on into the song's announcement (1154's reading
+     section held "We're going to stand and sing again"; D21's split sermons 1073 and 1268 kept the mid-sermon song's
+     announcement). `SermonSongIntroductionCheck` now asks at every such part (`innerParts()`; the edge step asks, the
+     planner applies, `spokenEndsBesideSongs` decodes, the cut probe reports). A reading or prayer part is asked with
+     its own prompt (K1: its own last line, the reader's closing words in; no introduction belongs, even one tying the
+     song to the sermon to come); a split sermon's half keeps the K16 prompt. The output's own end question is
+     byte-identical, so banked v3 answers stand. Measured over the round (150 parts, 146 runs;
+     `storage/scratch/part-joins-20261101/`): 29 ends move (24 earlier, announcement out; 5 later, closing words in).
+     Four guards from reading every move, inner parts only: lines stop at the next detected item outside the output
+     (1233's prayer, +73 s otherwise); the part's section is the one spanning it (1271); a line whose sentence the next
+     line finishes steps back (1245 "…to us" | "this day."); a later end must finish a sentence or an Amen (1307's
+     word-per-line "thank" | "you Dave"). Two moves against older rulings heard 11-01 on "Two Part Ends"
+     (https://claude.ai/artifact/GLD4eAnZ92FzzYwQAiJFop): 1268 §4736 (2315.84 vs the 10-22 2338.9) and 1028 §72822
+     (1748.32 vs keeping "…in just a little while.") — both "Either is fine", recorded `operator-20261101`. Fixtures:
+     278 part answers + 405 decoded windows into 280 ruled-endings fixtures (local Whisper), 72 live cuts re-pinned
+     from each fixture's own replay; ruled endings 644/644. *Unmeasured:* the 1245 split-sentence step-back could apply
+     to last-part K16 ends too; left out to keep the banked v3 decisions unchanged.
    - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 
@@ -1006,7 +1023,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Next processing round | Not ready to freeze: §4.1a steps 3–4 done 10-31; checklist drafted (step 5); 1377/1378 reconciled 10-31. Owed: the internal-join fix (operator 11-01), then the step 5 freeze checks, each later step on the operator's word. Membership: 423 re-runs + 15 re-imports. |
+| Next processing round | Not ready to freeze: §4.1a steps 3–4 done 10-31; checklist drafted (step 5); 1377/1378 reconciled 10-31. Internal-join fix built 11-01. Owed: the step 5 freeze checks, each later step on the operator's word. Membership: 423 re-runs + 15 re-imports. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |

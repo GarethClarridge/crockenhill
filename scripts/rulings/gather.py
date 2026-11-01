@@ -762,6 +762,12 @@ RULED = [
     ('operator-20261030:968-sermon-end', '2026-10-30T01:35:08Z', 968, None, 'end', (2670.9, 2672.68),
      'Plan §4.1a step 4, operator 10-30 (option 2, "Current version seems fine to me"): the K16 reword adopted as '
      'measured, its loss on 968 accepted; the reword\'s end (2670.9) stands beside the 10-29 keep (2672.68).'),
+    ('operator-20261101:1268-s4736-end', '2026-11-01T19:54:57Z', 1268, 4736, 'end', (2315.84, 2338.9),
+     'Plan §4.1a step 5, internal-join fix, operator 11-01 on "Two Part Ends" (A the fix\'s end on "…You see, God is '
+     'eternal.", B the 10-22 cut after the tie into the next song): "Either is fine."'),
+    ('operator-20261101:1028-s72822-end', '2026-11-01T19:55:40Z', 1028, 72822, 'end', (1748.32, 1752.61),
+     'Plan §4.1a step 5, internal-join fix, operator 11-01 on "Two Part Ends" (A the fix\'s reading end after "…his word '
+     'to us.", B keeping "We\'ll be looking at some of those verses in just a little while."): "Either is fine."'),
     ('operator-20261031:1096-sermon-end', '2026-10-31T23:30:00Z', 1096, None, 'end', (3682.99, 3709.6),
      'Plan §4.1a step 4, operator 10-31 on "The Invitation After The Sermon" (A the K16 v3 end after "…the Lord '
      'Jesus.", B after the invitation and visitor cards): "Either is fine. Without the invitation is probably '

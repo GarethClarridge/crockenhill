@@ -45,6 +45,13 @@ use OpenAI\Laravel\Facades\OpenAI;
  *
  * Answers are banked on the edge step ({@see self::prepare()}) before the edge words are decoded,
  * so the words are decoded where the sermon now ends; planning only reads them ({@see self::read()}).
+ *
+ * An earlier part of the output with a song between it and the next part is asked the same way
+ * ({@see self::innerParts()}): a reading before the song that precedes the sermon (1154's "We're
+ * going to stand and sing again", 1300) or a split sermon's first half before a mid-sermon song
+ * (1073, 1268; register D21). Only the part's own words are in it (K1); a reading or prayer is
+ * asked with {@see self::PART_SYSTEM_PROMPT}, since an introduction tying the song to a sermon
+ * still to come is not part of the reading. The last part's question is unchanged.
  */
 class SermonSongIntroductionCheck
 {
@@ -76,6 +83,9 @@ class SermonSongIntroductionCheck
      */
     private const OPEN_CLAUSE = '/[,;:\x{2013}\x{2014}-][\s"\'\x{201D}\x{2019}]*$/u';
 
+    /** A line ending a sentence. */
+    private const FINISHED = '/[.!?][\s"\'\x{201D}\x{2019})]*$/u';
+
     /** A line whose last word is "Amen". */
     private const ENDS_ON_AMEN = '/(?:^|[^\p{L}\p{N}])amen[\s\p{P}]*$/iu';
 
@@ -93,15 +103,48 @@ Transcript punctuation and line breaks are automatic, and some words are mishear
 Answer in JSON: {"sermon_last_line": <number of the last line of the sermon itself, including its own conclusion or application even when that names the song; before any line whose purpose is to introduce or announce the song>, "ties_to_sermon": <true when the video takes in an introduction that ties the song to the sermon, otherwise false>, "video_last_line": <number of the last line in the sermon video>, "reason": "<one sentence>"}
 TXT;
 
+    /** A reading or prayer before the sermon, as an earlier part of the sermon video beside a song. */
+    private const PART_SYSTEM_PROMPT = <<<'TXT'
+You read the end of a Bible reading or prayer in a church-service transcript and what is said between it and the next song. The sermon video includes the reading or prayer as a part of its own, and the sermon comes later. Rules from the person who publishes the sermon videos:
+- The part ends at its own last line: the end of the reading, with the reader's own closing words about it ("This is the word of the Lord", "We thank God for his word"), or the end of the prayer with its Amen.
+- Nothing after that belongs: announcing or introducing the song, "let's stand and sing", notices and housekeeping, even when they relate the song to the reading or the sermon.
+- Lines marked [music] are after the music started and are never in the part. Lines marked [music may start] may be in it only to finish a sentence begun before them.
+Transcript punctuation and line breaks are automatic, and some words are misheard.
+Answer in JSON: {"sermon_last_line": <number of the part's own last line>, "ties_to_sermon": false, "video_last_line": <the same number>, "reason": "<one sentence>"}
+TXT;
+
+    /** Section types asked with {@see self::PART_SYSTEM_PROMPT} when they are an earlier part. */
+    private const PART_TYPES = [ServiceSectionType::BibleReading, ServiceSectionType::Prayer];
+
     /**
-     * Ask about the sermon output's end, unless an answer to the same question is banked.
+     * The earlier parts of the output with a song between each and the next part, within {@see self::SONG_REACH}.
      *
      * @param  list<array{start_time: float, end_time: float}>  $sermonSpans  The sermon output's parts, as detected
+     * @return list<int> Their indexes in $sermonSpans
+     */
+    public function innerParts(MediaProcessingLog $log, array $sermonSpans): array
+    {
+        $parts = [];
+        foreach (array_keys($sermonSpans) as $index) {
+            if ($index !== array_key_last($sermonSpans) && $this->join($log, $sermonSpans, $index) !== null) {
+                $parts[] = $index;
+            }
+        }
+
+        return $parts;
+    }
+
+    /**
+     * Ask about the sermon output's end, or an earlier part's ({@see self::innerParts()}), unless an
+     * answer to the same question is banked.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $sermonSpans  The sermon output's parts, as detected
+     * @param  int|null  $part  An earlier part's index; null for the output's end
      * @return array{asked: bool, end: float|null, ties_to_sermon: bool|null}
      */
-    public function prepare(MediaProcessingLog $log, array $sermonSpans): array
+    public function prepare(MediaProcessingLog $log, array $sermonSpans, ?int $part = null): array
     {
-        $question = $this->question($log, $sermonSpans);
+        $question = $this->question($log, $sermonSpans, $part);
 
         if ($question === null) {
             return ['asked' => false, 'end' => null, 'ties_to_sermon' => null];
@@ -117,10 +160,11 @@ TXT;
             return ['asked' => false, 'end' => $banked['end'], 'ties_to_sermon' => $banked['ties_to_sermon']];
         }
 
-        $calls = [$this->ask($log, $question['prompt']), $this->ask($log, $question['prompt'])];
+        $system = $this->systemPrompt($question['identity']);
+        $calls = [$this->ask($log, $question['prompt'], $system), $this->ask($log, $question['prompt'], $system)];
 
         if ($this->needsThirdAnswer($calls)) {
-            $calls[] = $this->ask($log, $question['prompt']);
+            $calls[] = $this->ask($log, $question['prompt'], $system);
         }
 
         return $this->bank($log, $question, $calls);
@@ -177,7 +221,7 @@ TXT;
      */
     private function bank(MediaProcessingLog $log, array $question, array $calls): array
     {
-        $decision = $this->decision($calls, $question['lines'], 'sermon_last_line', $this->identitySongStart($question['identity']));
+        $decision = $this->decision($calls, $question['lines'], 'sermon_last_line', $this->identitySongStart($question['identity']), $this->identityPartEnd($question['identity']));
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $this->kind($question['identity']), [
             'calls_completed' => true, 'identity' => $question['identity'], 'prompt' => $question['prompt'], 'lines' => $question['lines'], 'calls' => $calls, ...$decision,
         ]);
@@ -199,16 +243,17 @@ TXT;
     }
 
     /**
-     * The banked answer for the sermon output's end, or null when there is no song beside it or
-     * the question was never asked of this transcript. With nothing credibly spoken before the
-     * song there is nothing to judge, and the detected end stands.
+     * The banked answer for the sermon output's end (or an earlier part's), or null when there is no
+     * song beside it or the question was never asked of this transcript. With nothing credibly spoken
+     * before the song there is nothing to judge, and the detected end stands.
      *
      * @param  list<array{start_time: float, end_time: float}>  $sermonSpans
+     * @param  int|null  $part  An earlier part's index; null for the output's end
      * @return array{end: float|null, ties_to_sermon: bool|null, line: string|null}|null
      */
-    public function read(MediaProcessingLog $log, array $sermonSpans): ?array
+    public function read(MediaProcessingLog $log, array $sermonSpans, ?int $part = null): ?array
     {
-        $question = $this->question($log, $sermonSpans);
+        $question = $this->question($log, $sermonSpans, $part);
 
         return match (true) {
             $question === null => null,
@@ -220,18 +265,22 @@ TXT;
     /**
      * The next song after the sermon output, reached across items that are no clip of their own
      * (an introduction, notices, a prayer), or the recording ending before it, within {@see self::SONG_REACH}.
+     * For an earlier part, only a song that starts before the next part does.
      *
      * @param  list<array{start_time: float, end_time: float}>  $sermonSpans
+     * @param  int|null  $part  An earlier part's index; null for the output's end
      * @return array{song: ServiceSection|null, end: float}|null
      */
-    public function join(MediaProcessingLog $log, array $sermonSpans): ?array
+    public function join(MediaProcessingLog $log, array $sermonSpans, ?int $part = null): ?array
     {
         if ($sermonSpans === []) {
             return null;
         }
 
-        $start = (float) $sermonSpans[array_key_last($sermonSpans)]['start_time'];
-        $end = (float) $sermonSpans[array_key_last($sermonSpans)]['end_time'];
+        $index = $part ?? array_key_last($sermonSpans);
+        $start = (float) $sermonSpans[$index]['start_time'];
+        $end = (float) $sermonSpans[$index]['end_time'];
+        $nextPart = isset($sermonSpans[$index + 1]) ? (float) $sermonSpans[$index + 1]['start_time'] : null;
         $handlers = app(SectionPublicationHandlerFactory::class);
 
         foreach ($log->serviceSections()->orderBy('start_time')->orderBy('id')->get() as $section) {
@@ -241,7 +290,8 @@ TXT;
                 continue;
             }
 
-            if ((float) $section->start_time > $end + self::SONG_REACH) {
+            if ((float) $section->start_time > $end + self::SONG_REACH
+                || ($nextPart !== null && (float) $section->start_time >= $nextPart - 0.05)) {
                 return null;
             }
 
@@ -252,6 +302,10 @@ TXT;
             if ($handlers->forSection($section) !== null || $section->section_type === ServiceSectionType::Sermon) {
                 return null;
             }
+        }
+
+        if ($nextPart !== null) {
+            return null;
         }
 
         $cues = app(OutputEdgeWordTimings::class)->cues($log);
@@ -265,23 +319,27 @@ TXT;
     }
 
     /**
-     * The question for the sermon output's end: the numbered lines the model reads, the prompt and
-     * the identity an answer is banked under. Null when neither join is in reach; no lines when nothing
-     * credible is said near the join.
+     * The question for the sermon output's end (or an earlier part's): the numbered lines the model
+     * reads, the prompt and the identity an answer is banked under. Null when neither join is in reach;
+     * no lines when nothing credible is said near the join.
      *
      * @param  list<array{start_time: float, end_time: float}>  $sermonSpans
+     * @param  int|null  $part  An earlier part's index; null for the output's end
      * @return array{end: float, lines: list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>, prompt: string, identity: array<string, mixed>}|null
      */
-    public function question(MediaProcessingLog $log, array $sermonSpans): ?array
+    public function question(MediaProcessingLog $log, array $sermonSpans, ?int $part = null): ?array
     {
-        $last = array_key_last($sermonSpans);
-        $join = $this->join($log, $sermonSpans);
+        $last = $part ?? array_key_last($sermonSpans);
+        $join = $this->join($log, $sermonSpans, $part);
 
         if ($last === null || $join === null) {
             return null;
         }
 
         $end = (float) $sermonSpans[$last]['end_time'];
+        $partType = $part === null || $part === array_key_last($sermonSpans) ? null : $this->partType($log, (float) $sermonSpans[$last]['start_time'], $end);
+        // An earlier part never runs into the next detected item outside the output (1233's prayer before the song).
+        $nextItem = $partType === null ? null : $this->nextItemStart($log, $end, $join['end']);
         $song = $join['song'];
         if ($song === null && $log->duration !== null && $end > $log->duration && $end <= $log->duration + 1.0) {
             $end = (float) $log->duration;
@@ -303,7 +361,8 @@ TXT;
                 default => 'no',
             };
 
-            if ($cue['start'] > $songStart + self::PAST_SONG_START || ($state === 'yes' && ++$afterMusic > self::LINES_AFTER_MUSIC)) {
+            if ($cue['start'] > $songStart + self::PAST_SONG_START || ($state === 'yes' && ++$afterMusic > self::LINES_AFTER_MUSIC)
+                || ($nextItem !== null && $cue['start'] >= $nextItem - 0.05)) {
                 break;
             }
 
@@ -314,9 +373,10 @@ TXT;
             return ['end' => $end, 'lines' => [], 'prompt' => '', 'identity' => []];
         }
 
-        $prompt = $this->prompt($log, $song, $songStart, $end, $lines);
+        $prompt = $this->prompt($log, $song, $songStart, $end, $lines, $partType);
 
         return ['end' => $end, 'lines' => $lines, 'prompt' => $prompt, 'identity' => [
+            ...($partType === null ? [] : ['part' => $partType->value]),
             'processing_id' => $log->processing_id,
             'sermon_end' => round($end, 3),
             'song_start' => $song === null ? null : round($songStart, 3),
@@ -326,6 +386,35 @@ TXT;
             'transcript' => hash('sha256', $prompt),
             'media_processing' => MediaProcessingVersion::signature(),
         ]];
+    }
+
+    /**
+     * The type of the section an earlier part is: the one spanning it (1271's reading, not the
+     * introduction section overlapping its last second).
+     */
+    private function partType(MediaProcessingLog $log, float $start, float $end): ServiceSectionType
+    {
+        $section = $log->serviceSections()->where('start_time', '<=', $start + 0.05)->where('end_time', '>=', $end - 0.05)
+            ->orderByDesc('start_time')->first();
+
+        return $section->section_type ?? ServiceSectionType::Sermon;
+    }
+
+    /** The start of the first detected item after an earlier part, before its song, other than an unnamed stretch. */
+    private function nextItemStart(MediaProcessingLog $log, float $end, float $songStart): ?float
+    {
+        $section = $log->serviceSections()->where('start_time', '>=', $end - 0.05)->where('start_time', '<', $songStart)
+            ->whereNotIn('section_type', [ServiceSectionType::Other, ServiceSectionType::Song])->orderBy('start_time')->first();
+
+        return $section === null ? null : (float) $section->start_time;
+    }
+
+    /** @param  array<string, mixed>  $identity */
+    private function systemPrompt(array $identity): string
+    {
+        $type = isset($identity['part']) ? ServiceSectionType::tryFrom((string) $identity['part']) : null;
+
+        return in_array($type, self::PART_TYPES, true) ? self::PART_SYSTEM_PROMPT : self::SYSTEM_PROMPT;
     }
 
     /** @return array{start: float, end: float}|null */
@@ -343,25 +432,27 @@ TXT;
     /**
      * @param  list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>  $lines
      */
-    private function prompt(MediaProcessingLog $log, ?ServiceSection $song, float $joinEnd, float $end, array $lines): string
+    private function prompt(MediaProcessingLog $log, ?ServiceSection $song, float $joinEnd, float $end, array $lines, ?ServiceSectionType $partType = null): string
     {
         $between = $log->serviceSections()->where('start_time', '>=', $end - 0.05)->where('start_time', '<', $joinEnd)->orderBy('start_time')->get()
             ->map(static fn (ServiceSection $section): string => sprintf('%s "%s"', str_replace('_', ' ', $section->section_type->value), $section->title))->all();
-        $sermon = $log->serviceSections()->where('section_type', ServiceSectionType::Sermon)->where('start_time', '<', $end)->orderByDesc('start_time')->first();
+        $asPart = in_array($partType, self::PART_TYPES, true);
+        $sermon = $log->serviceSections()->where('section_type', $asPart ? $partType : ServiceSectionType::Sermon)->where('start_time', '<', $end)->orderByDesc('start_time')->first();
         $text = '';
         $marked = false;
 
         foreach ($lines as $line) {
             if (! $marked && $line['start'] >= $end - 0.05) {
-                $text .= "--- (the detected sermon section ends here) ---\n";
+                $text .= $asPart ? sprintf("--- (the detected %s section ends here) ---\n", str_replace('_', ' ', $partType->value)) : "--- (the detected sermon section ends here) ---\n";
                 $marked = true;
             }
 
             $text .= sprintf("%d. %s%s\n", $line['n'], ['no' => '', 'may' => '[music may start] ', 'yes' => '[music] '][$line['music']], $line['text']);
         }
 
-        return sprintf("Sermon: \"%s\".\nNext song: %s.\n%s\nTranscript:\n%s",
-            $sermon->title ?? 'Sermon',
+        return sprintf("%s: \"%s\".\nNext song: %s.\n%s\nTranscript:\n%s",
+            $asPart ? ucfirst(str_replace('_', ' ', $partType->value)) : 'Sermon',
+            $sermon->title ?? ($asPart ? ucfirst(str_replace('_', ' ', $partType->value)) : 'Sermon'),
             $song === null ? 'not in the recording (it ends after the last line)' : sprintf('"%s"', $song->title),
             $between === [] ? '' : 'Detected between them: '.implode('; ', $between).".\n",
             $text,
@@ -369,7 +460,7 @@ TXT;
     }
 
     /** @return array{sermon_last_line: int|null, ties_to_sermon: bool|null, video_last_line: int|null, reason: string|null} */
-    private function ask(MediaProcessingLog $log, string $prompt): array
+    private function ask(MediaProcessingLog $log, string $prompt, string $system = self::SYSTEM_PROMPT): array
     {
         $model = (string) config('media-processing.service_structure.model');
 
@@ -377,7 +468,7 @@ TXT;
             OpenAiChatPayload::forModel([
                 'model' => $model,
                 'service_tier' => config('openai.service_tier'),
-                'messages' => [['role' => 'system', 'content' => self::SYSTEM_PROMPT], ['role' => 'user', 'content' => $prompt]],
+                'messages' => [['role' => 'system', 'content' => $system], ['role' => 'user', 'content' => $prompt]],
                 'response_format' => ['type' => 'json_object'],
                 'max_completion_tokens' => 4000,
             ], reasoningEffort: 'medium'),
@@ -410,7 +501,7 @@ TXT;
      * @param  'sermon_last_line'|'video_last_line'  $lineKey
      * @return array{ties_to_sermon: bool|null, end: float|null, line: string|null}
      */
-    private function decision(array $calls, array $lines, string $lineKey = 'video_last_line', ?float $songStart = null): array
+    private function decision(array $calls, array $lines, string $lineKey = 'video_last_line', ?float $songStart = null, ?float $partEnd = null): array
     {
         $votes = array_count_values(array_map(static fn (array $call): string => var_export($call['ties_to_sermon'], true), $calls));
         arsort($votes);
@@ -447,9 +538,45 @@ TXT;
             $chosen = isset($byNumber[$chosen - 1]) ? $chosen - 1 : null;
         }
 
+        if ($partEnd !== null) {
+            $chosen = $this->partLine($chosen, $byNumber, $partEnd, $songStart);
+        }
+
         return $chosen === null
             ? ['ties_to_sermon' => $ties, 'end' => null, 'line' => null]
             : ['ties_to_sermon' => $ties, 'end' => (float) $byNumber[$chosen]['end'], 'line' => $byNumber[$chosen]['text']];
+    }
+
+    /**
+     * An earlier part's line, measured 2026-11-01 over 150 parts (`storage/scratch/part-joins-20261101/`).
+     * A line whose sentence the next line finishes ("…his word to us" | "this day.", 1245) steps back,
+     * as an open clause does. An end later than the detected one must finish a sentence or an Amen
+     * ("We thank God for his word." is kept: 1111, 1288); otherwise the detected end's line stands
+     * (1307's word-per-line "thank" before "you Dave").
+     *
+     * @param  array<int, array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>  $byNumber
+     */
+    private function partLine(?int $chosen, array $byNumber, float $partEnd, ?float $songStart): ?int
+    {
+        while ($chosen !== null && isset($byNumber[$chosen], $byNumber[$chosen + 1])
+            && preg_match(self::FINISHED, $byNumber[$chosen]['text']) !== 1
+            && preg_match('/^\s*["\'\x{201C}\x{2018}]?\p{Ll}/u', $byNumber[$chosen + 1]['text']) === 1
+            && preg_match(self::FINISHED, $byNumber[$chosen + 1]['text']) === 1
+            && ($songStart === null || $byNumber[$chosen + 1]['start'] < $songStart)) {
+            $chosen = isset($byNumber[$chosen - 1]) ? $chosen - 1 : null;
+        }
+
+        if ($chosen !== null && $byNumber[$chosen]['end'] > $partEnd + 0.3
+            && preg_match(self::FINISHED, $byNumber[$chosen]['text']) !== 1 && preg_match(self::ENDS_ON_AMEN, $byNumber[$chosen]['text']) !== 1) {
+            $chosen = null;
+            foreach ($byNumber as $n => $line) {
+                if ($line['end'] <= $partEnd + 0.05) {
+                    $chosen = $n;
+                }
+            }
+        }
+
+        return $chosen;
     }
 
     /**
@@ -505,7 +632,7 @@ TXT;
                 }
             }
 
-            $decision = $this->decision($this->bankedCalls($payload), $lines, 'sermon_last_line', $this->identitySongStart($identity));
+            $decision = $this->decision($this->bankedCalls($payload), $lines, 'sermon_last_line', $this->identitySongStart($identity), $this->identityPartEnd($identity));
 
             return ['end' => $decision['end'], 'ties_to_sermon' => $decision['ties_to_sermon'], 'line' => $decision['line']];
         }
@@ -572,6 +699,16 @@ TXT;
     private function identitySongStart(array $identity): ?float
     {
         return is_numeric($identity['song_start'] ?? null) ? (float) $identity['song_start'] : null;
+    }
+
+    /**
+     * An earlier part's detected end; null for the output's end.
+     *
+     * @param  array<string, mixed>  $identity
+     */
+    private function identityPartEnd(array $identity): ?float
+    {
+        return isset($identity['part']) && is_numeric($identity['sermon_end'] ?? null) ? (float) $identity['sermon_end'] : null;
     }
 
     /** @param array<string, mixed> $identity */

@@ -171,6 +171,7 @@ class TranscribeOutputEdgesTest extends TestCase
             });
             $mock->shouldReceive('read')->andReturn(['end' => 2031.5, 'ties_to_sermon' => true, 'line' => 'A verse.']);
             $mock->shouldReceive('join')->andReturn(null);
+            $mock->shouldReceive('innerParts')->andReturn([]);
         });
         $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock) use (&$order): void {
             $mock->shouldReceive('prepare')->once()->withArgs(static fn (MediaProcessingLog $run, array $spans): bool => in_array(['start_time' => 2031.5, 'end_time' => 2031.5], $spans, true))

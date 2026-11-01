@@ -84,7 +84,7 @@ class OperatorOutputEdgeTest extends TestCase
     #[Test]
     public function a_start_set_by_ear_applies_after_the_dead_feed_rule(): void
     {
-        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive(['join' => null, 'innerParts' => []]));
         [$log, $sermon] = $this->sermonAfterADeadFeed();
         $spans = [['start_time' => 10.0, 'end_time' => 40.0]];
         $planned = $this->plans()->forSpans($log, $spans, sermonEnd: true);

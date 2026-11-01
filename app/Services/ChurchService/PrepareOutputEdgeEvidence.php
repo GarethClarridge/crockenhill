@@ -54,10 +54,15 @@ class PrepareOutputEdgeEvidence
         // Where the sermon ends beside a song (K16) is answered first, so its words are decoded.
         $introduction = $this->introductionCheck->prepare($run, $sermonSpans);
         $run->refresh();
+        $innerParts = [];
+        foreach ($this->introductionCheck->innerParts($run, $sermonSpans) as $part) {
+            $innerParts[$part] = $this->introductionCheck->prepare($run, $sermonSpans, $part);
+            $run->refresh();
+        }
         foreach ($this->cutPlans->spokenEndsBesideSongs($run, $sermonSpans) as $edge) {
             $spans[] = ['start_time' => $edge, 'end_time' => $edge];
         }
-        $summary = ['song_introduction' => $introduction] + $this->prepare->prepare($run->fresh() ?? throw new \RuntimeException('Processing run disappeared'), $spans);
+        $summary = ['song_introduction' => $introduction, ...($innerParts === [] ? [] : ['part_song_introductions' => $innerParts])] + $this->prepare->prepare($run->fresh() ?? throw new \RuntimeException('Processing run disappeared'), $spans);
         $run->refresh();
         $knownEdges = array_merge(...array_map(array_values(...), $spans));
         $exposed = $this->sentenceCheck->outputEdges($run, array_values($run->serviceSections()->orderBy('start_time')->get()->all()), $composition['selected_section_ids']);

@@ -174,7 +174,7 @@ class SpokenEdgeSentenceCheckTest extends TestCase
     #[Test]
     public function a_join_inside_the_sermon_output_is_not_asked_about(): void
     {
-        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive(['join' => null, 'innerParts' => []]));
         [$first, $second] = $this->handover(ServiceSectionType::Sermon, ServiceSectionType::Sermon, join: [1717.75, 1717.75]);
         OpenAI::fake([]);
 
@@ -231,7 +231,7 @@ class SpokenEdgeSentenceCheckTest extends TestCase
     #[Test]
     public function both_edges_of_a_gap_the_sermon_output_keeps_are_asked_about(): void
     {
-        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive(['join' => null, 'innerParts' => []]));
         [$sermon, $prayer] = $this->gap();
         $this->answers(['keep', ''], ['keep', ''], ['keep', ''], ['keep', '']);
 

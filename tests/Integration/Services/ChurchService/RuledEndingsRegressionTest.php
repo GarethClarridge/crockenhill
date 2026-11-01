@@ -372,7 +372,7 @@ class RuledEndingsRegressionTest extends RuledEndingsTestCase
     #[Test]
     public function a_dropout_inside_a_word_is_not_a_pause_to_end_in(): void
     {
-        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive(['join' => null, 'innerParts' => []]));
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/run-1108-2026-10-23.json.gz')), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($fixture);
 
@@ -468,7 +468,7 @@ class RuledEndingsRegressionTest extends RuledEndingsTestCase
     #[Test]
     public function an_opening_mic_check_can_be_removed_without_losing_the_sermon_introduction(): void
     {
-        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive(['join' => null, 'innerParts' => []]));
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-957-start.json.gz')), true, flags: JSON_THROW_ON_ERROR);
         $log = $this->rebuild($this->withoutSentenceAnswers($fixture));
         OpenAI::fake(array_fill(0, 20, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
@@ -486,7 +486,7 @@ class RuledEndingsRegressionTest extends RuledEndingsTestCase
     #[Test]
     public function an_opening_the_recording_joins_mid_sentence_keeps_that_sentence(): void
     {
-        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive('join')->andReturn(null));
+        $this->mock(SermonSongIntroductionCheck::class, fn (MockInterface $mock) => $mock->shouldReceive(['join' => null, 'innerParts' => []]));
         // 1269's sermon: the feed came back during "…of a little boy who went to church with his
         // mother", and both answers shrank it away as a fragment (operator, 10-22: words lost).
         $fixture = json_decode((string) gzdecode((string) file_get_contents(dirname(__DIR__, 3).'/Fixtures/RuledEndings/listening-edges-20261018-957-start.json.gz')), true, flags: JSON_THROW_ON_ERROR);

@@ -98,6 +98,12 @@ class SermonCutProbe
                 if ($question !== null && $question['lines'] !== [] && $this->introduction->read($candidate, $spans) === null) {
                     $evidenceRequest['sermon_song_introduction'] = $question;
                 }
+                foreach ($this->introduction->innerParts($candidate, $spans) as $part) {
+                    $partQuestion = $this->introduction->question($candidate, $spans, $part);
+                    if ($partQuestion !== null && $partQuestion['lines'] !== [] && $this->introduction->read($candidate, $spans, $part) === null) {
+                        $evidenceRequest['part_song_introductions'][$part] = $partQuestion;
+                    }
+                }
             }
 
             return [

@@ -370,6 +370,14 @@ class CueSafeExtractionPlan
         $composedSpans = $spans;
         $introductionAnswer = $introductionJoin === null ? null : $introduction->read($log, $composedSpans);
         $keptLine = $introductionAnswer === null ? null : $this->whereKeptLineWasHeard($log, $cues, $introductionAnswer, $introductionJoin['end']);
+        // An earlier part with a song before the next part ends on its own last line the same way.
+        $innerKeptLines = [];
+        foreach ($introduction === null ? [] : $introduction->innerParts($log, $composedSpans) as $part) {
+            $innerJoin = app(SermonSongIntroductionCheck::class)->join($log, $composedSpans, $part);
+            $innerAnswer = app(SermonSongIntroductionCheck::class)->read($log, $composedSpans, $part);
+            $innerKeptLines[$part] = $innerJoin === null || $innerAnswer === null ? null
+                : $this->whereKeptLineWasHeard($log, $cues, $innerAnswer, $innerJoin['end']);
+        }
         // 962: the answer ends the sermon at its own last line, before a part of its own that follows
         // (the Lord's Prayer); the video ends there, so a part the end falls before is not in it.
         while (($keptLine['end'] ?? null) !== null && count($spans) > 1 && $keptLine['end'] <= $spans[array_key_last($spans)]['start_time'] + 0.001) {
@@ -394,11 +402,12 @@ class CueSafeExtractionPlan
                 $besideSong = false;
                 $thoughtComplete = true;
                 $songIntroduction = null;
-                if ($edge === 'end' && $index === $last && $introductionJoin !== null) {
+                $innerPart = $edge === 'end' && $index !== $last && array_key_exists($index, $innerKeptLines);
+                if ($innerPart || ($edge === 'end' && $index === $last && $introductionJoin !== null)) {
                     $besideSong = true;
                     // Never asked is evidence not yet gathered, as undecoded words are: the edge
                     // step asks before it decodes. Asked with no line named leaves it to the operator.
-                    $songIntroduction = $keptLine
+                    $songIntroduction = ($innerPart ? $innerKeptLines[$index] : $keptLine)
                         ?? throw new OutputEdgeTimingsMissing(sprintf('edge_word_timings_missing: run %s has no answer on where its sermon ends beside the song (K16)', $log->processing_id));
                     $thoughtComplete = ($songIntroduction['end'] ?? null) !== null;
                     if ($thoughtComplete && abs($songIntroduction['end'] - $original) > 0.001) {
@@ -577,14 +586,19 @@ class CueSafeExtractionPlan
             return [];
         }
 
-        $end = (float) $spans[array_key_last($spans)]['end_time'];
         $introduction = app(SermonSongIntroductionCheck::class);
-        $answer = $introduction->read($log, $spans);
-        $edges = ($answer['end'] ?? null) !== null && abs($answer['end'] - $end) > 0.001 ? [$answer['end']] : [];
-        $join = $answer === null ? null : $introduction->join($log, $spans);
-        if ($join !== null) {
-            foreach ($this->unheardKeptLineCopies($log, app(OutputEdgeWordTimings::class)->cues($log), $answer, $join['end']) as $copy) {
-                $edges[] = $copy['end'];
+        $edges = [];
+        foreach ([null, ...$introduction->innerParts($log, $spans)] as $part) {
+            $end = (float) $spans[$part ?? array_key_last($spans)]['end_time'];
+            $answer = $introduction->read($log, $spans, $part);
+            if (($answer['end'] ?? null) !== null && abs($answer['end'] - $end) > 0.001) {
+                $edges[] = $answer['end'];
+            }
+            $join = $answer === null ? null : $introduction->join($log, $spans, $part);
+            if ($join !== null) {
+                foreach ($this->unheardKeptLineCopies($log, app(OutputEdgeWordTimings::class)->cues($log), $answer, $join['end']) as $copy) {
+                    $edges[] = $copy['end'];
+                }
             }
         }
 
