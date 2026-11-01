@@ -60,6 +60,12 @@ final class SongMusicalIntroduction
     /** What a start moved past a dropout keeps before the first sound, as the dead-feed rule does. */
     private const float DROPOUT_LEAD = 0.3;
 
+    /**
+     * How much quieter than the song an opening taken over quiet singing must be for the clip to
+     * be flagged as recorded partly very quietly (E25): 1011's solo is 45 dB under its body.
+     */
+    public const float QUIET_RECORDING_DB = 20.0;
+
     private const DECIDED = [
         ServiceSectionPublicationStatus::Published,
         ServiceSectionPublicationStatus::Approved,
@@ -123,7 +129,7 @@ final class SongMusicalIntroduction
 
     /**
      * @param  array<int, ServiceSection>  $sections
-     * @return array{from: float, to: float, windows: int, quiet_singing_windows?: int}|null
+     * @return array{from: float, to: float, windows: int, quiet_singing_windows?: int, quieter_by_db?: float}|null
      */
     private function introductionBefore(ServiceSection $section, array $sections, AudioTimeline $timeline, MediaProcessingLog $processingLog): ?array
     {
@@ -173,30 +179,88 @@ final class SongMusicalIntroduction
         }
 
         $to = max($first['start'], $songFloor, $first['start'] < $otherFloor - self::TOLERANCE_SECONDS ? 0.0 : $otherFloor);
+        $levels = $quiet > 0 ? app(OutputEdgeDecodeWindow::class)->levels($processingLog) : null;
 
-        if (self::isQuietSinging($first)) {
-            $to = $this->afterDropout($processingLog, $to, $first['end']) ?? $to;
+        if ($levels !== null && self::isQuietSinging($first)) {
+            $to = $this->afterDropout($levels, $to, $first['end']) ?? $to;
         }
 
         $introduction = ['from' => $start, 'to' => $to, 'windows' => $count];
 
         if ($quiet > 0) {
             $introduction['quiet_singing_windows'] = $quiet;
+            $quieterBy = $levels === null ? null : $this->quieterBy($levels, $to, $start, (float) $section->end_time);
+
+            if ($quieterBy !== null) {
+                $introduction['quieter_by_db'] = $quieterBy;
+            }
         }
 
         return $introduction;
     }
 
     /**
-     * Just before the first sound in a stretch that opens in a dropout, or null when it does not
-     * open in one or the run has no level log.
+     * Whether a section's start was taken over singing far quieter than the song, so its clip is
+     * flagged as recorded partly very quietly (E25).
      */
-    private function afterDropout(MediaProcessingLog $processingLog, float $from, float $until): ?float
+    public static function opensOnQuietRecording(ServiceSection $section): bool
     {
-        $levels = app(OutputEdgeDecodeWindow::class)->levels($processingLog);
+        $recorded = $section->metadata?->raw[self::METADATA_KEY] ?? null;
+
+        return is_array($recorded) && array_any($recorded, static fn (mixed $record): bool => is_array($record)
+            && is_numeric($record['quieter_by_db'] ?? null)
+            && (float) $record['quieter_by_db'] >= self::QUIET_RECORDING_DB);
+    }
+
+    /**
+     * How many decibels the median level of the opening sits below the song body's, or null when
+     * either has no level samples. Dropout samples are not the opening's sound.
+     *
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     */
+    private function quieterBy(array $levels, float $from, float $start, float $end): ?float
+    {
+        $opening = [];
+        $body = [];
+
+        foreach ($levels['samples'] as $sample) {
+            if ($sample['rms'] <= DeadFeedInsideSection::DROPOUT_LEVEL_DB) {
+                continue;
+            }
+
+            if ($sample['time'] >= $from && $sample['time'] < $start) {
+                $opening[] = $sample['rms'];
+            } elseif ($sample['time'] >= $start && $sample['time'] < $end) {
+                $body[] = $sample['rms'];
+            }
+        }
+
+        if ($opening === [] || $body === []) {
+            return null;
+        }
+
+        return round(self::median($body) - self::median($opening), 1);
+    }
+
+    /** @param  non-empty-list<float>  $values */
+    private static function median(array $values): float
+    {
+        sort($values);
+
+        return $values[intdiv(count($values), 2)];
+    }
+
+    /**
+     * Just before the first sound in a stretch that opens in a dropout, or null when it does not
+     * open in one.
+     *
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     */
+    private function afterDropout(array $levels, float $from, float $until): ?float
+    {
         $opensInDropout = false;
 
-        foreach ($levels['samples'] ?? [] as $sample) {
+        foreach ($levels['samples'] as $sample) {
             if ($sample['time'] < $from || $sample['time'] > $until) {
                 continue;
             }
@@ -214,7 +278,7 @@ final class SongMusicalIntroduction
     }
 
     /**
-     * @param  array{from: float, to: float, windows: int, quiet_singing_windows?: int}  $introduction
+     * @param  array{from: float, to: float, windows: int, quiet_singing_windows?: int, quieter_by_db?: float}  $introduction
      */
     private function apply(ServiceSection $section, array $introduction): void
     {

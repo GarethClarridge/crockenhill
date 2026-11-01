@@ -47,6 +47,11 @@
                                                 Featured
                                             </span>
                                         @endif
+                                        @if($video['quiet_recording'])
+                                            <span class="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700">
+                                                Partly very quiet
+                                            </span>
+                                        @endif
                                     </div>
                                     <div class="flex items-center gap-3">
                                         @if($video['is_featured'])
@@ -58,6 +63,12 @@
                                                 Feature
                                             </x-form-button>
                                         @endif
+                                        <x-form-button type="button" variant="outline" size="xs"
+                                            wire:click="toggleQuietRecording({{ $video['id'] }})"
+                                            aria-pressed="{{ $video['quiet_recording'] ? 'true' : 'false' }}"
+                                        >
+                                            {{ $video['quiet_recording'] ? 'Clear quiet flag' : 'Flag as quiet' }}
+                                        </x-form-button>
                                         <x-form-button type="button" variant="danger" size="xs"
                                             wire:click="deleteVideo({{ $video['id'] }})"
                                             wire:confirm="Delete this video recording?"

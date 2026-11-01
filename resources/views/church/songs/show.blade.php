@@ -101,6 +101,7 @@
                     <video src="{{ $videoUrl }}" class="w-full rounded-lg" controls>
                         Your browser does not support the video element.
                     </video>
+                    <x-song-quiet-recording-note :quiet="$displayVideo?->quiet_recording ?? false" class="mt-3" />
                 </div>
             </div>
         @endif

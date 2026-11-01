@@ -14,6 +14,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
+use App\Services\ChurchService\Structure\SongMusicalIntroduction;
 use App\Services\Song\SongVideoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -249,6 +250,32 @@ class SongVideoServiceTest extends TestCase
         $this->assertEquals($section->duration, $video->duration);
         $this->assertEquals('2026-03-15', $video->recorded_date->toDateString());
         $this->assertFalse($video->is_featured);
+    }
+
+    /**
+     * E25: a clip whose start was taken over singing far quieter than the song is flagged; one
+     * that was not is not, and a flag the clip already has (set by hand) is never cleared.
+     */
+    #[Test]
+    public function it_flags_a_clip_that_opens_on_a_far_quieter_recording(): void
+    {
+        $song = Song::factory()->create();
+        $item = ChurchServiceItem::factory()->create(['song_id' => $song->id]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->create();
+        $section = fn (array $introduction): ServiceSection => ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song->value,
+            'metadata' => [SongMusicalIntroduction::METADATA_KEY => [$introduction]],
+        ]);
+        $quiet = $section(['from' => 513.85, 'to' => 458.51, 'windows' => 12, 'quiet_singing_windows' => 12, 'quieter_by_db' => 45.0]);
+        $loud = $section(['from' => 273.0, 'to' => 255.0, 'windows' => 4]);
+        $markedByHand = $section(['from' => 273.0, 'to' => 255.0, 'windows' => 4]);
+        SongVideo::factory()->create(['song_id' => $song->id, 'service_section_id' => $markedByHand->id, 'quiet_recording' => true]);
+
+        $this->assertTrue($this->service->createFromExtraction($quiet, 'sermons/songs/quiet.mp4')->quiet_recording);
+        $this->assertFalse($this->service->createFromExtraction($loud, 'sermons/songs/loud.mp4')->quiet_recording);
+        $this->assertTrue($this->service->createFromExtraction($markedByHand, 'sermons/songs/marked.mp4')->quiet_recording);
     }
 
     /**

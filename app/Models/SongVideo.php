@@ -23,6 +23,7 @@ use Illuminate\Validation\Rule;
  * @property float|null $duration
  * @property Carbon|null $recorded_date
  * @property bool $is_featured
+ * @property bool $quiet_recording
  * @property SermonPublicationState $publication_state
  * @property string|null $asset_disk
  * @property int|null $historic_import_operation_id
@@ -58,6 +59,7 @@ class SongVideo extends Model
         'duration',
         'recorded_date',
         'is_featured',
+        'quiet_recording',
         'publication_state',
         'asset_disk',
         'historic_import_operation_id',
@@ -70,6 +72,7 @@ class SongVideo extends Model
     {
         return [
             'is_featured' => 'boolean',
+            'quiet_recording' => 'boolean',
             'recorded_date' => 'date',
             'duration' => 'float',
             'publication_state' => SermonPublicationState::class,

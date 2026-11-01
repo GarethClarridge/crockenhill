@@ -1477,6 +1477,7 @@ CREATE TABLE `song_videos` (
   `duration` double DEFAULT NULL,
   `recorded_date` date DEFAULT NULL,
   `is_featured` tinyint(1) NOT NULL DEFAULT '0',
+  `quiet_recording` tinyint(1) NOT NULL DEFAULT '0',
   `publication_state` varchar(24) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'published',
   `asset_disk` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `historic_import_operation_id` bigint unsigned DEFAULT NULL,
@@ -1858,3 +1859,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073158_confi
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073200_stamp_candidate_media_signatures',104);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_25_222923_add_audio_timeline_path_to_media_processing_logs_table',105);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_10_22_120331_add_partial_recording_to_sermons_table',106);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_01_222802_add_quiet_recording_to_song_videos_table',107);

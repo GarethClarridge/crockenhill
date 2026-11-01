@@ -996,6 +996,12 @@ class HistoricMediaGraphPersister
                     $updates['church_service_id'] = $churchService->id;
                 }
 
+                // As `sermons.partial_recording`: false is the column default, not a richer record,
+                // so a flag set where the clip was reviewed is adopted and never cleared (E25).
+                if (($payload['quiet_recording'] ?? false) === true && ! $existing->quiet_recording) {
+                    $updates['quiet_recording'] = true;
+                }
+
                 if ($updates !== []) {
                     $existing->forceFill($updates)->save();
                 }
@@ -1011,6 +1017,7 @@ class HistoricMediaGraphPersister
                 'duration' => $payload['duration'],
                 'recorded_date' => $payload['recorded_date'],
                 'is_featured' => $payload['is_featured'],
+                'quiet_recording' => $payload['quiet_recording'] ?? false,
                 // Quarantined for the same reason the publications are: the
                 // bytes are on the private disk, and a later recorded_date
                 // would otherwise make this the song's public video.

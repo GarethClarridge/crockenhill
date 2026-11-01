@@ -266,6 +266,7 @@ class PublicChurchServiceArchiveService
     private function songEntry(ChurchServiceItem $item, ?ServiceSection $section, array $sortKey): array
     {
         $song = $item->song;
+        $video = $this->publishedSongVideo($section);
 
         return [
             'id' => 'song-'.$item->id,
@@ -275,7 +276,8 @@ class PublicChurchServiceArchiveService
             'song_url' => $song instanceof Song && filled($song->slug)
                 ? route('church.songs.show', $song->slug)
                 : null,
-            'song_video_url' => $this->songVideoUrl($section),
+            'song_video_url' => $video === null ? null : $this->songVideoService->getVideoUrl($video),
+            'song_video_quiet' => $video !== null && $video->quiet_recording,
             'sermon_view' => null,
             'sort' => $sortKey,
         ];
@@ -376,7 +378,7 @@ class PublicChurchServiceArchiveService
      * This is the same gate the song publication pipeline applies; the section
      * being *detected* is not consent to publish the recording.
      */
-    private function songVideoUrl(?ServiceSection $section): ?string
+    private function publishedSongVideo(?ServiceSection $section): ?SongVideo
     {
         if (! $section instanceof ServiceSection) {
             return null;
@@ -386,12 +388,10 @@ class PublicChurchServiceArchiveService
             return null;
         }
 
-        $video = $section->songVideos->first(
+        return $section->songVideos->first(
             fn (SongVideo $songVideo): bool => filled($songVideo->video_file_path)
                 && $songVideo->publication_state === SermonPublicationState::Published
         );
-
-        return $video === null ? null : $this->songVideoService->getVideoUrl($video);
     }
 
     /**

@@ -148,10 +148,38 @@ class SongMusicalIntroductionTest extends TestCase
         $this->assertSame(1, $this->introduction()->extend($this->run));
 
         $this->assertEqualsWithDelta(458.51, (float) $section->fresh()->start_time, 0.01);
-        $this->assertEquals([['from' => 513.85, 'to' => 458.51, 'windows' => 12, 'quiet_singing_windows' => 12]], array_map(
+        $this->assertEquals([['from' => 513.85, 'to' => 458.51, 'windows' => 12, 'quiet_singing_windows' => 12, 'quieter_by_db' => 38.0]], array_map(
             static fn (array $record): array => array_diff_key($record, ['extended_at' => true]),
             $section->fresh()->metadata->raw[SongMusicalIntroduction::METADATA_KEY],
         ));
+        $this->assertTrue(SongMusicalIntroduction::opensOnQuietRecording($section->fresh()), 'E25: the clip is flagged.');
+    }
+
+    /** A quiet opening a little below the song is moved but not flagged: the flag is for one far quieter. */
+    #[Test]
+    public function it_does_not_flag_an_opening_only_a_little_quieter_than_the_song(): void
+    {
+        $section = $this->song(513.85, 637.42);
+        $this->quietSoloTimeline();
+        $this->levels([[0.0, 438.0, -40.0], [438.0, 458.81, -95.0], [458.81, 520.0, -34.0], [520.0, 640.0, -24.0]]);
+
+        $this->introduction()->extend($this->run);
+
+        $this->assertEqualsWithDelta(458.51, (float) $section->fresh()->start_time, 0.01);
+        $this->assertEqualsWithDelta(10.0, $section->fresh()->metadata->raw[SongMusicalIntroduction::METADATA_KEY][0]['quieter_by_db'], 0.01);
+        $this->assertFalse(SongMusicalIntroduction::opensOnQuietRecording($section->fresh()));
+    }
+
+    /** A start the music moved is no quiet recording. */
+    #[Test]
+    public function it_does_not_flag_a_musical_introduction(): void
+    {
+        $section = $this->song(273.0, 480.0);
+        $this->timeline([[0, 255, 0.02, 0.85], [255, 480, 0.7, 0.03]]);
+
+        $this->introduction()->extend($this->run);
+
+        $this->assertFalse(SongMusicalIntroduction::opensOnQuietRecording($section->fresh()));
     }
 
     /** Without a level log the start is the first sung window's: nothing heard is left out. */

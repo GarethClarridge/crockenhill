@@ -144,6 +144,7 @@
                                                 <video src="{{ $item['song_video_url'] }}" class="w-full rounded-md bg-slate-950" controls>
                                                     Your browser does not support the video element.
                                                 </video>
+                                                <x-song-quiet-recording-note :quiet="$item['song_video_quiet'] ?? false" class="mt-3" />
                                             </div>
                                         @endif
                                     @elseif ($item['kind'] === 'scripture')

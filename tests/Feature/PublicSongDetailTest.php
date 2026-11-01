@@ -211,6 +211,20 @@ class PublicSongDetailTest extends TestCase
         $response->assertDontSee('test-video.mp4', false);
     }
 
+    /** E25: a clip recorded partly very quietly says so beside the player, as a partly recorded talk does. */
+    #[Test]
+    public function a_quietly_recorded_clip_says_so_beside_the_player(): void
+    {
+        $this->actingAs(User::factory()->create());
+        $quiet = Song::factory()->create(['title' => 'From Heaven You Came']);
+        $loud = Song::factory()->create(['title' => 'In Christ Alone']);
+        SongVideo::factory()->create(['song_id' => $quiet->id, 'video_file_path' => 'sermons/songs/quiet.mp4', 'quiet_recording' => true]);
+        SongVideo::factory()->create(['song_id' => $loud->id, 'video_file_path' => 'sermons/songs/loud.mp4']);
+
+        $this->get(route('church.songs.show', $quiet->slug))->assertOk()->assertSee('Part of this song was recorded very quietly.');
+        $this->get(route('church.songs.show', $loud->slug))->assertOk()->assertDontSee('recorded very quietly');
+    }
+
     #[Test]
     public function video_player_is_not_shown_when_song_has_no_video(): void
     {

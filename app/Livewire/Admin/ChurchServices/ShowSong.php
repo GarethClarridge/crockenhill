@@ -58,6 +58,7 @@ class ShowSong extends Component
                 'recorded_date' => $video->recorded_date?->format('j M Y'),
                 'duration' => $video->duration,
                 'is_featured' => $video->is_featured,
+                'quiet_recording' => $video->quiet_recording,
             ])
             ->all();
 
@@ -94,6 +95,21 @@ class ShowSong extends Component
 
         $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
         app(SongVideoService::class)->unfeatureVideo($video);
+    }
+
+    /**
+     * Mark or clear a clip as recorded partly very quietly (register E25), which its song and
+     * service pages then say. The pipeline sets it for an opening far quieter than the song and
+     * keeps a flag set here when the clip is cut again.
+     *
+     * @throws ModelNotFoundException
+     */
+    public function toggleQuietRecording(int $videoId): void
+    {
+        $this->authorizeAdmin();
+
+        $video = SongVideo::query()->where('song_id', $this->song->id)->findOrFail($videoId);
+        $video->forceFill(['quiet_recording' => ! $video->quiet_recording])->save();
     }
 
     /**

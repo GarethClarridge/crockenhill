@@ -10,6 +10,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
+use App\Services\ChurchService\Structure\SongMusicalIntroduction;
 use App\Services\HistoricMedia\HistoricStagingUrlGuard;
 use App\Support\MediaAssetPath;
 use Illuminate\Http\UploadedFile;
@@ -168,6 +169,9 @@ class SongVideoService
         $existing = SongVideo::query()->where('service_section_id', $section->id)->first();
         $attributes = [
             'is_featured' => $existing->is_featured ?? false,
+            // E25: the pipeline sets it for an opening far quieter than the song; it never clears
+            // a flag the clip already has, whether measured before or set by hand.
+            'quiet_recording' => ($existing->quiet_recording ?? false) || SongMusicalIntroduction::opensOnQuietRecording($section),
             'song_id' => $item->song_id,
             'service_section_id' => $section->id,
             'church_service_id' => $processingLog->church_service_id,

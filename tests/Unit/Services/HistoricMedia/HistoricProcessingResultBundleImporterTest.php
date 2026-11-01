@@ -19,6 +19,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -340,6 +341,53 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
         $this->assertCount(2, $result['created_assets']);
     }
 
+    /** E25: a clip flagged where it was reviewed arrives flagged. */
+    #[Test]
+    public function it_carries_the_quiet_recording_flag_onto_a_new_song_video(): void
+    {
+        Storage::disk('historic_staging')->put('historic/run/audio.mp3', 'audio');
+        Storage::disk('historic_staging')->put('historic/run/song.mp4', 'song video');
+        Song::factory()->create(['canonical_key' => 'portable-song-video']);
+        $bundle = $this->graphBundle('portable-song-video', quietRecording: true);
+        $plan = app(HistoricProcessingResultBundleImporter::class)->prepareService($bundle);
+
+        app(HistoricProcessingResultBundleImporter::class)->importService($bundle, $plan->planHash);
+
+        $this->assertTrue(SongVideo::query()->sole()->quiet_recording);
+    }
+
+    /**
+     * As `sermons.partial_recording`: a bundle adopts a flag onto the song video production already
+     * has, and never clears one it has.
+     */
+    #[Test]
+    #[TestWith([false, true, true])]
+    #[TestWith([true, false, true])]
+    #[TestWith([false, false, false])]
+    public function a_bundle_sets_but_never_clears_an_existing_song_videos_quiet_recording_flag(bool $existingFlag, bool $bundleFlag, bool $expected): void
+    {
+        Storage::disk('historic_staging')->put('historic/run/audio.mp3', 'audio');
+        Storage::disk('historic_staging')->put('historic/run/song.mp4', 'song video');
+        Storage::disk('local')->put('historic/previous/song.mp4', 'song video');
+        $service = ChurchService::factory()->create(['date' => '2026-08-02', 'service' => 'morning']);
+        $previousRun = MediaProcessingLog::factory()->livestream()->create(['processing_id' => 'previous-song-run', 'church_service_id' => $service->id]);
+        $previousSection = ServiceSection::factory()->create([
+            'media_processing_log_id' => $previousRun->id, 'church_service_item_id' => null, 'section_order' => 1,
+            'section_type' => 'sermon', 'title' => 'Sermon', 'start_time' => 0.0, 'end_time' => 60.0, 'source_segment_ids' => [],
+        ]);
+        $song = Song::factory()->create(['canonical_key' => 'portable-song-video']);
+        SongVideo::factory()->create([
+            'song_id' => $song->id, 'service_section_id' => $previousSection->id, 'church_service_id' => $service->id,
+            'video_file_path' => 'historic/previous/song.mp4', 'quiet_recording' => $existingFlag,
+        ]);
+        $bundle = $this->graphBundle('portable-song-video', quietRecording: $bundleFlag);
+        $plan = app(HistoricProcessingResultBundleImporter::class)->prepareService($bundle);
+
+        app(HistoricProcessingResultBundleImporter::class)->importService($bundle, $plan->planHash);
+
+        $this->assertSame($expected, SongVideo::query()->sole()->quiet_recording);
+    }
+
     #[Test]
     public function a_failure_after_asset_copy_rolls_back_rows_and_cleans_attempt_assets(): void
     {
@@ -403,7 +451,7 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
     }
 
     /** @return array<string, mixed> */
-    private function graphBundle(?string $songCanonicalKey = null): array
+    private function graphBundle(?string $songCanonicalKey = null, ?bool $quietRecording = null): array
     {
         $graph = [
             'processing_key' => 'imported-run',
@@ -480,6 +528,7 @@ class HistoricProcessingResultBundleImporterTest extends TestCase
                 'duration' => 120.0,
                 'recorded_date' => '2026-08-02',
                 'is_featured' => false,
+                ...($quietRecording === null ? [] : ['quiet_recording' => $quietRecording]),
             ]],
             'metadata' => [],
             'logical_hash' => str_repeat('b', 64),

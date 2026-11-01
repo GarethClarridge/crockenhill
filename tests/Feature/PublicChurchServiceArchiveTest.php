@@ -418,6 +418,19 @@ class PublicChurchServiceArchiveTest extends TestCase
         );
     }
 
+    /** E25: a performance video recorded partly very quietly says so, as it does on the song's page. */
+    #[Test]
+    public function a_quietly_recorded_performance_video_says_so(): void
+    {
+        [$service] = $this->processedService();
+
+        $this->get($this->showUrl($service))->assertOk()->assertDontSee('recorded very quietly');
+
+        SongVideo::query()->where('video_file_path', 'sermons/songs/song-performance.mp4')->update(['quiet_recording' => true]);
+
+        $this->get($this->showUrl($service))->assertOk()->assertSee('Part of this song was recorded very quietly.');
+    }
+
     #[Test]
     public function public_items_never_leak_superseded_sections(): void
     {

@@ -426,6 +426,7 @@ class HistoricProcessingResultInventory
                 'duration' => $video->duration,
                 'recorded_date' => $video->recorded_date?->toDateString(),
                 'is_featured' => $video->is_featured,
+                'quiet_recording' => $video->quiet_recording,
             ])
             ->all());
     }

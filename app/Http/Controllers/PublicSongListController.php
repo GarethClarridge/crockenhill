@@ -71,6 +71,7 @@ class PublicSongListController extends Controller
             'lastSungDate' => $stats['last_sung_date'],
             'usageHistory' => $usageHistory,
             'videoUrl' => $videoUrl,
+            'displayVideo' => $displayVideo,
         ]);
     }
 }

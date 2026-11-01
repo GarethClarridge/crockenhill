@@ -14,6 +14,7 @@ use App\Models\SongAuthor;
 use App\Models\SongBook;
 use App\Models\SongVideo;
 use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
@@ -263,6 +264,33 @@ class AdminSongCatalogTest extends TestCase
             ->call('unfeatureVideo', $video->id);
 
         $this->assertFalse($video->fresh()->is_featured);
+    }
+
+    /** E25: the quiet-recording flag can be set and cleared by hand, and only on this song's clips. */
+    #[Test]
+    public function admin_can_flag_and_clear_a_song_video_as_quietly_recorded(): void
+    {
+        $this->actingAs($this->admin);
+
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+
+        $song = Song::factory()->create();
+        $video = SongVideo::factory()->create(['song_id' => $song->id]);
+        $otherSongsVideo = SongVideo::factory()->create();
+
+        $component = Livewire::test(ShowSong::class, ['song' => $song])
+            ->assertSee('Flag as quiet')
+            ->call('toggleQuietRecording', $video->id)
+            ->assertSee('Partly very quiet')
+            ->assertSee('Clear quiet flag');
+        $this->assertTrue($video->fresh()->quiet_recording);
+
+        $component->call('toggleQuietRecording', $video->id);
+        $this->assertFalse($video->fresh()->quiet_recording);
+
+        $this->expectException(ModelNotFoundException::class);
+        $component->call('toggleQuietRecording', $otherSongsVideo->id);
     }
 
     #[Test]

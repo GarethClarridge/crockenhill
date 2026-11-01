@@ -216,6 +216,7 @@ class HistoricNormalOutputContract
                         'duration' => $this->field('nullable', 'portable', 'none'),
                         'recorded_date' => $this->field('nullable', 'portable', 'none'),
                         'is_featured' => $this->field('required', 'portable', 'none'),
+                        'quiet_recording' => $this->field('nullable', 'portable', 'none'),
                     ],
                 ],
                 'service_manifest' => [
@@ -614,7 +615,7 @@ class HistoricNormalOutputContract
             ),
             'song_videos' => $this->table(
                 required: ['video_file_path', 'is_featured'],
-                nullable: ['service_section_id', 'church_service_id', 'duration', 'recorded_date'],
+                nullable: ['service_section_id', 'church_service_id', 'duration', 'recorded_date', 'quiet_recording'],
                 overrides: [
                     'song_id' => $this->field('required', 'deterministically_rebuilt', 'natural_key'),
                     'service_section_id' => $this->field('nullable', 'deterministically_rebuilt', 'local_foreign_key'),
@@ -799,6 +800,7 @@ class HistoricNormalOutputContract
                 'duration' => 'media_graph.song_videos[].duration',
                 'recorded_date' => 'media_graph.song_videos[].recorded_date',
                 'is_featured' => 'media_graph.song_videos[].is_featured',
+                'quiet_recording' => 'media_graph.song_videos[].quiet_recording',
             ],
         ];
     }
