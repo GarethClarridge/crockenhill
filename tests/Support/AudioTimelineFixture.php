@@ -17,10 +17,11 @@ final class AudioTimelineFixture
     public const string MODEL_REVISION = 'f826b80d28226b62986cc218e5cec390b1096902';
 
     /**
-     * Each span is [from, to, music, speech]; time no span covers is neither (0.05, 0.05). The last
-     * window is shortened to the audio's end, as the script writes it.
+     * Each span is [from, to, music, speech] or [from, to, music, speech, singing]; time no span
+     * covers is neither (0.05, 0.05) and unsung. The last window is shortened to the audio's end, as
+     * the script writes it.
      *
-     * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float}>  $spans
+     * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float, 4?: float}>  $spans
      * @return array<string, mixed>
      */
     public static function payload(array $spans, float $audioSeconds, string $inputSha256 = 'fixture'): array
@@ -30,15 +31,15 @@ final class AudioTimelineFixture
         for ($start = 0.0; $start < $audioSeconds; $start += 5.0) {
             $end = min($start + 5.0, $audioSeconds);
             $mid = ($start + $end) / 2;
-            [$music, $speech] = [0.05, 0.05];
+            [$music, $speech, $singing] = [0.05, 0.05, 0.0];
 
-            foreach ($spans as [$from, $to, $spanMusic, $spanSpeech]) {
-                if ($mid >= $from && $mid < $to) {
-                    [$music, $speech] = [$spanMusic, $spanSpeech];
+            foreach ($spans as $span) {
+                if ($mid >= $span[0] && $mid < $span[1]) {
+                    [$music, $speech, $singing] = [$span[2], $span[3], $span[4] ?? 0.0];
                 }
             }
 
-            $windows[] = ['start' => $start, 'end' => $end, 'music' => $music, 'speech' => $speech, 'singing' => 0.0, 'choir' => 0.0];
+            $windows[] = ['start' => $start, 'end' => $end, 'music' => $music, 'speech' => $speech, 'singing' => $singing, 'choir' => 0.0];
         }
 
         return [
@@ -54,7 +55,7 @@ final class AudioTimelineFixture
     }
 
     /**
-     * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float}>  $spans
+     * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float, 4?: float}>  $spans
      */
     public static function json(array $spans, float $audioSeconds, string $inputSha256 = 'fixture'): string
     {

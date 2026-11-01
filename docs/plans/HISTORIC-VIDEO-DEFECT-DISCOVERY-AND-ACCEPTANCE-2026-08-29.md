@@ -965,6 +965,35 @@ queue and route state are in the archive; a historical “final” label is not 
         admin toggle is wanted, as for sermons, to confirm with the operator.
      5. *Verify:* guarded rolled-back replay over the round's runs (never in the staging context), ruled endings,
         suite, Dusk. Each step on the operator's word.
+
+     **Steps 1–3 done 11-01 (operator "implement the plan"); step 4 awaits the operator; step 5 after it.** Tools and
+     outputs in `storage/scratch/quiet-sung-openings-20261101/`.
+     - *Step 1 (`measure.php` → `candidates.json`, `wide.php` → `wide.txt`).* Over the 1,392 replayed song clip starts
+       (`song-start-trim-20261101/clip-starts.json`; 4 runs without a singing score are the excluded 955/1043/1051/1098),
+       walking back while a window reads sung (singing ≥ 0.02, speech < 0.5) or music, ignoring `other` floors: **one
+       class member, 1011 §1285** (64.7 s left out, stretch −69.8 dB against the body's −24.3, 3 transcribed lyric
+       lines, unpublished; an `other` "Hymn introduction" 419–476.99 holds the solo's first 18 s, so a walk that stops at
+       `other` ends would still start at 477, mid-song). 1294 §3680 reads 0.015–0.030, below every heard solo (0.037), and
+       stays out, unheard. The windows' own record is finer than "about 459": a −95 dB dropout to **458.81**, then the
+       solo — not digital zero, so the planner's song-start rule (digital zero only, 10-16) does not trim it. Published
+       class members: none. No listening page needed.
+       Found beside it, not built: (a) **1295 §3769** (ruled 10-24 "It had started before this clip") starts at 300.0 in
+       the replay only because its recompose was refused (banked input mismatch); the walk moves it to 285 (3 music
+       windows after the dead feed) on its current rows, so the round's full chain should meet the ruling — confirm in
+       step 5. (b) **One song cut into two clips around a gap**, 8 pairs in the round (`sections_a` scan): 1073 §1715/1716,
+       1106 §1878/1879, 1294 §3679/3680, 1295 §3768/3769, 1311 ×3 (resolved in (c) 10-31), 1345 §4354/4356 (published,
+       by-ear). E25 bears on the second clip of each; already ruled or reviewed except 1294 §3680. A separate decision.
+     - *Step 2.* Ruling `operator-20261101:1011-s1285-start` (`at` 458.51 = first sound − the 0.3 s dead-feed lead) in
+       `gather.py`; the 10-30 review is superseded. The live run has no banked edge-word decode for a moved start, so a
+       ruled-endings capture is impossible before the round decodes it; the failing tests are structure-level, on
+       1011's measured windows and levels (`SongMusicalIntroductionTest`, 2 red then green, plus 3 guards: speech over
+       the singing, 1294's sub-heard level, loud singing inside an `other`).
+     - *Step 3.* `SongMusicalIntroduction`: a window also counts when it reads as quiet singing (singing ≥ 0.035,
+       speech < 0.1, music < 0.4); only quiet singing crosses into an `other` section; a start taken over quiet singing
+       begins 0.3 s before the first sound after a dropout (≤ −80 dB) in its first window. `AudioTimeline` now carries
+       the singing score (absent → 0, so banked ensemble inputs replay as before; the evidence version does not
+       fingerprint either class). Dry walk on current rows (`dry-walk.php`): the walk's 28 moves are unchanged, one of
+       them over quiet singing — 1011 → 458.49.
    - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 

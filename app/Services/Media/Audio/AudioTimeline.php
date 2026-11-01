@@ -17,8 +17,10 @@ use UnexpectedValueException;
  * whose predictions were sealed first: of 171 scored windows, music 78/78 read as music and one of
  * 93 speech windows as music (`docs/plans/MUSIC-AND-SILENCE-DETECTION-2026-09-25.md` §6.3).
  *
- * It does not tell singing from instrumental music, and its silence score is weak: digital
- * silence comes from the RMS log, not from here.
+ * Its music score does not tell singing from instrumental music, and its silence score is weak:
+ * digital silence comes from the RMS log, not from here. The separate singing score hears a solo
+ * voice far too quiet to read as music (1011's, music 0.10–0.33, singing 0.049–0.070); an
+ * artifact without it reads as unsung.
  */
 final readonly class AudioTimeline
 {
@@ -29,7 +31,7 @@ final readonly class AudioTimeline
     private const float TOLERANCE_SECONDS = 0.01;
 
     /**
-     * @param  list<array{start: float, end: float, music: float, speech: float}>  $windows  Contiguous from 0
+     * @param  list<array{start: float, end: float, music: float, speech: float, singing: float}>  $windows  Contiguous from 0
      */
     private function __construct(
         public string $model,
@@ -98,7 +100,13 @@ final readonly class AudioTimeline
             $end = (float) $window['end'];
             $music = (float) $window['music'];
             $speech = (float) $window['speech'];
+            $singing = $window['singing'] ?? 0.0;
 
+            if (! is_numeric($singing)) {
+                throw new UnexpectedValueException("Audio timeline window {$position} has a singing score that is not a number.");
+            }
+
+            $singing = (float) $singing;
             if (abs($start - $expectedStart) > self::TOLERANCE_SECONDS) {
                 throw new UnexpectedValueException(sprintf('Audio timeline window %d starts at %.3fs, not %.3fs: windows must be contiguous from 0.', $position, $start, $expectedStart));
             }
@@ -107,11 +115,11 @@ final readonly class AudioTimeline
                 throw new UnexpectedValueException(sprintf('Audio timeline window %d (%.3fs-%.3fs) is not a window of at most %.1fs.', $position, $start, $end, $windowSeconds));
             }
 
-            if ($music < 0.0 || $music > 1.0 || $speech < 0.0 || $speech > 1.0) {
+            if ($music < 0.0 || $music > 1.0 || $speech < 0.0 || $speech > 1.0 || $singing < 0.0 || $singing > 1.0) {
                 throw new UnexpectedValueException("Audio timeline window {$position} has a score outside 0-1.");
             }
 
-            $windows[] = ['start' => $start, 'end' => $end, 'music' => $music, 'speech' => $speech];
+            $windows[] = ['start' => $start, 'end' => $end, 'music' => $music, 'speech' => $speech, 'singing' => $singing];
             $expectedStart = $end;
         }
 
@@ -229,7 +237,7 @@ final readonly class AudioTimeline
     }
 
     /**
-     * @param  callable(array{start: float, end: float, music: float, speech: float}): bool  $counts
+     * @param  callable(array{start: float, end: float, music: float, speech: float, singing: float}): bool  $counts
      */
     private function share(float $from, float $to, callable $counts): float
     {

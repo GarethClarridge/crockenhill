@@ -129,6 +129,84 @@ class SongMusicalIntroductionTest extends TestCase
         $this->assertEqualsWithDelta(3750.0, (float) $section->fresh()->start_time, 0.01);
     }
 
+    /**
+     * 1011 §1285 (E25, 11-01): after "Let's stand and sing" the feed drops out (−95 dB) until a solo
+     * voice comes in at 458.81, far below the band (−55 to −70 dB against −24 dB) and reading music
+     * 0.10–0.33, but singing 0.049–0.070 with no speech. The congregation and band join at 520. A
+     * structure `other` section, "Hymn introduction", holds the solo's first 18 s. Heard: the clip
+     * at 519.73 starts partway through the song; it starts at the solo.
+     */
+    #[Test]
+    public function it_starts_a_song_at_the_quiet_solo_that_opens_it(): void
+    {
+        $this->section(ServiceSectionType::BibleReading, 279.0, 419.0);
+        $this->section(ServiceSectionType::Other, 419.0, 476.99);
+        $section = $this->song(513.85, 637.42);
+        $this->quietSoloTimeline();
+        $this->levels([[0.0, 438.0, -40.0], [438.0, 458.81, -95.0], [458.81, 520.0, -62.0], [520.0, 640.0, -24.0]]);
+
+        $this->assertSame(1, $this->introduction()->extend($this->run));
+
+        $this->assertEqualsWithDelta(458.51, (float) $section->fresh()->start_time, 0.01);
+        $this->assertEquals([['from' => 513.85, 'to' => 458.51, 'windows' => 12, 'quiet_singing_windows' => 12]], array_map(
+            static fn (array $record): array => array_diff_key($record, ['extended_at' => true]),
+            $section->fresh()->metadata->raw[SongMusicalIntroduction::METADATA_KEY],
+        ));
+    }
+
+    /** Without a level log the start is the first sung window's: nothing heard is left out. */
+    #[Test]
+    public function it_starts_a_quiet_solo_at_its_window_without_a_level_log(): void
+    {
+        $this->section(ServiceSectionType::Other, 419.0, 476.99);
+        $section = $this->song(513.85, 637.42);
+        $this->quietSoloTimeline();
+
+        $this->introduction()->extend($this->run);
+
+        $this->assertEqualsWithDelta(455.0, (float) $section->fresh()->start_time, 0.01);
+    }
+
+    /**
+     * A voice over the quiet singing is a leader speaking, not the song (the readings heard 11-01
+     * read speech 0.72–0.84).
+     */
+    #[Test]
+    public function it_does_not_take_quiet_singing_under_a_voice(): void
+    {
+        $section = $this->song(513.85, 637.42);
+        $this->timeline([[0, 455, 0.02, 0.75, 0.001], [455, 520, 0.18, 0.3, 0.05], [520, 640, 0.7, 0.02, 0.2]]);
+
+        $this->assertSame(0, $this->introduction()->extend($this->run));
+        $this->assertEqualsWithDelta(513.85, (float) $section->fresh()->start_time, 0.01);
+    }
+
+    /** Below the quietest singing heard (0.037) a window is not taken as sung: 1294's 0.015–0.030 is unheard. */
+    #[Test]
+    public function it_does_not_take_singing_below_the_quietest_heard(): void
+    {
+        $section = $this->song(230.0, 330.0);
+        $this->timeline([[0, 205, 0.02, 0.75, 0.001], [205, 225, 0.3, 0.06, 0.026], [225, 330, 0.7, 0.02, 0.2]]);
+
+        $this->assertSame(0, $this->introduction()->extend($this->run));
+        $this->assertEqualsWithDelta(230.0, (float) $section->fresh()->start_time, 0.01);
+    }
+
+    /**
+     * Loud singing inside an `other` section is an item of its own (a choir piece), as music is
+     * (1233): only singing too quiet to read as music crosses into it.
+     */
+    #[Test]
+    public function it_stops_at_loud_singing_inside_an_other_section(): void
+    {
+        $this->section(ServiceSectionType::Other, 400.0, 480.0);
+        $section = $this->song(480.0, 640.0);
+        $this->timeline([[0, 400, 0.02, 0.75, 0.001], [400, 640, 0.7, 0.02, 0.2]]);
+
+        $this->assertSame(0, $this->introduction()->extend($this->run));
+        $this->assertEqualsWithDelta(480.0, (float) $section->fresh()->start_time, 0.01);
+    }
+
     #[Test]
     public function it_leaves_a_published_section_alone(): void
     {
@@ -202,12 +280,40 @@ class SongMusicalIntroductionTest extends TestCase
     }
 
     /**
-     * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float}>  $spans  [from, to, music, speech]
+     * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float, 4?: float}>  $spans  [from, to, music, speech, singing]
      */
     private function timeline(array $spans): void
     {
         $path = 'service-transcripts/test-'.$this->run->processing_id.'.classes.json';
         Storage::disk('local')->put($path, AudioTimelineFixture::json($spans, 5000.0));
         $this->run->forceFill(['audio_timeline_path' => $path])->save();
+    }
+
+    /** 1011's windows: the reading, the dropout, the solo, then the congregation and band. */
+    private function quietSoloTimeline(): void
+    {
+        $this->timeline([[0, 440, 0.02, 0.75, 0.001], [440, 455, 0.12, 0.02, 0.001], [455, 520, 0.18, 0.03, 0.05], [520, 640, 0.7, 0.02, 0.2]]);
+    }
+
+    /**
+     * A level log sampled every 0.1 s.
+     *
+     * @param  list<array{0: float, 1: float, 2: float}>  $spans  [from, to, dB]
+     */
+    private function levels(array $spans): void
+    {
+        $lines = [];
+        $frame = 0;
+
+        foreach ($spans as [$from, $to, $level]) {
+            for ($time = $from; $time < $to - 0.0001; $time = round($time + 0.1, 2)) {
+                $lines[] = sprintf('frame:%d pts:0 pts_time:%.2f', $frame++, $time);
+                $lines[] = 'lavfi.astats.Overall.RMS_level='.$level;
+            }
+        }
+
+        $path = 'service-transcripts/test-'.$this->run->processing_id.'.rms.log';
+        Storage::disk('local')->put($path, implode("\n", $lines)."\n");
+        $this->run->forceFill(['rms_log_path' => $path])->save();
     }
 }

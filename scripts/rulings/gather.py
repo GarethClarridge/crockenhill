@@ -796,6 +796,19 @@ records.append({'id': 'claude-review-20261031:1071-sermon-end', 'source': 'claud
                         'Thank you." before an unrecorded prayer (sermon end ruling 10-28: a dropped prayer is fine when the end '
                         'makes sense).', 'answer_source': 'claude-review', 'points': [1057.7, 1060.04]})
 
+# 11-01, register E25: 1011 §1285 "From Heaven You Came" is a quiet solo voice from the end of a dropout (−95 dB to
+# 458.81, then −55 to −70 dB) before the congregation and band at 520. Heard on "The Muted Song Opening"
+# (muted-opening-1011-listening-20261101), the cut at 519.73 starts partway through the song; the operator ruled
+# the whole song in, from its first sung line, flagged. The time is that first sound less the dead-feed rule's
+# 0.3 s lead. Supersedes claude-review-20261030:1011-s1285-start ("adds 5.9 s of quiet"), which was wrong.
+records.append({'id': 'operator-20261101:1011-s1285-start', 'source': 'operator-20261101', 'ruled_on': '2026-11-01',
+                'ruled_at': '2026-11-01T21:40:00Z', 'run': 1011, 'output': 'section', 'section_id': 1285, 'section_type': 'song',
+                'title': 'From Heaven You Came', 'edge': 'start', 'heard': 519.73, 'answer': 'earlier', 'expect': 'at',
+                'ruled_time': 458.51,
+                'note': 'Operator 11-01 (E25): "The singing is audible, so we could use it. … The choice that makes no sense '
+                        'is starting the clip halfway through the song." Then: "A, but we should flag it, as we do for broken '
+                        'talk recordings." The solo starts at 458.81, after a dropout.'})
+
 # A section ruling the page recorded without a section id is on the run's section of its type whose edge is nearest
 # the cut heard, as RuledEndingsTestCase::latestRulings() and the round's analyze.py read it. Without that binding the
 # newest id-less ruling on a run replaced every other on the same edge, whatever its section (1304's §3879 start by a

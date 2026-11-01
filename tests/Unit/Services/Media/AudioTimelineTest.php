@@ -93,6 +93,19 @@ class AudioTimelineTest extends TestCase
         $this->assertSame(12.0, $timeline->end());
     }
 
+    /** The classifier's singing score is kept; an artifact without it reads as unsung (banked inputs, older tests). */
+    #[Test]
+    public function it_keeps_the_singing_score_and_reads_its_absence_as_unsung(): void
+    {
+        $payload = AudioTimelineFixture::payload([[0, 5, 0.18, 0.03, 0.05]], 10.0);
+
+        $this->assertSame(0.05, AudioTimeline::fromArray($payload)->windows[0]['singing']);
+
+        unset($payload['windows'][0]['singing']);
+
+        $this->assertSame(0.0, AudioTimeline::fromArray($payload)->windows[0]['singing']);
+    }
+
     /**
      * @return array<string, array{0: callable(array<string, mixed>): array<string, mixed>, 1: string}>
      */
@@ -121,6 +134,16 @@ class AudioTimelineTest extends TestCase
 
                 return $p;
             }, 'outside 0-1'],
+            'a singing score outside 0-1' => [function (array $p): array {
+                $p['windows'][0]['singing'] = -0.1;
+
+                return $p;
+            }, 'outside 0-1'],
+            'a singing score that is not a number' => [function (array $p): array {
+                $p['windows'][0]['singing'] = 'loud';
+
+                return $p;
+            }, 'singing score that is not a number'],
             'a missing score' => [function (array $p): array {
                 unset($p['windows'][0]['speech']);
 
