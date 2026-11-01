@@ -19,6 +19,7 @@ use OpenAI\Laravel\Facades\OpenAI;
 use OpenAI\Resources\Chat;
 use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
@@ -100,6 +101,24 @@ class SermonPartSongIntroductionTest extends TestCase
         $this->assertSame('sermon', app(SermonSongIntroductionCheck::class)->question($log, $this->spans(), 0)['identity']['part'] ?? null);
     }
 
+    /**
+     * 1245: "…we thank God for his word to us" | "this day." splits a sentence; the part steps back to the
+     * reading's own last line. 1140's shape (a line that finishes a sentence, then starts the next) stays.
+     */
+    #[Test]
+    #[TestWith(['We thank God for his word to us', 'this day.', 1618.46])]
+    #[TestWith(['We thank God for his word. And now', 'stand and sing.', 1623.4])]
+    public function a_line_whose_sentence_the_next_line_finishes_steps_back(string $chosen, string $next, float $expected): void
+    {
+        $log = $this->service();
+        $this->rewriteCue($log, 1618.46, $chosen);
+        $this->rewriteCue($log, 1623.4, $next);
+        $line = $this->lineNumber($log, $chosen);
+        $this->answers([$line, false, $line], [$line, false, $line]);
+
+        $this->assertSame($expected, app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans(), 0)['end']);
+    }
+
     /** Never asked is evidence not yet gathered, as for the output's end. */
     #[Test]
     public function an_earlier_part_beside_a_song_needs_an_answer_before_planning(): void
@@ -177,6 +196,14 @@ class SermonPartSongIntroductionTest extends TestCase
         }
 
         return $log->fresh();
+    }
+
+    private function rewriteCue(MediaProcessingLog $log, float $start, string $text): void
+    {
+        $transcript = json_decode((string) Storage::disk('local')->get('temp/part.json'), true, flags: JSON_THROW_ON_ERROR);
+        $cues = array_map(static fn (array $cue): array => abs($cue['start'] - $start) < 0.001 ? [...$cue, 'text' => $text] : $cue,
+            ChurchServiceTranscript::fromArray($transcript)->cues);
+        Storage::disk('local')->put('temp/part.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
     }
 
     /** @param list<array{start: float, end: float, word: string}> $words */

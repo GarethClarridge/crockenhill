@@ -549,8 +549,11 @@ TXT;
 
     /**
      * An earlier part's line, measured 2026-11-01 over 150 parts (`storage/scratch/part-joins-20261101/`).
-     * A line whose sentence the next line finishes ("…his word to us" | "this day.", 1245) steps back,
-     * as an open clause does. An end later than the detected one must finish a sentence or an Amen
+     * A line with no sentence end in it, whose sentence the next line finishes ("…his word to us" |
+     * "this day.", 1245), steps back, as an open clause does. A line that already finishes a sentence
+     * stays: 1140's "how can you not glorify God? Let's do that, shall we? Let's" would lose the
+     * sermon's last point. Measured on the output's own end 11-01, the step-back moved only 968 and
+     * 1140, both for the worse, so it stays on earlier parts. An end later than the detected one must finish a sentence or an Amen
      * ("We thank God for his word." is kept: 1111, 1288); otherwise the detected end's line stands
      * (1307's word-per-line "thank" before "you Dave").
      *
@@ -559,7 +562,7 @@ TXT;
     private function partLine(?int $chosen, array $byNumber, float $partEnd, ?float $songStart): ?int
     {
         while ($chosen !== null && isset($byNumber[$chosen], $byNumber[$chosen + 1])
-            && preg_match(self::FINISHED, $byNumber[$chosen]['text']) !== 1
+            && preg_match('/[.!?]/u', $byNumber[$chosen]['text']) !== 1
             && preg_match('/^\s*["\'\x{201C}\x{2018}]?\p{Ll}/u', $byNumber[$chosen + 1]['text']) === 1
             && preg_match(self::FINISHED, $byNumber[$chosen + 1]['text']) === 1
             && ($songStart === null || $byNumber[$chosen + 1]['start'] < $songStart)) {

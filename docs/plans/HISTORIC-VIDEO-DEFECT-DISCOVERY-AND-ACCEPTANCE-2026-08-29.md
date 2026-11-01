@@ -930,8 +930,11 @@ queue and route state are in the archive; a historical “final” label is not 
      (https://claude.ai/artifact/GLD4eAnZ92FzzYwQAiJFop): 1268 §4736 (2315.84 vs the 10-22 2338.9) and 1028 §72822
      (1748.32 vs keeping "…in just a little while.") — both "Either is fine", recorded `operator-20261101`. Fixtures:
      278 part answers + 405 decoded windows into 280 ruled-endings fixtures (local Whisper), 72 live cuts re-pinned
-     from each fixture's own replay; ruled endings 644/644. *Unmeasured:* the 1245 split-sentence step-back could apply
-     to last-part K16 ends too; left out to keep the banked v3 decisions unchanged.
+     from each fixture's own replay; ruled endings 644/644. *Measured 11-01* (`measure-last-stepback.php`, the 10-29 v3
+     answers on 413 of 417 sermon ends): the step-back on the output's own end moves only 968 (deeper into its split
+     "and tear | you | to pieces.") and 1140 (would drop "how can you not glorify God?", its last point): both worse, so
+     it stays on earlier parts, now firing only on a line with no sentence end in it (1140's shape; the 150 parts
+     unchanged).
    - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 
