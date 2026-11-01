@@ -762,6 +762,10 @@ RULED = [
     ('operator-20261030:968-sermon-end', '2026-10-30T01:35:08Z', 968, None, 'end', (2670.9, 2672.68),
      'Plan §4.1a step 4, operator 10-30 (option 2, "Current version seems fine to me"): the K16 reword adopted as '
      'measured, its loss on 968 accepted; the reword\'s end (2670.9) stands beside the 10-29 keep (2672.68).'),
+    ('operator-20261031:1096-sermon-end', '2026-10-31T23:30:00Z', 1096, None, 'end', (3682.99, 3709.6),
+     'Plan §4.1a step 4, operator 10-31 on "The Invitation After The Sermon" (A the K16 v3 end after "…the Lord '
+     'Jesus.", B after the invitation and visitor cards): "Either is fine. Without the invitation is probably '
+     'better." The 10-18 "early" at 3692.28 heard a cut halfway through the invitation.'),
 ]
 # 10-24: song starts set by the operator's Intro Rule, Song Intros and Song Openings answers
 # (listening-intro-rule-20261024/record-starts.php; register D6 amended 10-24). They were stored as operator

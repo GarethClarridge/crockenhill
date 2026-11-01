@@ -2,9 +2,9 @@
 
 **Current worklist — reconciled 2026-10-30.** Historic outputs remain quarantined; no release batch
 is authorised. The 10-21/22 round closed. Later shared-path fixes still need a measured round and
-current-output acceptance. 1288's onset leak is fixed (§4.1a step 2). What remains before a freeze is
-§4.1a steps 3–4 in the order the 10-30 review sets (step 3, "Order of the remaining work"; ledger done 10-30), no
-operator decision outstanding (958 "either" and the residual-miss rule E23 decided 10-30) and internal-disk headroom.
+current-output acceptance. 1288's onset leak is fixed (§4.1a step 2). §4.1a steps 3–4 are done (10-31) and the
+round checklist is drafted (step 5). What remains before a freeze is the internal-join fix (K16 asks only the last
+sermon span; operator 11-01 "Fix before the round") and the step 5 freeze checks.
 
 This file owns **current video work and status**, not execution diaries or acceptance procedures.
 The complete prior text is preserved in the [execution record through 10-29](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md).
@@ -38,7 +38,7 @@ Containment is not acceptance; a missing or unassessable check is not a pass.
 | Stored review-state repair | Re-derive → recompute → backfill → demote applied locally 10-25. The earlier instruction to apply it is complete; fresh policy/output checks are still needed after processing. |
 | Song and speech edge fixes | Dependent openings, 1096's other-song title rule, 1120's song-order lyric extension, fading-song speech starts and the narrowed smeared-opening fix are committed. Six moved smeared starts were heard acceptable; 1250's internal start is met by the planner. They still need pipeline application and encoded-output verification. |
 | Internal-join regression coverage | Added 10-29 (`abd330797`), including part-specific identity; capture's `open_defect` handling corrected. 86 previously unguarded passing entries now checked; 17 failing entries remain inputs to the next measurement. |
-| K16 reword | Parked 10-29 (one gain 1131, one loss 968), then measured on every end and **adopted as measured 10-30** (operator option 2). **Built 10-31** (§4.1a step 4, `PROMPT_VERSION` 3, 962 trailing-part fix); losses 968, 1375, 1324 accepted, 1096 a further open miss; its two extra guards stay unbuilt. |
+| K16 reword | Parked 10-29 (one gain 1131, one loss 968), then measured on every end and **adopted as measured 10-30** (operator option 2). **Built 10-31** (§4.1a step 4, `PROMPT_VERSION` 3, 962 trailing-part fix); losses 968, 1375, 1324 accepted; 1096 re-heard 10-31 and ruled either (below); 962's trailing-part guard built, 968's unpunctuated-line guard not needed (968 recorded either). |
 | Audience/content policy | Decided (G10–G11); production enforcement is a verification task under programme §8, not an open policy question. |
 
 Earlier evidence: [10-03–10-16](../archived-plans/HISTORIC-VIDEO-DEFECT-DISCOVERY-EXECUTION-LOG-2026-10-03-TO-2026-10-16.md),
@@ -652,7 +652,7 @@ queue and route state are in the archive; a historical “final” label is not 
    round (processing on the operator's word).
    *Not in scope as defects:* the soft misses (1300 §4639, 1240 §2985, 1258) stay as cut unless a part above reaches
    them (soft misses are not worth breaking others); the sub-second regressions (961 §828, 1042, 1094, 1281, 1379,
-   1292 §3653) are re-scored after each replay; 1288 merged Amens stay open on their own line (1273 §3416 and 1311 §4874 are disposed, (c) below); the five sermon-join eithers wait for a join shape in the register.
+   1292 §3653) are re-scored after each replay; 1288's merged Amens are resolved (§4.1a step 2, next-word-sound rule; 1273 §3416 and 1311 §4874 are disposed, (c) below); the five sermon-join eithers wait for a join shape in the register.
    *Order:* F7 (no pipeline code, cleans the scoring every replay reads), F1, F2, F3, F4, F5, F6. F1 and F2 share no
    code path; F4 and F5 both touch spoken starts, so F5's replay runs after F4 is in. One replay per part keeps each
    move attributable.
@@ -875,7 +875,7 @@ queue and route state are in the archive; a historical “final” label is not 
      **1096 is a further loss the measurement mislabelled "better":** already an open miss (outward from 3692.28: the
      invitation to talk after the service clipped), the reword ends earlier still, on "…God's Son, the Lord Jesus."
      (3682.99), dropping the invitation whole. Its end fixture carries no fixture-level gate, so it stays an open miss
-     on its ruling; a K16 "evangelistic invitation after the sermon" class is unmeasured.
+     on its ruling; a K16 "evangelistic invitation after the sermon" class is unmeasured. **Re-heard 10-31, settled:** the 10-18 ruling heard a cut *halfway through* the invitation (3692.28, after "I'd love to talk with you further…"), not one before it, so it never judged the reword's end. Page "The Invitation After The Sermon" (https://claude.ai/artifact/KWnYk26qUUg67Fkzgdr56e; builder `storage/scratch/invitation-1096-listening-20261031/`; A 3682.99 the round's end, B 3709.60 after the invitation and visitor cards). Operator: "Either is fine. Without the invitation is probably better." Recorded `operator-20261031:1096-sermon-end` (either 3682.99 / 3709.6), superseding the 10-18 ruling; the round meets it. No sermon-end fixture yet (capture needs the database). The invitation class needs no rule.
    Step 4: ruled endings 658/658, full parallel suite 10,953 (1 skipped), PHPStan, Pint, rulings unit tests, Dusk 63/63.
    Step 5 unchanged: the round asks every K16 end afresh. **Step 4 of §4.1a is done; next is step 5 (validate, freeze).**
 5. **Validate, freeze and canary.** Before freezing: ≥ 10 GB free on the internal disk (step 3);
@@ -1006,7 +1006,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Next processing round | Not ready to freeze: complete §4.1a in the 10-30 order (ledger, edge moves and K16 build done 10-31 → validate), the listening pages (958 and E23 decided 10-30); internal disk cleared to 12 GiB 10-30. Membership (425) is counted. |
+| Next processing round | Not ready to freeze: §4.1a steps 3–4 done 10-31; checklist drafted (step 5); 1377/1378 reconciled 10-31. Owed: the internal-join fix (operator 11-01), then the step 5 freeze checks, each later step on the operator's word. Membership: 423 re-runs + 15 re-imports. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |
