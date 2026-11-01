@@ -966,7 +966,7 @@ queue and route state are in the archive; a historical “final” label is not 
      5. *Verify:* guarded rolled-back replay over the round's runs (never in the staging context), ruled endings,
         suite, Dusk. Each step on the operator's word.
 
-     **Steps 1–3 done 11-01 (operator "implement the plan"); step 4 awaits the operator; step 5 after it.** Tools and
+     **Steps 1–4 done 11-01 (operator "implement the plan"); step 5 in progress.** Tools and
      outputs in `storage/scratch/quiet-sung-openings-20261101/`.
      - *Step 1 (`measure.php` → `candidates.json`, `wide.php` → `wide.txt`).* Over the 1,392 replayed song clip starts
        (`song-start-trim-20261101/clip-starts.json`; 4 runs without a singing score are the excluded 955/1043/1051/1098),
@@ -977,12 +977,12 @@ queue and route state are in the archive; a historical “final” label is not 
        stays out, unheard. The windows' own record is finer than "about 459": a −95 dB dropout to **458.81**, then the
        solo — not digital zero, so the planner's song-start rule (digital zero only, 10-16) does not trim it. Published
        class members: none. No listening page needed.
-       Found beside it, not built: (a) **1295 §3769** (ruled 10-24 "It had started before this clip") starts at 300.0 in
-       the replay only because its recompose was refused (banked input mismatch); the walk moves it to 285 (3 music
-       windows after the dead feed) on its current rows, so the round's full chain should meet the ruling — confirm in
-       step 5. (b) **One song cut into two clips around a gap**, 8 pairs in the round (`sections_a` scan): 1073 §1715/1716,
-       1106 §1878/1879, 1294 §3679/3680, 1295 §3768/3769, 1311 ×3 (resolved in (c) 10-31), 1345 §4354/4356 (published,
-       by-ear). E25 bears on the second clip of each; already ruled or reviewed except 1294 §3680. A separate decision.
+       Found beside it, not built: (a) **1295 §3769** (ruled 10-24 "It had started before this clip") stays at 300.0:
+       its recompose is refused (banked input mismatch; the step 5 pilot again), and register **S10** (10-26) already
+       leaves its incomplete "Only By Grace" held, fragments unmerged, no re-cut — not a gap. (b) **One song cut into two
+       clips around a gap**, 8 pairs in the round (`sections_a` scan): 1073 §1715/1716, 1106 §1878/1879, 1294
+       §3679/3680, 1295 §3768/3769 (S10), 1311 ×3 (resolved in (c) 10-31), 1345 §4354/4356 (published, by-ear). E25
+       bears on the second clip of each; already ruled, reviewed or decided except 1294 §3680. A separate decision.
      - *Step 2.* Ruling `operator-20261101:1011-s1285-start` (`at` 458.51 = first sound − the 0.3 s dead-feed lead) in
        `gather.py`; the 10-30 review is superseded. The live run has no banked edge-word decode for a moved start, so a
        ruled-endings capture is impossible before the round decodes it; the failing tests are structure-level, on
@@ -994,6 +994,16 @@ queue and route state are in the archive; a historical “final” label is not 
        the singing score (absent → 0, so banked ensemble inputs replay as before; the evidence version does not
        fingerprint either class). Dry walk on current rows (`dry-walk.php`): the walk's 28 moves are unchanged, one of
        them over quiet singing — 1011 → 458.49.
+     - *Step 4 (operator 11-01: wording "Part of this song was recorded very quietly.", pipeline + admin toggle).*
+       `song_videos.quiet_recording`: set at extraction when the walk took the start over quiet singing ≥ 20 dB below the
+       song body (`quieter_by_db` on the walk's record; 1011 45 dB), never cleared there (a hand-set flag survives a
+       re-cut); toggled on the admin song page; shown beside the clip on the song and service pages (signed-in only,
+       G10); carried by the historic inventory → contract → persister, production adopting a set flag and never
+       clearing one (as `sermons.partial_recording`, `00e3134c8`). Production must deploy the migration before the next
+       export.
+     - *Step 5 pilot (guarded replay, this lane's copy of `measure.php --no-ocr-stand-in`, `no-stand-in/pilot.jsonl`):*
+       1011 §1285 is cut 458.49–638.83 in the round, meeting `operator-20261101` (at 458.51); its
+       `structure_song_swallows_speech` hold was there before. 1295 refused as before (S10).
    - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 
