@@ -935,7 +935,7 @@ queue and route state are in the archive; a historical “final” label is not 
      "and tear | you | to pieces.") and 1140 (would drop "how can you not glorify God?", its last point): both worse, so
      it stays on earlier parts, now firing only on a line with no sentence end in it (1140's shape; the 150 parts
      unchanged).
-   - **Quiet sung openings (E25, 11-01) — PLANNED, not built; before the freeze.** The 10-24 class scan's three
+   - **Quiet sung openings (E25, 11-01) — BUILT 11-01 (`21a79b2af`, `f4e0b6b31`), replay-verified.** The 10-24 class scan's three
      cropped openings: 1240 and 1345 are already cut at the operator's by-ear starts (3863, 1740; the replay's
      `no-stand-in/` plans use them). 1011 §1285 is not a muted feed, as the 10-24 note and this session first read it:
      heard 11-01 on "The Muted Song Opening" (https://claude.ai/artifact/NBiE8sAgQjJRzN2WftVv4J), it is a solo voice
@@ -966,7 +966,7 @@ queue and route state are in the archive; a historical “final” label is not 
      5. *Verify:* guarded rolled-back replay over the round's runs (never in the staging context), ruled endings,
         suite, Dusk. Each step on the operator's word.
 
-     **Steps 1–4 done 11-01 (operator "implement the plan"); step 5 in progress.** Tools and
+     **Done 11-01 (operator "implement the plan"): steps 1–5.** Tools and
      outputs in `storage/scratch/quiet-sung-openings-20261101/`.
      - *Step 1 (`measure.php` → `candidates.json`, `wide.php` → `wide.txt`).* Over the 1,392 replayed song clip starts
        (`song-start-trim-20261101/clip-starts.json`; 4 runs without a singing score are the excluded 955/1043/1051/1098),
@@ -1004,6 +1004,13 @@ queue and route state are in the archive; a historical “final” label is not 
      - *Step 5 pilot (guarded replay, this lane's copy of `measure.php --no-ocr-stand-in`, `no-stand-in/pilot.jsonl`):*
        1011 §1285 is cut 458.49–638.83 in the round, meeting `operator-20261101` (at 458.51); its
        `structure_song_swallows_speech` hold was there before. 1295 refused as before (S10).
+     - *Step 5 done.* Full guarded replay (`no-stand-in/plans-*of4.jsonl`, `analyze.py` → `analysis.txt`; the copy also
+       records the walk's own `song_musical_introduction` records): 425 runs, 420 recomposed and 5 refused as on 10-29
+       (955/1043/1051/1098 excluded, 1295 S10). The walk takes **one** start over quiet singing, 1011 §1285 → 458.49,
+       `quieter_by_db` 40.6, so its clip is flagged; its other 11 moves are music introductions, which the change
+       leaves as they were by construction. Suite 10,979 (ruled-endings shards included), Dusk 63/63. Owed beyond the
+       round: production deploys the `song_videos.quiet_recording` migration before the next export; 1294 §3680 (one
+       song in two clips around an unheard quiet stretch) is unruled.
    - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 
@@ -1095,7 +1102,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Next processing round | Not ready to freeze: §4.1a steps 3–4 done 10-31; checklist drafted (step 5); 1377/1378 reconciled 10-31. Internal-join fix built 11-01. Owed: quiet sung openings (E25, planned 11-01) and the step 5 freeze checks, each later step on the operator's word. Membership: 423 re-runs + 15 re-imports. |
+| Next processing round | Not ready to freeze: §4.1a steps 3–4 done 10-31; checklist drafted (step 5); 1377/1378 reconciled 10-31. Internal-join fix built 11-01. Quiet sung openings (E25) built 11-01. Owed: the step 5 freeze checks, each later step on the operator's word. Membership: 423 re-runs + 15 re-imports. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |
