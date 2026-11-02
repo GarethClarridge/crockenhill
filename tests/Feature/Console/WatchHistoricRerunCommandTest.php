@@ -319,6 +319,65 @@ class WatchHistoricRerunCommandTest extends TestCase
     }
 
     /**
+     * Round 2026-10-17 01:10: seven members were superseded at projection, where a re-run holds
+     * no confirmed songs yet, by older runs of their services, and won them back once their own
+     * song matching ran. The stop paused the queues that would have done it, for 5½ hours.
+     * While a member's chain is still running, supersession is pending; once it settles, it stops.
+     */
+    #[Test]
+    public function a_member_superseded_mid_chain_is_pending_and_stops_only_once_its_chain_settles(): void
+    {
+        $member = $this->processingRun();
+        $sibling = $this->processingRun();
+        $this->snapshot([$member->id]);
+        $this->watch()->assertSuccessful();
+
+        $member->putCorpusRerunStamp(['grounds' => 'corpus_rerun', 'git_commit' => $this->snapshotCommit(), 'code_revision' => $this->snapshotRevision(), 'dispatched_at' => now()->toIso8601String()]);
+        $member->forceFill(['status' => 'processing', 'superseded_at' => now(), 'superseded_by_processing_log_id' => $sibling->id])->save();
+
+        $this->watch()->assertSuccessful();
+        self::assertContains(
+            "run {$member->id}: run was superseded by the re-run (pending: its chain is still running)",
+            $this->file('watch-status.json')['warnings'],
+        );
+        $this->assertNothingPaused();
+
+        $member->forceFill(['status' => 'completed'])->save();
+
+        $this->watch()->expectsOutputToContain('run was superseded by the re-run')->assertFailed();
+    }
+
+    #[Test]
+    public function a_member_that_wins_its_service_back_mid_chain_leaves_nothing_behind(): void
+    {
+        $member = $this->processingRun();
+        $sibling = $this->processingRun();
+        $this->snapshot([$member->id]);
+
+        $member->putCorpusRerunStamp(['grounds' => 'corpus_rerun', 'git_commit' => $this->snapshotCommit(), 'code_revision' => $this->snapshotRevision(), 'dispatched_at' => now()->toIso8601String()]);
+        $member->forceFill(['status' => 'processing', 'superseded_at' => now(), 'superseded_by_processing_log_id' => $sibling->id])->save();
+        $this->watch()->assertSuccessful();
+
+        $member->forceFill(['status' => 'completed', 'superseded_at' => null, 'superseded_by_processing_log_id' => null])->save();
+
+        $this->watch()->assertSuccessful();
+        self::assertSame([], $this->file('watch-status.json')['stops']);
+        $this->assertNothingPaused();
+    }
+
+    #[Test]
+    public function a_member_superseded_before_its_chain_starts_still_stops(): void
+    {
+        $member = $this->processingRun();
+        $sibling = $this->processingRun();
+        $this->snapshot([$member->id]);
+
+        $member->forceFill(['superseded_at' => now(), 'superseded_by_processing_log_id' => $sibling->id])->save();
+
+        $this->watch()->expectsOutputToContain('run was superseded by the re-run')->assertFailed();
+    }
+
+    /**
      * Full pass 2026-10-10: a stop that is a lasting state (run 1002 superseded by a failed weekly
      * run) recurs on every look, so resuming after it only pauses the pass again five minutes later.
      * The operator can acknowledge that exact stop; it is then a warning, and any other stop still

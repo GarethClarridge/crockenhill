@@ -39,13 +39,22 @@ final class HistoricRerunWatch
 
     private const LOST_DRAW_STATUSES = ['unavailable', 'interrupted'];
 
+    /**
+     * A member superseded while its own chain still runs is pending, not stopped: a re-run
+     * projects with no confirmed songs yet, so an older run of its service can win until the
+     * member's song matching runs and reconciles again (round 2026-10-17, seven members). A
+     * stop there pauses the very queues that would settle it. Once the chain settles, a member
+     * still superseded stops the pass as before.
+     */
+    private const SUPERSEDED_ATTENTION = '/superseded by the re-run/';
+
     /** Diff attention that stops the pass; anything else it lists is reported for review. */
     private const STOPPING_ATTENTION = [
         '/became public/',
         '/hold on .+ is gone/',
         '/lost its extracted media/',
         '/had extracted media and is gone/',
-        '/superseded by the re-run/',
+        self::SUPERSEDED_ATTENTION,
         '/became published with nothing recording where it is shown/',
         '/could not be captured/',
     ];
@@ -209,17 +218,19 @@ final class HistoricRerunWatch
         foreach ($snapshot->membership as $runId) {
             $run = MediaProcessingLog::find($runId);
             $result = $this->diff->compare($snapshot->runs[$runId], $run instanceof MediaProcessingLog ? $this->state->capture($run) : null);
+            $stage = $run instanceof MediaProcessingLog ? $this->stage($run, $snapshot) : null;
 
             foreach ($result['attention'] as $attention) {
-                if ($this->stopsThePass($attention)) {
+                if ($stage === 'processing' && preg_match(self::SUPERSEDED_ATTENTION, $attention) === 1) {
+                    $warnings[] = "run {$runId}: {$attention} (pending: its chain is still running)";
+                } elseif ($this->stopsThePass($attention)) {
                     $stops[] = "run {$runId}: {$attention}";
                 } else {
                     $warnings[] = "run {$runId}: {$attention}";
                 }
             }
 
-            if ($run instanceof MediaProcessingLog) {
-                $stage = $this->stage($run, $snapshot);
+            if ($stage !== null) {
                 $runs[in_array($stage, ['processing', 'not_started'], true) && in_array($runId, $parked, true) ? 'parked' : $stage]++;
             }
         }
