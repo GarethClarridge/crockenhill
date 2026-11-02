@@ -286,7 +286,10 @@ ready.
   - anything public;
   - a live hold gone;
   - extracted media lost;
-  - a run superseded;
+  - a run superseded — once its own chain has settled. While a member's chain is still running,
+    supersession is a warning marked "pending" (11-02): a re-run projects with no confirmed songs
+    yet, so an older run of its service can win until the member's song matching reconciles again,
+    and a stop would pause the queues that settle it (10-17, seven members, 5½ h);
   - a published or quarantined file missing that was there when the watch began (staging files
     under their run's batch root);
   - any failed job since it began;
@@ -363,7 +366,12 @@ For the representative canary's local acceptance journey and agent-first checkin
      read at 36 MB/s;
    - `SPEAKER_IDENTIFICATION_ENABLED=false`;
    - `git status` clean on the round commit;
-   - free space on Staging, the internal disk (≥ 10 GB) and Sonnics.
+   - free space on Staging, the internal disk (≥ 10 GB) and Sonnics;
+   - the two causes of the 10-16 round's overnight stops (added 11-02; tool and first results in the video
+     plan §4.1a step 5, "Stop-cause checks"): every member has a recorded `audio` service artifact that
+     exists on its disk, and no member's service has another segmentation run with sections that is
+     neither excluded nor retired (a re-run member projects with 0 confirmed songs, so such a run takes
+     the service until song matching re-runs, and the watcher stops on "a run superseded").
 5. **Back up before a round:**
    - a database dump and the private app storage, to `/Volumes/Sonnics/_pre-<round>-backup-<date>/`
      with SHA-256 sums (as on 2026-10-10 and 2026-10-16);

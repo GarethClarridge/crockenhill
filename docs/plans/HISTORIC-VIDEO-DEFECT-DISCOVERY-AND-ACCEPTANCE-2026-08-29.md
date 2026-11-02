@@ -1011,6 +1011,39 @@ queue and route state are in the archive; a historical “final” label is not 
        leaves as they were by construction. Suite 10,979 (ruled-endings shards included), Dusk 63/63. Owed beyond the
        round: production deploys the `song_videos.quiet_recording` migration before the next export; 1294 §3680 (one
        song in two clips around an unheard quiet stretch) is unruled.
+   - **Stop-cause checks, added 11-02.** The 10-16 round lost about 7½ h to two overnight watcher stops
+     (22:05→00:03, 01:10→06:52), both from causes a read-only check finds first. Both checks now belong to the freeze
+     checks (runbook §6); tool `storage/scratch/freeze-checks-20261102/stop-causes.php` (members from `members.txt`,
+     423 = the 421 measured + 1377/1378; output `stop-causes.json`):
+     (1) every member has a recorded `audio` service artifact that exists on its disk
+     (`ClassifyServiceAudio::recordedAudio()`; `PrepareOutputEdgeWordTimings` fails without it, as 1378 did 10-16);
+     (2) no member's service has another segmentation run with sections that is neither excluded nor retired (a
+     re-run member projects with 0 confirmed songs, so `ProcessingRunSupersessionService` hands the service to that
+     run until song matching re-runs, and the watcher stops on "a run superseded", as it did 10-17 01:10).
+     *Run 11-02 (read-only):* (1) 422 of 423 ok; **1377 has no audio artifact** (none at its own `audioLocation()`
+     either; its source is `2026-06-28/Morning/10-31.mkv`, sha256 `8233aa78…`; retired weekly 909 on the same service
+     holds an mp3 of its own). (2) **8 members exposed:** the same seven pairs that stopped 10-16 — 1002/891,
+     1012/898, 1032/897, 1059/896, 1106/895, 1229/892, 1379/927 (each sibling failed, superseded, 1–4 confirmed
+     songs) — and 1378/889 (889 the 10-15 weekly duplicate, completed, 4 confirmed songs).
+     *1377 fixed 11-02 (operator "Yes"):* master copied from Sonnics (`Services/2026-06-28/Morning/10-31.mkv`, sha256
+     matches the manifest), compressed by the pipeline's own `compressAudioForTranscription()` (32 kbps mono mp3) and
+     archived by `archiveAudio()` with `recovery_reason`, `recovered_audio_sha256` and `recovered_from_source_sha256`,
+     as 1378 was 10-17; 4400.81 s against the source's 4400.83 s; temp copy deleted. Check (1) now 423/423.
+     *Siblings, read 11-02:* all eight are weekly runs (no operation), all eight members historic; same recording by
+     file name and duration (1059, 1106, 1379 identical; the rest within ≈ 5 s; for 1012 and 1032 the archive holds only
+     the YouTube backup, the local `.mkv` reached only the failed weekly run). `historic-import:exclude-run
+     --reason=duplicate_recording --duplicates=<member>` dry-runs clean for all eight (`exclude-dry-run.log`), the 894
+     behind 1126 precedent. **But 927 and 889 own the members' own quarantined sermons** (868 = 1379's, 869 = 1378's),
+     and `HistoricReleaseReviewHolds::sermonExclusions()` refuses release to any sermon with an excluded run on it, so
+     excluding those two would hold 1379's and 1378's sermons back. The six sermon-less siblings (891, 892, 895–898)
+     carry no such cost.
+     *Applied 11-02 (operator "Yes"):* (a) the six sermon-less siblings excluded as `duplicate_recording`, each naming
+     its member (`exclude-apply.log`); check (2) now lists only 1378/889 and 1379/927, left unexcluded for their
+     sermons. (b) The watcher's supersession stop now waits for the member's chain to settle
+     (`HistoricRerunWatch::custody()`: while `stage()` is `processing`, "superseded by the re-run" is a warning marked
+     pending; a member still superseded once its chain settles, or superseded before it starts, stops as before), which
+     covers 1378/1379 and any pair the check misses. Test-first (`WatchHistoricRerunCommandTest`, 3 new; red, then
+     34/34 green); PHPStan, Pint clean.
    - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 
