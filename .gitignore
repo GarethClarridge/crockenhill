@@ -77,3 +77,5 @@ artisan_serve.log
 *.sqlite
 *.sql
 TapeIndex.csv
+__pycache__/
+*.pyc
