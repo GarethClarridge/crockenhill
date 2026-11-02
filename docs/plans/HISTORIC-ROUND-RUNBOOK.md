@@ -376,6 +376,14 @@ For the representative canary's local acceptance journey and agent-first checkin
    - a database dump and the private app storage, to `/Volumes/Sonnics/_pre-<round>-backup-<date>/`
      with SHA-256 sums (as on 2026-10-10 and 2026-10-16);
    - the MySQL binlogs since the last base dump, which are ROW format and expire after 30 days.
+   - **Private storage goes to Sonnics as one tar, never a file-by-file copy** (11-02). Sonnics is exFAT
+     with 512 KiB clusters and macOS adds a `._` file beside each copied file, so a file costs at least
+     1 MiB there: an `rsync` of 13 GiB in 48,814 files needed over 50 GiB and was stopped with 8.8 GiB
+     left. Stream it straight to the drive, nothing staged on the internal disk (10-21 filled it to
+     184 MB): `COPYFILE_DISABLE=1 tar --no-mac-metadata --exclude '._*' -cf <dir>/private-app-storage.tar
+     -C storage/app private` (4 min), then verify every member's SHA-256 read back from the archive
+     against the source (`storage/scratch/freeze-checks-20261102/verify-tar.py`, 5 min). The
+     per-batch backup row in §4.1 copies two small trees and is unaffected.
 
 ## 7. Time
 

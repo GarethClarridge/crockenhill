@@ -1059,6 +1059,17 @@ queue and route state are in the archive; a historical “final” label is not 
      (`freeze-checks-20261102/reimport-keys.txt`; SHA-256 at dispatch, ≈ 1 h for all 15). Not checked here, at
      dispatch: model access for the LLM queue, and the round's own containers (built at setup). Dispatch is in
      another session; re-measure free space and queues immediately before it (runbook §6).
+   - **Backup DONE 11-02 (operator "Yes"), verified:** `/Volumes/Sonnics/_pre-round-20261102-backup/`.
+     Database `crockenhill-with-binlog-coordinate.sql.gz` (11:53:07–16Z, `--single-transaction --source-data=2
+     --flush-logs`, 39,047,911 bytes, gzip-tested, sha256 `1cfb2419…`; coordinate `binlog.000148` pos 157). Closed
+     binlogs 000144–000147 (continuity from the 10-30 dump), each SHA-256 equal in the container and on Sonnics
+     (`binlogs/SHA256SUMS.txt`). Private storage as one tar, `private-app-storage.tar` (12:30:40–34:43Z,
+     14,214,639,104 bytes, sha256 `8ddc2e82…`): all **48,814** files read back from the archive equal the source by
+     SHA-256, none missing either way (manifest sha256 `6197d6e0…`; receipt `private-sha256-receipt.json` on Sonnics
+     and in `freeze-checks-20261102/`). A first file-by-file `rsync` was stopped at 17,849 files with Sonnics at
+     8.8 GiB (exFAT 512 KiB clusters + a `._` file per file, runbook §6 step 5) and its partial copy deleted; operator
+     chose the tar. Sonnics 39 GiB free after. Rows written after 11:53:07Z are in `binlog.000148`: the dispatch
+     session copies it (and any later binlog) just before the snapshot instead of a second full backup.
    - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 
