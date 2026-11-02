@@ -1044,6 +1044,21 @@ queue and route state are in the archive; a historical “final” label is not 
      pending; a member still superseded once its chain settles, or superseded before it starts, stops as before), which
      covers 1378/1379 and any pair the check misses. Test-first (`WatchHistoricRerunCommandTest`, 3 new; red, then
      34/34 green); PHPStan, Pint clean.
+   - **Freeze checks re-run 11-02 11:48Z (operator: "Go for the freeze checks. We'll dispatch in another session"),
+     all pass:** git clean at `69383e7cf` (163 commits past the clone's `8189bfdea`; lockfiles unchanged, so the
+     clone's `vendor/` stands; `docker/8.4` present; only `round-tools/` untracked there);
+     `SPEAKER_IDENTIFICATION_ENABLED=false`; main on Redis 0/1, encoder `h264_videotoolbox`; all ten round queues
+     empty (waiting, delayed, reserved), none paused; no run processing or pending; `failed_jobs` 517, latest
+     10-18 04:58 (the watcher's baseline, unchanged since 10-31); all six workers started 11:36:58Z, after the last
+     commit (11:36:56Z); host ffmpeg :2024, whisper :2022 and classifier :2023 answer 200 from a worker; internal disk
+     51 GiB free (Docker sees 52), Staging 485 GiB, Sonnics 53 GiB (98 %) against a backup of ≈ 13 GiB private storage
+     + 0.39 GiB database + 0.09 GiB binlogs (4 files); both enclosures at 5 Gb/s, Staging read 130 MB/s (10-31: 168);
+     stop-cause checks at HEAD: audio 423/423, siblings only 1378/889 and 1379/927 (watcher handles them); the 15
+     re-import masters (`manifest_item_key` from each retirement record, against
+     `historic-video-curation-manifest-20260901.json.plan.json`) all present on Sonnics at their manifest byte sizes
+     (`freeze-checks-20261102/reimport-keys.txt`; SHA-256 at dispatch, ≈ 1 h for all 15). Not checked here, at
+     dispatch: model access for the LLM queue, and the round's own containers (built at setup). Dispatch is in
+     another session; re-measure free space and queues immediately before it (runbook §6).
    - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
 
