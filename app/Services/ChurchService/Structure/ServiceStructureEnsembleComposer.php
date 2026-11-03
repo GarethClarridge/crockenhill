@@ -122,6 +122,63 @@ class ServiceStructureEnsembleComposer
         array $cutNeutralGroups = [],
         array $forcedGroups = [],
     ): EnsembleComposition {
+        $composition = $this->composeAligned($draws, $transcript, $cutNeutralGroups, $forcedGroups, []);
+        $settled = [];
+
+        foreach ($composition->disputes as $dispute) {
+            if (($dispute['type'] ?? null) !== 'alignment') {
+                continue;
+            }
+
+            $claim = $dispute['claim_slot'].':'.$dispute['claim_index'];
+            $readings = array_map(
+                fn (int $group): string => $this->reading($this->composeAligned($draws, $transcript, $cutNeutralGroups, $forcedGroups, [...$settled, $claim => $group])),
+                $dispute['candidate_groups'],
+            );
+
+            if (count(array_unique($readings)) === 1) {
+                $settled[$claim] = $dispute['candidate_groups'][0];
+            }
+        }
+
+        return $settled === [] ? $composition : $this->composeAligned($draws, $transcript, $cutNeutralGroups, $forcedGroups, $settled);
+    }
+
+    /**
+     * The structure a composition writes, without the review flags its questions put on it: where a
+     * claim joins can change which questions are asked (1196: a two-two reading start, or three
+     * agreeing), but those are asked by their own pages.
+     */
+    private function reading(EnsembleComposition $composition): string
+    {
+        $structure = $composition->structure->toArray();
+        $structure['sections'] = array_map(static function (array $section): array {
+            unset($section['review_flags']);
+
+            return $section;
+        }, $structure['sections'] ?? []);
+
+        return json_encode($structure, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
+     * A claim that fits more than one group is an alignment question only when the groups it could
+     * join write different structures: 1196's two (11-02 round) write the same either way, and no
+     * page could ask them. A settled claim joins the group it is nearest, as before, so the questions
+     * that grouping raises, and their answers, are unchanged.
+     *
+     * @param  array<int, ValidationResult>  $draws
+     * @param  list<int>  $cutNeutralGroups
+     * @param  array<int, bool>  $forcedGroups
+     * @param  array<string, int>  $settledAlignments  "slot:index" => the group the claim joins without a question
+     */
+    private function composeAligned(
+        array $draws,
+        ?ChurchServiceTranscript $transcript,
+        array $cutNeutralGroups,
+        array $forcedGroups,
+        array $settledAlignments,
+    ): EnsembleComposition {
         ksort($draws);
         $eligible = array_filter($draws, static fn (ValidationResult $draw): bool => $draw->passed());
         $validVotes = count($eligible);
@@ -171,6 +228,12 @@ class ServiceStructureEnsembleComposer
                 return [$this->distanceToGroup($claim, $groups[$a]), $a]
                     <=> [$this->distanceToGroup($claim, $groups[$b]), $b];
             });
+
+            $settledGroup = $settledAlignments[$claim['slot'].':'.$claim['index']] ?? null;
+
+            if ($settledGroup !== null && in_array($settledGroup, $candidateGroups, true)) {
+                $candidateGroups = [$settledGroup];
+            }
 
             if (count($candidateGroups) > 1) {
                 $alignmentConflicts[] = [

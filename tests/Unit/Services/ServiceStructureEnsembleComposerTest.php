@@ -448,6 +448,27 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertTrue($result->requiresReview());
     }
 
+    /**
+     * The shape of 1196 in the 11-02 round: one draft's reading fits two groups, and the reading is
+     * written the same whichever it joins, so there is no alignment question to ask.
+     */
+    #[Test]
+    public function a_claim_that_writes_the_same_structure_in_either_group_raises_no_alignment_question(): void
+    {
+        $reading = fn (float $start): ServiceStructureSection => new ServiceStructureSection(ServiceSectionType::BibleReading, 'Joseph and the angel', $start, 1892.7, 0.9, null, null, 'Matthew 1:18-25');
+        $sermon = new ServiceStructureSection(ServiceSectionType::Sermon, 'God’s Great Gift', 2777.68, 3389.93, 0.9, null, null, null);
+
+        $result = app(ServiceStructureEnsembleComposer::class)->compose([
+            0 => $this->vote($this->structure()),
+            1 => $this->vote($this->structure($reading(1811.06), $sermon)),
+            2 => $this->vote($this->structure($reading(1795.99))),
+            3 => $this->vote($this->structure($reading(1811.06))),
+        ]);
+
+        $this->assertNotContains('alignment', array_column($result->disputes, 'type'));
+        $this->assertContains('bible_reading', array_column($result->disputes, 'type'));
+    }
+
     #[Test]
     public function completion_order_and_slot_array_order_cannot_change_a_tie(): void
     {
