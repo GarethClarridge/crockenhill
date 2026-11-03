@@ -1167,51 +1167,45 @@ queue and route state are in the archive; a historical “final” label is not 
        duration-less WebM runs (18432); (5) investigate 962, 1042, 1197; (6) the K16 redraw misses 956, 1096, 1360;
        (7) 1377 §4781's song review; (8) the 1294 §3680 split-song (unruled, as before). Records: `round-20261102a/`
        (snapshot, diff, route lists, stop files, acknowledgements), session memory lane log.
-     - **Plan for owed items 1–4 (11-03, planned, not started).** These four are code fixes, and the five stuck runs
-       and two failed re-imports wait on them. Read-only diagnosis against the live data on 11-03 corrected two of the
-       round's readings (item 3 below, and the cause in item 4). Build: one branch with one commit per item, each
-       starting from a failing test. Then `pint --dirty`, `composer phpstan`, the parallel suite and Dusk. Every
-       repair dispatch happens after merge, on the operator's word.
-       1. **`cutNeutral()` (1148, 1150, 1178, 1190).** Mechanism, from the code: `SermonExtractionPlanResolver` returns
-          `segments: []` with reason `edge_word_timings_missing` whenever a variant's edges aren't decoded yet. During a
-          recompose, the variant matching the old structure has decoded edges and the new variants don't, so their
-          cut JSON can never match and the filler dispute is kept. A later replay, once the edges have been decoded,
-          finds the variants equal and drops it. That's why `EnsembleReviewExport` can't produce the dispute. Fix:
-          when any variant's plan is `edge_word_timings_missing`, compare every variant's `structure_segments` (the
-          spans before cue-safe widening). Equal spans give an equal cut. Unequal spans stay "not neutral" (asked), as
-          they are now. Test: two variants with equal spans, one with decoded edges and one without, must come out
-          neutral; unequal spans must still be asked. Repair: recompose the four at the new commit.
-       2. **Alignment disputes (1196).** Measured: 2 alignment disputes in 457 banked runs, both on 1196. Nothing
-          consumes an answer to one, and the exporter shows only neither or defer. Fix in
-          `ServiceStructureEnsembleComposer`: when a claim fits more than one group, compose with the claim in each
-          candidate group. If the structures are identical, record no dispute. Re-check
-          `ServiceStructureEnsembleComposerTest:447`, which asserts that one is raised. Verify against 1196's bank:
-          its two disputes must disappear on replay. **Operator decision (11-03, agreed):** when the candidates do
-          produce different structures (it has never happened), leave it as a hold for now and build a two-reading
-          page only when one occurs.
-       3. **18424 is a sync defect, not a gate defect.** Positions are already ignored (`oosItemsMatch` unsets them). The
-          real mismatch: the banked snapshot has 9 non-detected items, the service now has 11. The extra two are 5260
-          (Notices) and 5266 (Joshua 1:1-18). They are OpenLP items that the pre-round dump
-          (`_pre-round-20261102-backup`) shows soft-deleted at 2026-06-11 20:44:22, the moment the manual items 5275
-          and 5277 replaced them. The run's own livestream projection restored them at 11-02 19:10:02
-          (`ChurchServiceItemSyncService::updateMatchedItem()` calls `restore()` on a matched trashed item). So the
-          gate was right to refuse. Class scan: 31 items were trashed before the round and are live now; 29 are the
-          projection's own `livestream` items, and only these 2 are non-detected. Fix: a livestream projection must
-          not match or restore a non-detected item that is trashed, because a person's edit removed it. Test: a
-          manual edit replaces an OpenLP item, then a projection names the same section, and the trashed item stays
-          trashed. **Operator decision (11-03, agreed):** repair 785 (5260 and 5266 are live duplicates of 5275 and
-          5277) by re-trashing those two rows, recorded as a data repair rather than a cut repair, then re-detect
-          18424.
-       4. **18432: the stored duration is 0, and the cause is upstream of the window.** `ExtractAudioFromVideo::getVideoDuration()`
-          returns `(float)` of ffprobe's missing format duration, so 0.0, for a duration-less WebM. It also returns
-          an invented 3600 s on any probe error. 18432 is the only run with duration ≤ 0 (7 are `null`, and the
-          `?? INF` clamps handle those). From 0, `OutputEdgeWordTimings::timingWindow()` clamps every window to end
-          at 0, and `SermonExtractionPlanResolver`'s source bounds check would refuse the cut next. Fix the mechanism:
-          when the header has no duration, measure it with `PacketCountedMediaDuration`, as
-          `HistoricSourceDurationBackfill` already does. Record `null` (never 0, never 3600) when neither works. Test:
-          a WebM with no header duration records the packet-counted value. Repair: `historic-import:backfill-source-durations`
-          for 18432 (it already treats ≤ 0 as missing), then re-run the run's edge step. The importer's retry is
-          unusable here, because it would dispatch a second run.
+     - **Owed items 1–4: BUILT 11-03 on branch `fix-round-owed-items`, not merged** (plan `de42c11f5`). One commit per
+       item, each from a failing test. Read-only diagnosis against the live data corrected three of the round's
+       readings (items 1, 3 and 4). Every repair dispatch happens after merge, on the operator's word.
+       1. **`cutNeutral()` (1148, 1150, 1178, 1190): `b5ec54e9b`, replacing the span comparison of `3a9a40486`.** A
+          version whose edge words or sermon-end answer (K16) weren't gathered planned `segments: []`, and two empty
+          plans counted as the same cut. So every filler dispute was dropped at first detection (weekly too), and one
+          was asked whenever a single version had its evidence, which no later replay could reproduce. The operator
+          asked "why can't we just decode them?" (11-03), and that is the fix: detection's probe
+          (`SermonCutProbe::asWrittenWithEvidence()`) decodes the edges of a version's spans and the window its plan
+          names (`OutputEdgeTimingsMissing` now carries it), answers its K16 question
+          (`SermonSongIntroductionCheck::answerQuestion()`), banks both on the real run outside the rolled-back probe,
+          and plans again (at most 4 rounds). Only planned cuts are compared, and a version still waiting is asked.
+          Replays, exports, reports and the answer action pass no `gatherEvidence` and read what is banked. Cost: the
+          round's edge steps decoded 619 of 8,930 windows at 2.2 s each. Repair: recompose the four at the merge commit.
+       2. **Alignment disputes (1196): `bd4ab2847`.** Measured: 2 alignment disputes in 457 banked runs, both on 1196,
+          and nothing consumes an answer. A claim that fits several groups is composed in each; where every placement
+          writes the same structure (ignoring the review flags its own questions add), it joins the nearest group
+          without a question. On 1196 the placements differ only in whether a two-to-two reading-start question is
+          asked. That question was already answered, so replayed, the two disputes settle, the structure hash is
+          unchanged, and its three answered questions keep their ids. Test shape shrunk from 1196's real drafts.
+          **Operator decision (11-03, agreed):** placements that write different structures (never seen) stay a hold;
+          build a two-reading page only when one occurs. Repair: recompose 1196 at the merge commit.
+       3. **18424 is a sync defect, not a gate defect: `3c4060c79`.** Positions are already ignored (`oosItemsMatch`
+          unsets them). The banked snapshot has 9 non-detected items and the service now has 11. The extra two are
+          5260 (Notices) and 5266 (Joshua 1:1-18): OpenLP items that the pre-round dump (`_pre-round-20261102-backup`)
+          shows soft-deleted at 2026-06-11 20:44:22, when the manual items 5275 and 5277 replaced them. The run's
+          projection restored them at 11-02 19:10:02, because trashed items were match candidates at the same priority
+          as live ones, in id order. So the gate was right to refuse. A detected source now never matches a trashed item
+          that a planned source vouched for. Class scan: 31 items trashed before the round are live now; the other 29
+          are the projection's own and are unaffected. **Operator decision (11-03, agreed):** repair 785 by re-trashing
+          5260 and 5266 (a data repair), then re-detect 18424.
+       4. **18432's duration of 0: `efdeb4bd0`.** The round's guess, `ExtractAudioFromVideo`, never ran for 18432. The
+          write is `LivestreamSegmentationService` storing `VideoSegmentationService::getVideoMetadata()['duration']`,
+          which is `(float)` of ffprobe's missing format duration. `ExtractAudioFromVideo` had the same pattern, plus an
+          invented 3600 s on any probe error. `SourceMediaDuration` reads the header, falls back on
+          `PacketCountedMediaDuration`, and returns `null` (never 0) when neither is readable. Audio extraction now
+          fails on an unmeasurable video. 18432 is the only run ≤ 0 (7 are `null`; the `?? INF` clamps handle those).
+          Repair: `historic-import:backfill-source-durations` for 18432 (it already treats ≤ 0 as missing), then re-run
+          its edge step. The importer's retry is unusable, because it would dispatch a second run.
 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
@@ -1301,7 +1295,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Processing round 11-02 | **Run and closed 11-03** (§4.1a step 5, "ROUND RUN"): snapshot `round-20261102a`, 420/423 members + 13/15 re-imports complete, nothing public, all quarantined; post-round diff, re-approval, 126-clip and K16 checks done; 957/1166/1247 heard "either". Owed for the next round: 5 runs stuck at this commit (1148, 1150, 1178, 1190, 1196), 3 held (962, 1042, 1197), re-imports 18424/18432, K16 misses 956/1096/1360, 1377 §4781 review. Host ffmpeg now `--jobs 2`. |
+| Processing round 11-02 | **Run and closed 11-03** (§4.1a step 5, "ROUND RUN"): snapshot `round-20261102a`, 420/423 members + 13/15 re-imports complete, nothing public, all quarantined; post-round diff, re-approval, 126-clip and K16 checks done; 957/1166/1247 heard "either". Owed for the next round: 5 runs stuck at this commit (1148, 1150, 1178, 1190, 1196) and re-imports 18424/18432, all four code fixes built on `fix-round-owed-items` (unmerged, 11-03); 3 held (962, 1042, 1197), K16 misses 956/1096/1360, 1377 §4781 review. Host ffmpeg now `--jobs 2`. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |
