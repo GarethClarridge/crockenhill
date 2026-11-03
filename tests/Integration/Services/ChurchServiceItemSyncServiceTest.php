@@ -377,6 +377,35 @@ class ChurchServiceItemSyncServiceTest extends TestCase
         $this->assertSame('Song One (Restored)', $refreshed->title);
     }
 
+    /**
+     * Service 785 (re-import 18424, 11-02 round): a manual edit replaced the OpenLP "Notices" on
+     * 2026-06-11, and the run's livestream projection restored the deleted one beside it.
+     */
+    #[Test]
+    public function a_livestream_projection_does_not_restore_an_item_a_planned_source_vouched_for(): void
+    {
+        $churchService = ChurchService::factory()->create();
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Notices, 'title' => 'Notices']);
+        $replaced = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id, 'position' => 1, 'type' => 'images', 'section_type' => 'notices',
+            'title' => 'Notices', 'source_title' => 'Notices', 'source' => ChurchServiceItemSource::OpenLp, 'deleted_at' => now(),
+        ]);
+        $manual = ChurchServiceItem::factory()->create([
+            'church_service_id' => $churchService->id, 'position' => 1, 'type' => 'custom', 'section_type' => 'notices',
+            'title' => 'Notices', 'source_title' => 'Notices', 'source' => ChurchServiceItemSource::Manual,
+        ]);
+
+        $this->service->sync($churchService, [[
+            'position' => 1, 'type' => 'custom', 'section_type' => 'notices', 'title' => 'Notices', 'source_title' => 'Notices',
+            'livestream_processing_id' => $log->processing_id, 'livestream_service_section_id' => $section->id,
+        ]], ChurchServiceItemSource::Livestream);
+
+        $this->assertSoftDeleted('church_service_items', ['id' => $replaced->id]);
+        $this->assertSame($section->id, $manual->fresh()->livestream_service_section_id);
+        $this->assertSame(1, $churchService->items()->where('section_type', 'notices')->count());
+    }
+
     #[Test]
     public function test_stable_match_by_source_title(): void
     {

@@ -84,6 +84,11 @@ class ChurchServiceItemSyncService
                         ])->saveQuietly();
                     }
                 }
+                // A planned item that is deleted was taken off by its own source or by a manual save;
+                // what a run heard cannot put it back (785: re-import 18424 restored two OpenLP items
+                // a manual edit had replaced, beside their replacements).
+                $existingItems = $existingItems->reject(static fn (ChurchServiceItem $item): bool => $item->trashed()
+                    && collect($item->provenanceSources())->contains(static fn (ChurchServiceItemSource $source): bool => ! $source->isDetected()))->values();
             }
             $matchedExistingItemIds = [];
             $seenPositions = [];
