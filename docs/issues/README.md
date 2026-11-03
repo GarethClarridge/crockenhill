@@ -769,3 +769,4 @@ standing one-to-one offer.
 - **O4 — Duplicate `/christ/sermons` sitemap entry** — `SitemapService::addPages()` now excludes the christ-area `sermons` page; covered by `SitemapTest`. *(2026-06-18)*
 - **R1 — Broken admin delete link** on the sermon detail page — fixed 2026-06-14.
 - **R2 — `contacttus` redirect typo** — corrected to `contactus` in `config/redirects.php`.
+- **O53 — Preachers listing relative links (404s)** — updated `resources/views/sermons/preachers.blade.php` to use `route('sermons.preacher', $preacher->slug)` so preacher card links navigate to `/christ/sermons/preachers/{slug}` instead of relative `/christ/sermons/preachers/preachers/{slug}`.

@@ -83,4 +83,17 @@ class PreacherIndexTest extends TestCase
             '13',
         ]);
     }
+
+    #[Test]
+    public function it_renders_absolute_preacher_links_using_named_routes(): void
+    {
+        $preacher = Preacher::factory()->create(['name' => 'John Owen', 'slug' => 'john-owen', 'is_active' => true]);
+
+        $response = $this->get('/christ/sermons/preachers');
+
+        $response->assertOk();
+        $expectedUrl = route('sermons.preacher', $preacher->slug);
+        $response->assertSee('href="'.$expectedUrl.'"', false);
+        $response->assertDontSee('href="preachers/john-owen"', false);
+    }
 }
