@@ -769,3 +769,10 @@ standing one-to-one offer.
 - **O4 — Duplicate `/christ/sermons` sitemap entry** — `SitemapService::addPages()` now excludes the christ-area `sermons` page; covered by `SitemapTest`. *(2026-06-18)*
 - **R1 — Broken admin delete link** on the sermon detail page — fixed 2026-06-14.
 - **R2 — `contacttus` redirect typo** — corrected to `contactus` in `config/redirects.php`.
+- **O52 — Preachers listing built relative hrefs (404s)** — `resources/views/sermons/preachers.blade.php`
+  passed `link="preachers/{slug}"` to `<x-clickable-card>`, which the browser resolved against the
+  current directory as `/christ/sermons/preachers/preachers/{slug}`. Now uses
+  `route('sermons.preacher', $preacher->slug, false)`. The root-relative form is deliberate:
+  `<x-clickable-card>` only adds `wire:navigate` when the link does not start with `http`, so an
+  absolute `route()` URL would have fixed the 404 while silently dropping SPA navigation. Both the
+  href and the `wire:navigate` path are covered by `PreacherIndexTest`. *(2026-09-04)*
