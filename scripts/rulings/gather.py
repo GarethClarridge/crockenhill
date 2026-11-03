@@ -772,6 +772,17 @@ RULED = [
      'Plan §4.1a step 4, operator 10-31 on "The Invitation After The Sermon" (A the K16 v3 end after "…the Lord '
      'Jesus.", B after the invitation and visitor cards): "Either is fine. Without the invitation is probably '
      'better." The 10-18 "early" at 3692.28 heard a cut halfway through the invitation.'),
+    ('operator-20261103:957-sermon-end', '2026-11-03T18:34:23Z', 957, None, 'end', (1573.9, 1605.53),
+     'Plan §4.1a step 5, after the 11-02 round, operator 11-03 on "Three Round Sermon Ends" (A the round\'s end keeping '
+     'the recited verse of the closing hymn, "Yes, finished. The Messiah dies…"; B before it, the 10-30 claude-review '
+     'keep): "Either is fine."'),
+    ('operator-20261103:1166-sermon-end', '2026-11-03T18:34:52Z', 1166, None, 'end', (1521.97, 1527.8),
+     'Plan §4.1a step 5, after the 11-02 round, operator 11-03 on "Three Round Sermon Ends" (A the round\'s end after '
+     '"…in just a little while", the song announcement out; B through "…before we pray, we\'ll sing again."): "Either '
+     'is fine." Supersedes the 10-18 "early" at 1525.8, which heard a cut mid-sentence.'),
+    ('operator-20261103:1247-sermon-end', '2026-11-03T18:35:14Z', 1247, None, 'end', (3626.08, 3628.04),
+     'Plan §4.1a step 5, after the 11-02 round, operator 11-03 on "Three Round Sermon Ends" (A the round\'s end after '
+     '"In Jesus\' name we ask.", B keeping the "Amen."): "Either is fine."'),
 ]
 # 10-24: song starts set by the operator's Intro Rule, Song Intros and Song Openings answers
 # (listening-intro-rule-20261024/record-starts.php; register D6 amended 10-24). They were stored as operator

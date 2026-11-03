@@ -2,8 +2,9 @@
 
 **Current worklist — reconciled 2026-10-30.** Historic outputs remain quarantined; no release batch
 is authorised. The 10-21/22 round closed. Later shared-path fixes still need a measured round and
-current-output acceptance. 1288's onset leak is fixed (§4.1a step 2). §4.1a steps 3–4 are done (10-31) and the
-round checklist is drafted (step 5). The internal-join fix is built (11-01, step 5). What remains before a freeze is the step 5 freeze checks.
+current-output acceptance. 1288's onset leak is fixed (§4.1a step 2). §4.1a steps 3–4 are done (10-31). **The
+11-02 round ran and closed 11-03** (§4.1a step 5, "ROUND RUN"): 420 of 423 members and 13 of 15 re-imports complete,
+nothing public; post-round checks done. Owed: the eight items listed at the end of that record, for the next round.
 
 This file owns **current video work and status**, not execution diaries or acceptance procedures.
 The complete prior text is preserved in the [execution record through 10-29](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md).
@@ -1072,6 +1073,100 @@ queue and route state are in the archive; a historical “final” label is not 
      session copies it (and any later binlog) just before the snapshot instead of a second full backup.
    - *Then, each on the operator's word:* backup (dump + private storage + binlogs, SHA-256, to
      Sonnics); clone to the round commit; runbook §3 setup; snapshot; staged start.
+   - **ROUND RUN 11-02 → 11-03 and CLOSED (operator: "Please start the processing round … If it stops restart it
+     yourself"; 11-02 "Yes, park failed runs"; 11-03 "Go for both" — the post-round checks and the close).** Nothing
+     public; every output stays quarantined pending §4.5.
+     - *Setup (runbook §3), 11-02 13:00–13:20Z.* Clone `../crockenhill-round` moved to `ae5117afd` (old line kept as
+       `round-20261022-final-line`; lockfiles unchanged; hashed directories equal to main); clone `.env` = main's with
+       `HISTORIC_MEDIA_WORKERS_FFMPEG=3`; `CodeRevision` `1abba379…` equal in both. Main's six workers removed, main on
+       Redis 4/5 with replicas 0 (pre-round `.env` kept in the session scratchpad and restored at close). Host ffmpeg
+       LaunchAgent pointed at the clone's script. `round-tools` recreated with a read-only Sonnics mount (an untracked
+       scratchpad override) for the re-imports. `binlog.000148` (201 bytes: nothing written since the 11:53 dump) flushed
+       and copied to `_pre-round-20261102-backup/binlogs/` with its SHA-256.
+     - *Snapshot `round-20261102a`* (423 runs at `ae5117afd`, membership `fc36e75e…`). The first snapshot
+       (`round-20261102`) was replaced: 1377 and 1378 had no audio timeline (1377's audio was only recreated 11-02), so
+       `historic-import:classify-audio 1377 1378 --execute` ran first. **Routes:** 417 recompose → extract
+       (`recompose-runs.txt`); **1377/1378 re-detect** (no banked ensemble draws; the 1035 precedent — not `reExtract`
+       as the 10-31 checklist said, which assumed no timeline), then answered and recomposed; **942/974/1363
+       `reExtract`** (hand edits: the recompose dry run reads them "ready", so they are kept off the list by hand);
+       **1295 out** (S10, refused as in every replay).
+     - *Staged start.* (a) Canary **1011**, not 1377/1378 (a re-detect can hold on a question before it cuts): recompose
+       → extract → every detached job in 8 min; §1285 cut 458.49–638.83, `quieter_by_db` 40.6, held for the D6 review of
+       its moved start; sermon 946 unchanged (1854.3 s), quarantined. (b) Pause mid-cut 13:22: the cut finished, nothing
+       new taken, resume clean. (c) 12 runs: ≈ 4.3 min a run end to end. (d) 404 recomposes + autotick on the 419-run
+       `extract-runs.txt`, 14:29Z.
+     - *Throughput, measured.* Chains run in lockstep (each job re-queues its successor at the tail), so all 404 runs
+       cleared the LLM stages before any cut (≈ 90 min of idle encoders). A 2nd LLM worker added 14:55 with
+       `--scale … --no-recreate` slowed each Detect 7 → 15 s: little gain. Sermon cuts ran at 18–30 an hour; a 4th and
+       5th ffmpeg worker gave nothing — the host's two VideoToolbox engines are the limit (host log `waited` 50–190 s
+       on every request; CPU 47 % idle; Staging 117 MB/s under load). Main batch drained 11-03 17:11Z (≈ 28 h).
+     - **Clip truncation at 3 host encode slots (found 11-03).** `PrepareSectionPublicationCandidates` timing-check
+       failures ran at ≈ 20 an hour from the start of the clip stage (10:00): the encode exits 0 but the clip's video
+       track stops early (e.g. 12.8 s of 115.3 s; 1025 "no measurable duration"). Retries (3 tries) recovered almost all;
+       **10 runs exhausted them** (1025, 1055, 1133, 1199, 1214, 1286, 1299, 1305, 1325, 1349) and stopped the watcher four
+       times (16:36–17:04). Each was parked (the stop acknowledged by its exact text in `watch-state.json`, backups
+       `watch-state.before-ack-*.json`, stop files archived) and the round resumed. Standalone re-encodes of the same span
+       are perfect (hardware or software decode). With the host at **`--jobs 2`** (11-03 17:12, queues idle) all 10
+       re-cut first time by `sections:recut` and there has been **no timing failure since** — three concurrent
+       VideoToolbox encodes on the M1 Max's two engines intermittently truncate output. Host kept at 2 (runbook §2.2).
+     - **Held for review (3):** 962, 1042, 1197 — `sermon_composition_review` ("Resolve the identified sermon sections and
+       uncovered speech before extraction"), all multi-part sermon outputs whose fresh K16 answers send the planner to
+       review. Not investigated; owed (below).
+     - **Stuck at this commit (5):** 1148, 1150, 1178, 1190 — the round's recompose stored an `other`-section dispute that
+       a replay of the same bank and rulings does not produce (`EnsembleReviewExport` finds none, so no page can ask
+       it): suspected `CutAwareEnsembleComposer::cutNeutral()`, which counts a cut-probe error as "not neutral" and
+       probed before the new edges were decoded (unverified). 1196 — two `alignment` disputes (draft 3's reading fits
+       two groups), which the exporter renders with no alternatives; the operator: "the questions … can't be answered
+       with the information given". **The rerun guard allows one recompose per run per commit, not per snapshot**, so
+       none can be re-run until a code commit; they keep their previous cuts.
+     - **Re-imports (15, operation 4).** The importer checks the whole corpus against the manifest: Sonnics had drifted —
+       the 1080p Easter 2020 master was refiled 2020-04-11 → 2020-04-12 after 09-10 (operator: move it back temporarily;
+       done and restored, contents unchanged, its `._` companion lost); `2024-07-26 Buzz Club` is absent but already
+       `exclude`d in the manifest ("recorded on a Friday"), and excluded files are not verified. Dispatched 11-02 17:40
+       from `round-tools` (`--dir=/mnt/cbc-services`, 35 GB staged, 0 errors; runs 18421–18435,
+       `round-20261102a/reimport-runs.txt`); their pre-detection jobs were moved to the queue heads by an atomic Lua
+       `LRANGE/LREM/LPUSH` (lengths unchanged) so their questions reached the operator the same evening. Questions: 18427
+       claude-review from the words (B, the preacher's Amen at 1:09:46); "Six Re-import Questions"
+       (https://claude.ai/artifact/VGjbGRXmqSGcLcmpUpQk1u): 18428 either, 18429 A, 18430 either, 18432 and 18433 ×2 leave
+       out. **13 of 15 complete** (18429/18433 by `reExtract`, which re-asked K16 against the answered structure). Open:
+       **18424** — `snapshotIsCurrent` false: its own projection renumbered the OoS item positions on retired-weekly
+       service 785, so the banked snapshot no longer matches (needs a fresh detection and a code fix); **18432** — every
+       edge window decodes to invalid audio (its YouTube `.webm` master has duration 0; suspected window clamp, the
+       duration-less WebM class). The importer's retry is unusable for both: it skips runs under review and would
+       dispatch 18432 as a second run.
+     - **Questions answered during the round.** 1377 "At Your Feet We Fall" (operator, "Second Song After He Is
+       Exalted?" https://claude.ai/artifact/JpNWzZxHj2WGg6XAnZSmxv); 1378 from the words (claude-review: "His mercy is
+       more" then "When I was lost", OoS 14/15).
+     - *Close (runbook §8), 11-03 ≈ 18:15Z.* Queues empty (incl. `default`/`video`), no pause flags, watcher and autotick
+       stopped, the 12 failed jobs reviewed (10 clip truncations, 2 × 18432). Round project removed, main back on 0/1
+       with its workers, LaunchAgent on main's script at `--jobs 2`, reached from a main worker. Service artifacts and
+       detection rulings backed up as **one tar each** to `/Volumes/Sonnics/_post-round-20261103-backup/` — 39,314/39,314
+       and 92/92 files equal by SHA-256 (`verify-tar.py`; receipts there) — not the runbook's file-by-file rsync, which
+       would have cost ≈ 16 GiB on exFAT for 16,831 new files. Sonnics 27 GiB free. Clone kept until listening is
+       accepted.
+     - **Post-round checks, 11-03.** `historic-import:rerun-diff round-20261102a/snapshot.json`
+       (`round-20261102a/diff.json`): 405 of 423 changed, 1,186 clips re-cut, 236 sermon spans moved; 74 need attention
+       = 77 sections that left review only because the round cleared their rule flags (`sermon_audio_loudness_missed`
+       30, `structure_sermon_adjacent_speech_unowned` 23, `structure_section_reads_as_sung` 23, 1377/1378's songs) — no
+       live hold or human ruling lost — plus the 3 held, **1377 §4781** (a 16 s song, its media awaiting a song review)
+       and two old scripture-link notes. Re-approvals (981 §1043, 1020 §1340, 1304 §3875, 1305 §3888): none needed —
+       spans restored by the song-edge steps; three published again with fresh clips, 1020 was already pending. The 126
+       clips deleted 10-29: all re-cut (123 files on Staging or in quarantine, 3 published song videos). K16 ends against
+       `k16-reword-20261029/measured*.json`: 282 same, 96 sub-second, 27 ≥ 1 s; 20 meet their rulings (13 are the
+       pipeline's +1.0 s tail beside rulings set at the live value); 1219 → 3855.26 is the 10-30 fix, right by the
+       words. **Misses by the words, redraw learning (§4.2), not re-asked:** 956 (3816.1, between the either points,
+       mid-sentence, drops "Christ died for sinners…"), 1096 (3692.28, the old mid-invitation cut between the either
+       points), 1360 (3013.58, ≈ 1 s into "Well, we're going to sing"). Heard on "Three Round Sermon Ends"
+       (https://claude.ai/artifact/Q3bTbGLh1qDnvh1BimowV7, builder `storage/scratch/round-ends-listening-20261103/`):
+       957, 1166, 1247 — all "Either is fine", recorded `operator-20261103` in `gather.py` (supersedes the 10-30
+       claude-review keep on 957, the 10-18 "early" on 1166 and the endings keep on 1247); ruled endings 658/658.
+       Curation: 977 §1009 / 1305 §3886 "Great Is The Lord" OpenLP duplicate.
+     - **Owed (next round, each on the operator's word):** (1) `cutNeutral()` timing-dependent questions (1148, 1150,
+       1178, 1190); (2) alignment disputes must settle themselves or never reach a page (1196); (3) the ensemble gate
+       must not fingerprint projection output — compare item identity, not positions (18424); (4) edge windows for
+       duration-less WebM runs (18432); (5) investigate 962, 1042, 1197; (6) the K16 redraw misses 956, 1096, 1360;
+       (7) 1377 §4781's song review; (8) the 1294 §3680 split-song (unruled, as before). Records: `round-20261102a/`
+       (snapshot, diff, route lists, stop files, acknowledgements), session memory lane log.
 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
@@ -1161,7 +1256,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Next processing round | Not ready to freeze: §4.1a steps 3–4 done 10-31; checklist drafted (step 5); 1377/1378 reconciled 10-31. Internal-join fix built 11-01. Quiet sung openings (E25) built 11-01. Owed: the step 5 freeze checks, each later step on the operator's word. Membership: 423 re-runs + 15 re-imports. |
+| Processing round 11-02 | **Run and closed 11-03** (§4.1a step 5, "ROUND RUN"): snapshot `round-20261102a`, 420/423 members + 13/15 re-imports complete, nothing public, all quarantined; post-round diff, re-approval, 126-clip and K16 checks done; 957/1166/1247 heard "either". Owed for the next round: 5 runs stuck at this commit (1148, 1150, 1178, 1190, 1196), 3 held (962, 1042, 1197), re-imports 18424/18432, K16 misses 956/1096/1360, 1377 §4781 review. Host ffmpeg now `--jobs 2`. |
 | Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |

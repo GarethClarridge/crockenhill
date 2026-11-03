@@ -80,7 +80,7 @@ cover.
 |---|---|
 | All six worker services. `queue.worker` is needed: `QueueScriptureEnrichment` dispatches `FetchBibleTextForSermon` to `default`, and `API_BIBLE_ENABLED=true`. `queue.worker-video` is kept because no audit has shown round work never reaches `video`. | compose project `crockenhill-round` |
 | `round-tools`: a long-running container for the watcher, autotick and every round command | same project |
-| Host ffmpeg script | the clone's copy; the LaunchAgent is restarted onto it |
+| Host ffmpeg script | the clone's copy; the LaunchAgent is restarted onto it. **`--jobs 2`, not 3** (11-03): three concurrent VideoToolbox encodes on the M1 Max's two engines intermittently truncate a clip's video while ffmpeg exits 0 (≈ 20 timing-check failures an hour; none at 2). More ffmpeg *workers* than host slots add nothing: the engines are the limit. |
 
 **front-loop is not used.** It does not check for a pause, and its separate LREM and LPUSH
 leave a window where an interrupted process loses a payload. The round has few fresh
@@ -220,8 +220,18 @@ Every dispatch is a dry run without `--execute` and is bounded by `--max`.
 - **Tier A, then Tier B, needs a second snapshot.** The guard does not admit a finished
   transcription round on the same snapshot. Snapshot the transcribed runs (no `--routing`), start a
   watcher on it, and re-detect them there.
-- **One cut per code revision per snapshot.** A run cut on a snapshot is not cut again on the same
-  code. A changed composition (an answer, a recomputed review) needs a fresh snapshot.
+- **One recompose and one cut per run per commit, across snapshots** (corrected 11-03: a fresh snapshot at the same
+  commit refuses "already re-run on this commit"). A run whose round recompose went wrong waits for a code commit; a
+  run with only an answer to apply goes through `ProcessingRunOrchestrator::reExtract` (resumes at
+  `TranscribeOutputEdges`) when its projection is current.
+- **The recompose dry run cannot see hand edits:** it reads 942, 974 and 1363 "ready". Take them off the recompose list
+  by hand.
+- **Runs with no banked ensemble draws** (1377, 1378 on 11-02) go through `rerun-redetect`, after
+  `historic-import:classify-audio` if they lack a timeline (then take a new snapshot).
+- **Re-imports** (`sermons:import-historic-videos` under an operation) check the *whole* corpus root against the
+  manifest before dispatching any `--only` item: every candidate recording on disk must be listed, and every
+  *included* item must be present at its size (excluded items are not checked). Check the drive against the manifest
+  before the round. Re-imports are not snapshot members: the watcher only warns on their failures.
 - **A recompose replays banked draws and answers and re-syncs sections.** It would undo hand-made
   structural edits, so runs edited through the admin actions are never recomposed: **942, 974 and
   1363** (2026-10-15). Their route is `ProcessingRunOrchestrator::reExtract`, which resumes at
@@ -305,6 +315,13 @@ ready.
 - Each look writes `watch-status.json`, and `watch-state.json` keeps its start.
 
 Resume: fix the cause, archive the stop file, `round.sh resume`, restart the watcher.
+
+**Parking a failed run (operator permission, 11-02).** A failed job on a member stops the watcher again on restart. Add
+the run to `parked` and its stop's exact text to `acknowledged` in `watch-state.json` (back the file up first); the
+watcher then reports it as a warning and every other check stays live. Build the text with the watcher's own format
+(`job failed on <queue>: <displayName> — <first exception line>`, `storage/scratch/round-20261102-ackgen.php`) so
+failures that land after the stop are covered too. Start the watcher, confirm its first look says "no stop", then
+resume. Retried jobs go to the tail, so exhausted failures bunch at the end of a stage.
 
 ### 5.2 `round.sh` and autotick
 
@@ -413,7 +430,9 @@ and start a new round with a new snapshot. Keep the original snapshots: a new ba
 not swallow earlier damage.
 
 Also:
-- rsync the service artifacts to `/Volumes/Sonnics/_service-artifacts-backup/` (checksum, no deletions);
+- back up the service artifacts and detection rulings to Sonnics **as one tar each**, verified with
+  `verify-tar.py` (§6 step 5), not file by file: on 11-03 an incremental rsync would have copied 16,831 files costing
+  ≈ 16 GiB on exFAT;
 - check that the ffmpeg LaunchAgent is reached from a main worker after it is pointed back.
 
 ## 9. Recovery
