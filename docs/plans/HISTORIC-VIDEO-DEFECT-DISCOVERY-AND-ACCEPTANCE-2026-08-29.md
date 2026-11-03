@@ -1206,6 +1206,20 @@ queue and route state are in the archive; a historical “final” label is not 
           fails on an unmeasurable video. 18432 is the only run ≤ 0 (7 are `null`; the `?? INF` clamps handle those).
           Repair: `historic-import:backfill-source-durations` for 18432 (it already treats ≤ 0 as missing), then re-run
           its edge step. The importer's retry is unusable, because it would dispatch a second run.
+       - **Merged and repaired 11-03 (operator "Do all 3")** at `f83a11aec`, from main with main frozen (7 runs, no
+         clone). Records in `repair-20261103/` (snapshots, `log.txt`, `785-retrash-before.json`, `diff`).
+         **1178, 1190, 1196:** recomposed with no questions, then cut. **18424:** 5260/5266 re-trashed; the banked
+         snapshot was current again, so `reExtract` was used rather than a re-detect (rerun commands refuse failed runs);
+         completed. **18432:** packet-counted duration 4619.87 s recorded (hash-verified archive copy), `retry()` from
+         the edge step; completed. **1148, 1150:** once decoded, their filler disputes were real cut differences (1148
+         also gained a 39:55–52:46 question the empty-cut rule had hidden). They were settled `claude-review-20261103`
+         from the words (1148-q0 alt1, keeping the preacher's own Genesis 49 reading and the 3 min after it; 1148-q1
+         alt0, the preacher's Amen at 58:59; 1150-q0 alt0, the decoded "Thank you, Ruth" at 5:19.15), then recomposed
+         and cut. **Both are now held at `sermon_composition_review`** (item 5's class, with 962/1042/1197). 1148 now reads
+         as sermon + `other` parts with micro dropout fragments, and its sermon carries
+         `sermon_composition_review_required` and `boundary_material_risk`; the answers offered only "other item"
+         versions, so this needs the operator against the 10-16 "one sermon in parts" ruling. Rerun-diff: 5/5 changed,
+         attention = the 2 held plus flags cleared by the answers; clips into quarantine; nothing public; 0 failed jobs.
 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
