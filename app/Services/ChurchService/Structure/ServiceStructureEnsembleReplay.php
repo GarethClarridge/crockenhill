@@ -26,9 +26,11 @@ class ServiceStructureEnsembleReplay
      * @param  list<array<string, mixed>>  $rulings
      * @param  MediaProcessingLog|null  $log  The run the draws were made for; without it the cut
      *                                        cannot be planned, so no filler question is dropped
+     * @param  bool  $gatherEvidence  Bank the evidence the cut probes wait on (detection only; see
+     *                                {@see CutAwareEnsembleComposer::compose()})
      * @return array<string, mixed>
      */
-    public function replay(array $evidence, array $rulings = [], ?MediaProcessingLog $log = null): array
+    public function replay(array $evidence, array $rulings = [], ?MediaProcessingLog $log = null, bool $gatherEvidence = false): array
     {
         $input = ServiceStructureEnsembleInput::hydrate($this->snapshot($evidence));
         $inputHash = $evidence['input_hash'];
@@ -97,7 +99,7 @@ class ServiceStructureEnsembleReplay
         }
 
         ksort($outcomes);
-        $composition = $this->composer->compose($draws, ChurchServiceTranscript::fromArray($input['transcript'] ?? null), $log);
+        $composition = $this->composer->compose($draws, ChurchServiceTranscript::fromArray($input['transcript'] ?? null), $log, $gatherEvidence);
         $contextPayload = $input['validation_context'] ?? null;
 
         if (! is_array($contextPayload)) {

@@ -30,10 +30,13 @@ class CutAwareEnsembleComposer
 
     /**
      * @param  array<int, ValidationResult>  $draws
+     * @param  bool  $gatherEvidence  Decode the edge words and answer the sermon-end question each version's
+     *                                cut waits on, banking them on the run. Only the pipeline's detection
+     *                                gathers; a replay, export or report reads what is banked.
      */
-    public function compose(array $draws, ?ChurchServiceTranscript $transcript, ?MediaProcessingLog $log): EnsembleComposition
+    public function compose(array $draws, ?ChurchServiceTranscript $transcript, ?MediaProcessingLog $log, bool $gatherEvidence = false): EnsembleComposition
     {
-        $composition = $this->composeCutAware($draws, $transcript, $log);
+        $composition = $this->composeCutAware($draws, $transcript, $log, $gatherEvidence);
         if ($transcript === null || $composition->refused) {
             return $composition;
         }
@@ -48,7 +51,7 @@ class CutAwareEnsembleComposer
     /**
      * @param  array<int, ValidationResult>  $draws
      */
-    private function composeCutAware(array $draws, ?ChurchServiceTranscript $transcript, ?MediaProcessingLog $log): EnsembleComposition
+    private function composeCutAware(array $draws, ?ChurchServiceTranscript $transcript, ?MediaProcessingLog $log, bool $gatherEvidence): EnsembleComposition
     {
         $composition = $this->composer->compose($draws, $transcript);
 
@@ -66,7 +69,7 @@ class CutAwareEnsembleComposer
                 continue;
             }
 
-            if ($this->cutNeutral($draws, $transcript, $log, $groups)) {
+            if ($this->cutNeutral($draws, $transcript, $log, $groups, $gatherEvidence)) {
                 array_push($neutral, ...$groups);
             }
         }
@@ -77,17 +80,18 @@ class CutAwareEnsembleComposer
     /**
      * Whether writing or leaving out each of the dispute's groups leaves the cut unchanged.
      *
-     * A version whose edge words are not decoded yet plans no cut, so while any version waits on
-     * them the versions are compared by the spans the cut widens from: equal spans give an equal
-     * cut once decoded. Comparing a planned cut with an unplanned one asked a question no replay
-     * could reproduce (1148, 1150, 1178, 1190 in the 11-02 round).
+     * Only planned cuts are compared. A version whose edge words are not decoded plans no cut, and
+     * two empty plans are not the same cut: counting them equal dropped every filler question at
+     * first detection, and comparing one with a planned cut asked a question no later replay could
+     * produce (1148, 1150, 1178, 1190 in the 11-02 round). Detection gathers what each version
+     * waits on first; a version still waiting is asked.
      *
      * @param  array<int, ValidationResult>  $draws
      * @param  list<int>  $groups
      */
-    private function cutNeutral(array $draws, ChurchServiceTranscript $transcript, MediaProcessingLog $log, array $groups): bool
+    private function cutNeutral(array $draws, ChurchServiceTranscript $transcript, MediaProcessingLog $log, array $groups, bool $gatherEvidence): bool
     {
-        $plans = [];
+        $cuts = [];
 
         foreach ($groups as $group) {
             foreach ([true, false] as $written) {
@@ -100,22 +104,18 @@ class CutAwareEnsembleComposer
                 }
 
                 $structure = $this->composer->compose($draws, $transcript, [], $forced)->structure;
-                $plan = $this->cutProbe->asWritten($log, $structure, $transcript);
+                $plan = $gatherEvidence
+                    ? $this->cutProbe->asWrittenWithEvidence($log, $structure, $transcript)
+                    : $this->cutProbe->asWritten($log, $structure, $transcript);
 
-                if (($plan['mode'] ?? 'error') === 'error') {
+                if (($plan['mode'] ?? 'error') === 'error' || ($plan['strategy'] ?? null) === 'edge_word_timings_missing') {
                     return false;
                 }
 
-                $plans[] = $plan;
+                $cuts[] = json_encode([$plan['mode'], $plan['segments'] ?? null], JSON_THROW_ON_ERROR);
             }
         }
 
-        $undecoded = array_any($plans, static fn (array $plan): bool => ($plan['strategy'] ?? null) === 'edge_word_timings_missing');
-        $cuts = array_map(static fn (array $plan): string => json_encode(
-            $undecoded ? ($plan['structure_segments'] ?? null) : [$plan['mode'], $plan['segments'] ?? null],
-            JSON_THROW_ON_ERROR,
-        ), $plans);
-
-        return ! in_array('null', $cuts, true) && count(array_unique($cuts)) === 1;
+        return count(array_unique($cuts)) === 1;
     }
 }

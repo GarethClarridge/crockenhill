@@ -48,7 +48,7 @@ class OutputEdgeWordTimings
      * which whole cues place.
      *
      * @param  list<array{start: float, end: float, text: string}>  $cues
-     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null $levels
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
      * @return array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true, window_rule?: string, left_boundary?: string, right_boundary?: string}|null
      */
     public function window(array $cues, float $edge, ?float $duration, ?MediaProcessingLog $log = null, ?array $levels = null): ?array
@@ -78,7 +78,7 @@ class OutputEdgeWordTimings
     /**
      * The original decode remains the sole word/pause timing source. No RMS or wide identity.
      *
-     * @param list<array{start: float, end: float, text: string}> $cues
+     * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>, between?: true, window_rule?: string, left_boundary?: string, right_boundary?: string}|null
      */
     public function timingWindow(array $cues, float $edge, ?float $duration): ?array
@@ -190,7 +190,10 @@ class OutputEdgeWordTimings
             }
         }
 
-        throw new OutputEdgeTimingsMissing(sprintf('edge_word_timings_missing: run %s window %.6f–%.6f model %s', $log->processing_id, $window['start'], $window['end'], $identity['model']));
+        throw new OutputEdgeTimingsMissing(
+            sprintf('edge_word_timings_missing: run %s window %.6f–%.6f model %s', $log->processing_id, $window['start'], $window['end'], $identity['model']),
+            array_intersect_key($window, array_flip(['start', 'end', 'window_rule'])),
+        );
     }
 
     /**

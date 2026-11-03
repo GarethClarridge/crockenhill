@@ -154,6 +154,18 @@ TXT;
             return ['asked' => false, 'end' => $question['end'], 'ties_to_sermon' => null];
         }
 
+        return $this->answerQuestion($log, $question);
+    }
+
+    /**
+     * Ask a question {@see question()} built, unless an answer to it is banked. A cut probe builds
+     * it from a proposed structure's sections and banks the answer on the run itself.
+     *
+     * @param  array{identity: array<string, mixed>, prompt: string, lines: list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>, end?: float|null}  $question
+     * @return array{asked: bool, end: float|null, ties_to_sermon: bool|null}
+     */
+    public function answerQuestion(MediaProcessingLog $log, array $question): array
+    {
         $banked = $this->answer($log, $question['identity']);
 
         if ($banked !== null) {

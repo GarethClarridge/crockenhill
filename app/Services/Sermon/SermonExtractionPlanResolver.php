@@ -639,7 +639,7 @@ class SermonExtractionPlanResolver
             // still stands: a re-cut may decode them first only when the structure needs no review.
             return ['mode' => 'single_span', 'source' => 'service_sections', 'segments' => [],
                 'metadata' => [...$composition, 'requires_review' => true, 'reason' => 'edge_word_timings_missing',
-                    'edge_word_timings_error' => $exception->getMessage(), 'cue_edge_widening' => [],
+                    'edge_word_timings_error' => $exception->getMessage(), 'edge_word_timings_window' => $exception->window, 'cue_edge_widening' => [],
                     'structure_requires_review' => $requiresReview,
                     'structure_reason' => match (true) {
                         $held !== [] => 'sermon_section_content_held',

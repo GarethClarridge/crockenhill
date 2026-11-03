@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Services;
 
+use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceStructure;
 use App\Data\ServiceStructureSection;
@@ -11,12 +12,18 @@ use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\OutputEdgeWordTimings;
+use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Services\Media\Audio\ServiceAudioWindowExtractor;
+use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonCutProbe;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use OpenAI\Laravel\Facades\OpenAI;
+use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Support\BanksNoWordOutputEdges;
 use Tests\TestCase;
 
@@ -152,6 +159,86 @@ class SermonCutProbeTest extends TestCase
         $this->assertTrue($cut['as_written']['from_sections']);
         // The 10 s between reading and sermon plays as the reading's; the parts meet (amended D1).
         $this->assertEquals([['start_time' => 420.0, 'end_time' => 600.0], ['start_time' => 600.0, 'end_time' => 2200.0]], $cut['as_written']['segments']);
+    }
+
+    /**
+     * Detection's probe (11-03): the edge words and the sermon-end answer a proposal's cut waits on
+     * are gathered onto the run itself, so the plan is a cut and every later replay reads the same.
+     */
+    #[Test]
+    public function gathering_banks_the_edge_words_and_sermon_end_answer_on_the_run_and_plans_the_cut(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create(['duration' => 2430.0]);
+        $log->putServiceTranscriptPath(app(ServiceArtifactStorage::class)->putJson($log->processing_id, 'normalized', $this->transcript()->toArray()));
+        $decoded = $this->decodeWithNoWords();
+        OpenAI::fake(array_fill(0, 2, CreateResponse::fake(['choices' => [['message' => ['content' => json_encode([
+            'sermon_last_line' => 1, 'ties_to_sermon' => false, 'video_last_line' => 1, 'reason' => 'test',
+        ], JSON_THROW_ON_ERROR)]]]])));
+
+        $read = app(SermonCutProbe::class)->asWritten($log->fresh(), $this->withClosingSong(), $this->transcript());
+        $gathered = app(SermonCutProbe::class)->asWrittenWithEvidence($log->fresh(), $this->withClosingSong(), $this->transcript());
+        $replayed = app(SermonCutProbe::class)->asWritten($log->fresh(), $this->withClosingSong(), $this->transcript());
+
+        $this->assertSame('edge_word_timings_missing', $read['strategy']);
+        $this->assertSame('identified_sections', $gathered['strategy'], $gathered['edge_word_timings_error'] ?? '');
+        $this->assertNotSame([], $decoded->windows);
+        $this->assertSame($gathered['segments'], $replayed['segments']);
+        $kinds = array_column(ServiceArtifactStorage::recordedFor($log->fresh()), 'kind');
+        $this->assertNotEmpty(array_filter($kinds, static fn (string $kind): bool => str_starts_with($kind, 'edge-words-')));
+        $this->assertSame(1, MediaProcessingLog::query()->count());
+        $this->assertSame(0, ServiceSection::query()->count());
+    }
+
+    #[Test]
+    public function a_gather_that_fails_returns_the_waiting_plan(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->completed()->create(['duration' => 2430.0]);
+        $log->putServiceTranscriptPath(app(ServiceArtifactStorage::class)->putJson($log->processing_id, 'normalized', $this->transcript()->toArray()));
+        $this->app->instance(PrepareOutputEdgeWordTimings::class, new class(app(OutputEdgeWordTimings::class), app(ServiceTranscriptionInterface::class), app(ServiceAudioWindowExtractor::class), app(ServiceArtifactStorage::class), app(StorageAdapterHelper::class)) extends PrepareOutputEdgeWordTimings
+        {
+            public function prepareWindows(MediaProcessingLog $log, array $windows): array
+            {
+                throw new RuntimeException('edge_word_timings_source_missing: no archived service audio');
+            }
+        });
+
+        $plan = app(SermonCutProbe::class)->asWrittenWithEvidence($log, $this->structure([]), $this->transcript());
+
+        $this->assertSame('edge_word_timings_missing', $plan['strategy']);
+        $this->assertSame([], $plan['segments']);
+    }
+
+    /** A decoder that banks every window it is asked for with no words, recording what it was asked. */
+    private function decodeWithNoWords(): object
+    {
+        $decoder = new class(app(OutputEdgeWordTimings::class), app(ServiceTranscriptionInterface::class), app(ServiceAudioWindowExtractor::class), app(ServiceArtifactStorage::class), app(StorageAdapterHelper::class)) extends PrepareOutputEdgeWordTimings
+        {
+            /** @var list<array<string, mixed>> */
+            public array $windows = [];
+
+            public function prepareWindows(MediaProcessingLog $log, array $windows): array
+            {
+                $evidence = app(OutputEdgeWordTimings::class);
+                foreach ($windows as $window) {
+                    $this->windows[] = $window;
+                    $identity = $evidence->identity($log, $window);
+                    app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => [], 'compute_seconds' => 0.0]);
+                }
+
+                return ['windows' => count($windows), 'decoded' => count($windows), 'compute_seconds' => 0.0];
+            }
+        };
+        $this->app->instance(PrepareOutputEdgeWordTimings::class, $decoder);
+
+        return $decoder;
+    }
+
+    private function withClosingSong(): ServiceStructure
+    {
+        return ServiceStructure::fromSections([
+            ...$this->structure([])->sections,
+            new ServiceStructureSection(ServiceSectionType::Song, 'Praise my soul', 2210.0, 2400.0, 0.95, null, 'Praise my soul', null),
+        ]);
     }
 
     /** @param  list<string>  $sermonFlags */

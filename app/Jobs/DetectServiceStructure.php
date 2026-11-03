@@ -405,12 +405,12 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
 
         $run = $runner->run($this->processingLog, $input);
         $this->assertEnsembleInputCurrent($input);
-        $composition = app(CutAwareEnsembleComposer::class)->compose($run['draws'], $transcript, $this->processingLog);
+        $composition = app(CutAwareEnsembleComposer::class)->compose($run['draws'], $transcript, $this->processingLog, gatherEvidence: true);
         $replayed = null;
         $answers = $this->ensembleRulings();
 
         if ($answers !== []) {
-            $replayed = app(ServiceStructureEnsembleReplay::class)->replay($run['evidence'], $answers, $this->processingLog);
+            $replayed = app(ServiceStructureEnsembleReplay::class)->replay($run['evidence'], $answers, $this->processingLog, gatherEvidence: true);
             $composition = new EnsembleComposition(
                 ServiceStructure::fromArray($replayed['structure']),
                 $replayed['disputes'],
@@ -482,7 +482,7 @@ class DetectServiceStructure extends ProcessingJob implements ShouldQueue
             throw new \RuntimeException('The banked ensemble input has no validation context.');
         }
 
-        $replayed = $replay->replay($evidence, $this->ensembleRulings(), $this->processingLog);
+        $replayed = $replay->replay($evidence, $this->ensembleRulings(), $this->processingLog, gatherEvidence: true);
         $composition = new EnsembleComposition(
             ServiceStructure::fromArray($replayed['structure']),
             $replayed['disputes'],

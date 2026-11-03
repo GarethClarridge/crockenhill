@@ -37,10 +37,12 @@ use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\Support\AudioTimelineFixture;
+use Tests\Support\BanksNoWordOutputEdges;
 use Tests\TestCase;
 
 class EnsembleReviewCommandsTest extends TestCase
 {
+    use BanksNoWordOutputEdges;
     use CreatesHistoricImportOperations;
     use DatabaseTransactions;
 
@@ -695,6 +697,8 @@ class EnsembleReviewCommandsTest extends TestCase
             $this->section(['type' => 'other', 'start_time' => 2060.0, 'end_time' => 2080.0, 'title' => 'Introducing the hymn']),
         ], model: 'mock') : $inParts;
         MockServiceStructureService::useStructureSequence($inParts, $inPartsShorterEnd, $talkThenSermon, $talkThenSermon);
+        // Decoded edges, so the probes compare planned cuts (the test audio cannot be decoded).
+        $this->bankNoWordOutputEdges($log);
 
         (new DetectServiceStructure($log))->handle(
             app(ServiceStructureInterface::class),
