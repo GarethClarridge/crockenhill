@@ -52,7 +52,7 @@ class ProcessingInitiator
      *     file_hash?: string|null,
      *     dedup_key?: string|null,
      *     file_size?: int,
-     *     duration?: float,
+     *     duration?: float|null,
      *     processing_metadata?: array<string, mixed>
      * }  $additionalLogData  Extra columns to merge into the log record
      * @param  array{

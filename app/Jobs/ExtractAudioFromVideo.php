@@ -7,11 +7,11 @@ namespace App\Jobs;
 use App\Data\LivestreamSegment;
 use App\Enums\LivestreamSegmentClassification;
 use App\Models\MediaProcessingLog;
+use App\Services\Media\SourceMediaDuration;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use App\Services\Processing\SermonProcessingStepTransitions;
 use App\Traits\ChecksCancellation;
-use FFMpeg\FFProbe;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -168,25 +168,14 @@ class ExtractAudioFromVideo implements ShouldQueue
     }
 
     /**
-     * Get video duration using FFprobe
+     * The video's duration from its container, or from its packets when the container declares
+     * none (a WebM written without an index). An unmeasurable video fails: the full-video segment
+     * needs an end, and the 1-hour default it once took cut or overran the audio silently.
      */
     private function getVideoDuration(string $videoPath): float
     {
-        try {
-            $ffprobe = FFProbe::create([
-                'ffmpeg.binaries' => config('media-processing.ffmpeg.ffmpeg_path'),
-                'ffprobe.binaries' => config('media-processing.ffmpeg.ffprobe_path'),
-            ]);
-
-            return (float) $ffprobe->format($videoPath)->get('duration');
-        } catch (\Exception $e) {
-            Log::warning('Failed to get video duration, using default', [
-                'video_path' => $videoPath,
-                'error' => $e->getMessage(),
-            ]);
-
-            return 3600.0; // Default 1 hour
-        }
+        return app(SourceMediaDuration::class)->seconds($videoPath)
+            ?? throw new \RuntimeException("Could not measure the video's duration: {$videoPath}");
     }
 
     public function failed(\Throwable $exception): void

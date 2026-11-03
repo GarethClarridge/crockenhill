@@ -8,6 +8,7 @@ use App\Enums\ProcessingStatus;
 use App\Jobs\ExtractAudioFromVideo;
 use App\Models\MediaProcessingLog;
 use App\Models\SermonProcessingStep;
+use App\Services\Media\SourceMediaDuration;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\MediaProcessingRunTransitionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -94,13 +95,14 @@ class ExtractAudioFromVideoTest extends TestCase
             ]);
 
         Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('warning')->atLeast()->once(); // For getVideoDuration fallback
+        $this->measuresVideosAs(1800.0);
 
         $job = new ExtractAudioFromVideo($log);
         $job->handle($mockExtractor);
 
         $log->refresh();
         $this->assertEquals('sermons/audio/extracted.mp3', $log->audio_file_path);
+        $this->assertEquals(1800.0, $log->duration);
         $this->assertEquals('audio_extraction_complete', $log->current_step);
         $this->assertEquals('processing', $log->status->value);
         $this->assertSame(
@@ -142,7 +144,7 @@ class ExtractAudioFromVideoTest extends TestCase
             ]);
 
         Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('warning')->atLeast()->once();
+        $this->measuresVideosAs(1800.0);
 
         $job = new ExtractAudioFromVideo($log);
         $job->handle($mockExtractor);
@@ -178,7 +180,7 @@ class ExtractAudioFromVideoTest extends TestCase
             ->willThrowException(new \Exception('FFmpeg extraction failed'));
 
         Log::shouldReceive('info')->atLeast()->once();
-        Log::shouldReceive('warning')->atLeast()->once();
+        $this->measuresVideosAs(1800.0);
         Log::shouldReceive('error')->once();
 
         $job = new ExtractAudioFromVideo($log);
@@ -264,5 +266,44 @@ class ExtractAudioFromVideoTest extends TestCase
 
         $log->refresh();
         $this->assertEquals('cancelled', $log->status->value, 'Cancelled run must not be overwritten to failed by failed()');
+    }
+
+    /** The 1-hour default an unreadable probe once took cut or overran the audio silently. */
+    #[Test]
+    public function a_video_whose_duration_cannot_be_measured_fails_instead_of_assuming_an_hour(): void
+    {
+        $videoFilename = 'test-video-'.uniqid().'.mp4';
+        $absolutePath = storage_path('app').'/'.$videoFilename;
+        file_put_contents($absolutePath, 'fake-video-content');
+        config(['filesystems.default' => 'local']);
+        $log = MediaProcessingLog::factory()->video()->processing()->create(['stored_file_path' => $videoFilename]);
+        $mockExtractor = $this->createMock(VideoExtractionService::class);
+        $mockExtractor->expects($this->never())->method('extractOptimizedAudio');
+        $this->measuresVideosAs(null);
+
+        try {
+            (new ExtractAudioFromVideo($log))->handle($mockExtractor);
+            $this->fail('Expected exception not thrown');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString("Could not measure the video's duration", $e->getMessage());
+        } finally {
+            @unlink($absolutePath);
+        }
+
+        $this->assertSame('failed', $log->fresh()->status->value);
+        $this->assertStringContainsString("Could not measure the video's duration", (string) $log->fresh()->error_message);
+    }
+
+    private function measuresVideosAs(?float $seconds): void
+    {
+        $this->app->instance(SourceMediaDuration::class, new class($seconds) extends SourceMediaDuration
+        {
+            public function __construct(private readonly ?float $measured) {}
+
+            public function seconds(string $absolutePath): ?float
+            {
+                return $this->measured;
+            }
+        });
     }
 }

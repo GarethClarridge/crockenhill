@@ -8,6 +8,7 @@ use App\Data\LivestreamSegment;
 use App\Enums\LivestreamSegmentClassification;
 use App\Exceptions\SegmentationException;
 use App\Services\Media\Audio\RmsAnalysisService;
+use App\Services\Media\SourceMediaDuration;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ServiceArtifactDisk;
 use FFMpeg\FFProbe;
@@ -336,7 +337,7 @@ class VideoSegmentationService
      *
      * @param  string  $videoPath  Absolute path to the video file
      * @return array{
-     *     duration: float,
+     *     duration: float|null,
      *     format_name: string,
      *     size: int,
      *     bit_rate: int,
@@ -367,7 +368,7 @@ class VideoSegmentationService
             $video = $this->ffprobe->streams($videoPath)->videos()->first();
 
             return [
-                'duration' => (float) $format->get('duration'),
+                'duration' => app(SourceMediaDuration::class)->seconds($videoPath),
                 'format_name' => $format->get('format_name'),
                 'size' => (int) $format->get('size'),
                 'bit_rate' => (int) $format->get('bit_rate'),
