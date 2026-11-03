@@ -627,6 +627,7 @@ class SermonExtractionPlanResolver
             $spans[] = ['start_time' => $start, 'end_time' => $end];
         }
         $spans = $this->throughSilentGaps($spans, $sections, $selectedSections);
+        $structureSpans = $spans;
 
         try {
             $sermon = $byId->get($composition['sermon_section_id'] ?? null);
@@ -685,6 +686,7 @@ class SermonExtractionPlanResolver
                 'sermon_boundary' => $composition,
                 'continuation_section_ids' => array_values(array_filter($seen, fn (int $id): bool => $id !== $composition['sermon_section_id'] && $byId->get($id) instanceof ServiceSection && $this->continues($byId->get($id), (int) $composition['sermon_section_id']))),
                 'held_span_authorised_section_id' => $authority['section_id'] ?? null,
+                'structure_segments' => $structureSpans,
             ],
         ];
     }

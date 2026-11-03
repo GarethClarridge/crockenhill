@@ -77,12 +77,17 @@ class CutAwareEnsembleComposer
     /**
      * Whether writing or leaving out each of the dispute's groups leaves the cut unchanged.
      *
+     * A version whose edge words are not decoded yet plans no cut, so while any version waits on
+     * them the versions are compared by the spans the cut widens from: equal spans give an equal
+     * cut once decoded. Comparing a planned cut with an unplanned one asked a question no replay
+     * could reproduce (1148, 1150, 1178, 1190 in the 11-02 round).
+     *
      * @param  array<int, ValidationResult>  $draws
      * @param  list<int>  $groups
      */
     private function cutNeutral(array $draws, ChurchServiceTranscript $transcript, MediaProcessingLog $log, array $groups): bool
     {
-        $cuts = [];
+        $plans = [];
 
         foreach ($groups as $group) {
             foreach ([true, false] as $written) {
@@ -101,10 +106,16 @@ class CutAwareEnsembleComposer
                     return false;
                 }
 
-                $cuts[] = json_encode([$plan['mode'], $plan['segments'] ?? null], JSON_THROW_ON_ERROR);
+                $plans[] = $plan;
             }
         }
 
-        return count(array_unique($cuts)) === 1;
+        $undecoded = array_any($plans, static fn (array $plan): bool => ($plan['strategy'] ?? null) === 'edge_word_timings_missing');
+        $cuts = array_map(static fn (array $plan): string => json_encode(
+            $undecoded ? ($plan['structure_segments'] ?? null) : [$plan['mode'], $plan['segments'] ?? null],
+            JSON_THROW_ON_ERROR,
+        ), $plans);
+
+        return ! in_array('null', $cuts, true) && count(array_unique($cuts)) === 1;
     }
 }

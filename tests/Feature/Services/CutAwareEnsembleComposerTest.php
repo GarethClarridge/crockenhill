@@ -76,6 +76,76 @@ class CutAwareEnsembleComposerTest extends TestCase
         $this->assertContains('other', array_column($result->disputes, 'type'));
     }
 
+    /**
+     * The shape of 1148, 1150, 1178 and 1190 in the 11-02 round: the recompose probed before the new
+     * structure's edge words were decoded, so one version planned a cut and the other could not.
+     */
+    #[Test]
+    public function a_version_whose_edges_are_not_decoded_yet_is_judged_by_its_spans(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->stubProbe(fn (ServiceStructure $structure): array => $structure->sectionsOfType(ServiceSectionType::Other) === []
+            ? $this->undecoded([['start_time' => 600.0, 'end_time' => 2150.0]])
+            : $this->decoded([['start_time' => 600.0, 'end_time' => 2150.0]], [['start_time' => 599.4, 'end_time' => 2151.2]]));
+
+        $result = app(CutAwareEnsembleComposer::class)->compose($this->votes(ServiceSectionType::Other), $this->transcript(), $log);
+
+        $this->assertSame([], $result->disputes);
+    }
+
+    #[Test]
+    public function a_version_whose_edges_are_not_decoded_yet_still_asks_when_its_spans_differ(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        $this->stubProbe(fn (ServiceStructure $structure): array => $structure->sectionsOfType(ServiceSectionType::Other) === []
+            ? $this->undecoded([['start_time' => 600.0, 'end_time' => 2210.0]])
+            : $this->decoded([['start_time' => 600.0, 'end_time' => 2150.0]], [['start_time' => 599.4, 'end_time' => 2151.2]]));
+
+        $result = app(CutAwareEnsembleComposer::class)->compose($this->votes(ServiceSectionType::Other), $this->transcript(), $log);
+
+        $this->assertContains('other', array_column($result->disputes, 'type'));
+    }
+
+    /** @param  callable(ServiceStructure): array<string, mixed>  $plan */
+    private function stubProbe(callable $plan): void
+    {
+        $this->app->instance(SermonCutProbe::class, new class($plan) extends SermonCutProbe
+        {
+            /** @var callable(ServiceStructure): array<string, mixed> */
+            private $plan;
+
+            public function __construct(callable $plan)
+            {
+                $this->plan = $plan;
+            }
+
+            public function asWritten(MediaProcessingLog $log, ServiceStructure $structure, ChurchServiceTranscript $transcript): array
+            {
+                return ($this->plan)($structure);
+            }
+        });
+    }
+
+    /**
+     * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @param  list<array{start_time: float, end_time: float}>  $segments
+     * @return array<string, mixed>
+     */
+    private function decoded(array $spans, array $segments): array
+    {
+        return ['mode' => 'single_span', 'strategy' => 'identified_sections', 'segments' => $segments, 'from_sections' => true, 'structure_segments' => $spans];
+    }
+
+    /**
+     * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @return array<string, mixed>
+     */
+    private function undecoded(array $spans): array
+    {
+        return ['mode' => 'single_span', 'strategy' => 'edge_word_timings_missing', 'segments' => [], 'from_sections' => true,
+            'requires_review' => true, 'edge_word_timings_error' => 'Edge words are not decoded yet', 'structure_segments' => $spans];
+    }
+
     /** @return array<int, ValidationResult> */
     private function votes(ServiceSectionType $fillerType, int $fillerVotes = 2): array
     {
