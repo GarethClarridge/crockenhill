@@ -1430,6 +1430,17 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * The recorded RMS log's bytes, read inside the run's staging context, or null when none is
+     * recorded or it cannot be read.
+     */
+    public function storedRmsLogContents(): ?string
+    {
+        $path = $this->rms_log_path;
+
+        return is_string($path) && $path !== '' ? $this->storedArtifactContents($path) : null;
+    }
+
+    /**
      * The recorded audio timeline's bytes, read inside the run's staging context, or null when
      * none is recorded or it cannot be read.
      */

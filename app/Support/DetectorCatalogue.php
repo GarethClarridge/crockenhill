@@ -940,6 +940,17 @@ class DetectorCatalogue
                 decision: 'Built 2026-10-31 as a review hold, not a drop: of 1,233 timed song sections 17 have no music window, and some are unaccompanied singing, which a music score cannot tell from speech.',
             ),
             new DetectorEntry(
+                id: 'song-section-unrecorded',
+                surface: null,
+                signals: [],
+                status: DetectorStatus::FixedAtSource,
+                severity: DetectorSeverity::PublishedWrongContent,
+                unit: DetectorUnit::Section,
+                summary: "A song section is only the hymn's announcement, because the recording ends or the feed is muted while the song is sung, so its clip would publish the announcement as the song.",
+                regressionCases: ['run 1381 §167073', 'run 1377 §4781', 'run 18423 §335939'],
+                decision: 'Operator 2026-11-04 (plan §4.1a item 7): a song with no sung audio keeps its title in the order of service but makes no clip. `UnrecordedSong` makes such a section ineligible: no music heard, and the recording ends within 10 s or digital zero of 15 s or more begins at its end. Measured 14 of 24 no-music song sections, every one an announcement.',
+            ),
+            new DetectorEntry(
                 id: 'song-possible-quiet-introduction',
                 surface: DetectorSurface::SongBoundaryEvidence,
                 signals: [SongQuietIntroduction::RISK_KIND],

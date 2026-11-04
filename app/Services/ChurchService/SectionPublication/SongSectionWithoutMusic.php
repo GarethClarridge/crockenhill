@@ -15,7 +15,8 @@ use App\Services\Media\Audio\AudioTimeline;
  * passes it, since read words share the song's lyrics. A song is sung or wholly instrumental
  * (register D6), but unaccompanied singing also sounds like no music to the classifier (1252's
  * "Happy Birthday", 1352's unidentified singing), and word timings cannot tell speech from
- * singing (10-28), so the clip goes to a reviewer, who hears which it is.
+ * singing (10-28), so the clip goes to a reviewer, who hears which it is. Where the recording
+ * proves the song was never captured, as for 992, {@see UnrecordedSong} makes no clip at all.
  *
  * Measured 2026-10-31 (`song-sections-without-music-20261031/`): of 1,233 song sections with a
  * timeline, 17 have no window reaching {@see AudioTimeline::MUSIC_CUTOFF} (all under 0.19); the

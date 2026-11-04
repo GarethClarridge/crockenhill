@@ -2857,6 +2857,48 @@
             "evidence": "docs/plans/MUSIC-AND-SILENCE-DETECTION-2026-09-25.md §7 step 0: operator heard §3282 (1090–1121 s) sung from the start",
             "informed_fix": true,
             "note": "§3282 other is the start of §3283; the song starts at ~1090 s (the classifier's edge, not an operator mark)."
+        },
+        {
+            "case_id": "song-section-unrecorded/run-1381-s167073",
+            "detector_id": "song-section-unrecorded",
+            "reference": "run 1381 §167073",
+            "subject": {
+                "run": 1381,
+                "section": 167073,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/item7/measure.jsonl",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-section-unrecorded/run-1377-s4781",
+            "detector_id": "song-section-unrecorded",
+            "reference": "run 1377 §4781",
+            "subject": {
+                "run": 1377,
+                "section": 4781,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/item7/measure.jsonl",
+            "informed_fix": true
+        },
+        {
+            "case_id": "song-section-unrecorded/run-18423-s335939",
+            "detector_id": "song-section-unrecorded",
+            "reference": "run 18423 §335939",
+            "subject": {
+                "run": 18423,
+                "section": 335939,
+                "sermon": null
+            },
+            "truth": "defective",
+            "basis": "stored_record",
+            "evidence": "storage/scratch/item7/measure.jsonl",
+            "informed_fix": true
         }
     ],
     "aggregates": [

@@ -38,6 +38,7 @@ class SongPublicationHandler implements SectionPublicationHandler
      * @param  ServiceSectionPublicationTransitionService  $publicationTransitions  Service for managing section state transitions
      * @param  StorageAdapterHelper  $storageHelper  Service for cross-disk storage operations
      * @param  SongPublicationReviewPolicy  $reviewPolicy  Names the doubts that stop a clip publishing itself
+     * @param  UnrecordedSong  $unrecordedSong  Finds a song the recording never captured, which makes no clip
      */
     public function __construct(
         private readonly SongVideoService $songVideoService,
@@ -45,6 +46,7 @@ class SongPublicationHandler implements SectionPublicationHandler
         private readonly StorageAdapterHelper $storageHelper,
         private readonly SongPublicationReviewPolicy $reviewPolicy,
         private readonly ExtractedMediaDurationProbe $durationProbe,
+        private readonly UnrecordedSong $unrecordedSong,
     ) {}
 
     /**
@@ -79,7 +81,8 @@ class SongPublicationHandler implements SectionPublicationHandler
      *
      * Confirmed and inferred matches with a linked canonical Song record can be
      * prepared. The review policy keeps inferred matches from being published
-     * automatically.
+     * automatically. A song the recording never captured keeps its place in the
+     * order of service but makes no clip (operator 11-04, {@see UnrecordedSong}).
      *
      * @param  ServiceSection  $section  The section to evaluate
      * @return bool True if the section is linked to a valid song
@@ -92,7 +95,7 @@ class SongPublicationHandler implements SectionPublicationHandler
 
         $item = $section->churchServiceItem;
 
-        return $item !== null && $item->song_id !== null;
+        return $item !== null && $item->song_id !== null && $this->unrecordedSong->observe($section) === null;
     }
 
     /**

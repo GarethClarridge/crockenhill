@@ -116,6 +116,18 @@ class DeadFeedInsideSection
     }
 
     /**
+     * Every run of digital zero (every frame `-inf`) lasting the minimum or longer: stretches where
+     * the feed carried no samples at all.
+     *
+     * @param  list<array{time: float, rms: float}>  $samples  Parsed RMS log samples
+     * @return list<array{0: float, 1: float}>
+     */
+    public function digitalZeroRuns(array $samples): array
+    {
+        return $this->runsOf($samples, $this->rmsAnalysisService->isDigitalSilence(...), self::MINIMUM_SECONDS);
+    }
+
+    /**
      * @param  list<array{0: float, 1: float}>  $dropouts
      */
     private function talk(ServiceStructureSection $section, array $dropouts): ServiceStructureSection

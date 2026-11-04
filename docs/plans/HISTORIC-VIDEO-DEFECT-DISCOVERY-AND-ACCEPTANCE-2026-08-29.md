@@ -1287,6 +1287,17 @@ queue and route state are in the archive; a historical “final” label is not 
          §335939, 1381 §167073): an announcement clip approved as the song. Owed: an operator ruling (likely: a song
          with no sung audio keeps its identity in the order of service and makes no clip), then a failing test and a
          detection or extraction rule.
+       - **Item 7 ruled and built 11-04 (E26, operator "7: yes").** Correction first: the muted/quiet split above was
+         wrong. Measured against the recording's own end, **11 of the 14 end within 5.1 s of the recording** (the
+         livestream stopped at the announcement; "next minute" had read past the file's end), and only 1377 §4781,
+         18423 §335933 and §335939 run into digital zero (123–219 s). `UnrecordedSong` (no music window, and the
+         recording ends within 10 s or ≥ 15 s of digital zero begins at the section's end) makes the section
+         ineligible: no clip, `not_applicable`, title kept. Measured over every timed song section
+         (`storage/scratch/item7/measure.php`, `measure.jsonl`): of 24 with no music window it takes **14**, the 13
+         plus 1134 §2097 ("Finished, the Messiah Dies… let's stand and sing"), every one an announcement; the 10 it
+         leaves include the unaccompanied singing (1252, 1352, 1138), still held by `SongSectionWithoutMusic`.
+         Owed: re-preparing the 14 (3 are `pending_approval`: 992 §163678, 18423 §335939, 1381 §167073), on the
+         operator's word.
        - **Item 6, the K16 misses, three mechanisms.** (i) **956 and 962: fragment lines.** The question's lines are
          the raw cues; on 94 of 482 runs the cues average < 4 words (956 1.7, 962 2.7), so the model picks "Preaching"
          and "pray this", both mid-sentence. Of 118 K16 ends on fragment-cue runs, 45 end on a line with no sentence

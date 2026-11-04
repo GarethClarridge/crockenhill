@@ -17,6 +17,7 @@ use App\Models\Song;
 use App\Models\SongVideo;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
+use App\Services\ChurchService\SectionPublication\UnrecordedSong;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\Media\ExtractedMediaDurationProbe;
@@ -71,6 +72,7 @@ class SongPublicationHandlerTest extends TestCase
             app(StorageAdapterHelper::class),
             app(SongPublicationReviewPolicy::class),
             new ExtractedMediaDurationProbe(app(StorageAdapterHelper::class), $ffprobe),
+            app(UnrecordedSong::class),
         );
     }
 
