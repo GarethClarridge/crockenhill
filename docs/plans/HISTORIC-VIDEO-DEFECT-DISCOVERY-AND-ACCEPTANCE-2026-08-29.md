@@ -1309,6 +1309,22 @@ queue and route state are in the archive; a historical “final” label is not 
          decoded words put "Amen." 3012.25–3013.28 and "Well" at 3015.5, so 3013.58 is in the pause; the 11-03
          "≈ 1 s into 'Well…'" came from cue timings. Owed: the operator's choice of fix and measurement; the redraw
          change rate (282 same, 96 sub-second, 27 ≥ 1 s of 405) still to be written into §4.2.
+       - **Item 6 (i) measured 11-04 (operator "6: measure"), nothing banked or adopted.** Harness
+         `storage/scratch/k16-sentence-lines-20261104/` (`measure.php`, `answers/`, `measured.json`): the same prompt and
+         decision, lines joined from cues until a sentence ends (the cue's own text, or a decoded edge word ending in
+         . ! ? whose next decoded word opens with a capital, since a decode window ends on a full stop), closing also at a
+         1.5 s pause, a music-state change, the detected end and 30 words. 131 questions on 93 runs: **103 same**, 14
+         with no K16 answer today (never asked: weekly 908/913/916/920/931/934, unasked historic), **14 moved**.
+         Better 7: **962** (3752.76 "pray this" → 3798.68 "Amen.", the ruled B 3798.94), **956** (3816.1 "Preaching" →
+         3798.5, exactly 10-29's ruled-either A at 63:18.5), 968, 1047 p0, 1214 p0, 1239 p1 (sentences completed), 1348
+         (drops "Well"). Worse 5: **961** and **983 p0** (the 30-word cap splits an unpunctuated sentence:
+         "disappointments and | discouragements"; "…Moses this is | the word of the Lord"), **1254** (drops the
+         preacher's Amen: "Amen Let's sing together" merged into one line), **1204** (adds the answering "Amen"),
+         **1252** (a merged line straddles the sermon and the song's introduction, so the end falls mid-invitation).
+         Neutral 2: 958 (drops "Thank you."), 956 p0 (adds "thank you Gareth"). Every loss is a line built with no
+         sentence evidence or across an Amen. Not adoptable as measured; candidate refinement: join cues only when a
+         sentence end closes the line within 30 words (else keep the raw cues), and an Amen always closes a line,
+         which by construction undoes the 5 losses' line shapes; re-measure only the questions whose lines change.
 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
