@@ -652,8 +652,15 @@ class SermonExtractionPlanResolver
         }
         $excision = app(DeadFeedExcision::class)->apply($processingLog, $selectedSections, $cuePlan['segments']);
         $spans = $excision['segments'];
-        // Only a plan whose final spans pass every check may be executed (S6).
-        $violations = $spans === [] ? [] : $this->validator->validate($processingLog, $selectedSections, $spans, $cuePlan['cue_edge_widening']);
+        // Only a plan whose final spans pass every check may be executed (S6). A trailing prayer
+        // the K16 end falls before is left out by that answer, as a dropped prayer may be
+        // (operator 10-29); a part of the sermon itself is sermon content, and still asked (962, 1150).
+        $sermonId = (int) ($composition['sermon_section_id'] ?? 0);
+        $endedBefore = array_values(array_filter($selectedSections, fn (ServiceSection $section): bool => $section->id !== $sermonId
+            && ! $this->continues($section, $sermonId)
+            && array_any($cuePlan['ended_before'], static fn (array $span): bool => $section->start_time >= $span['start_time'] - 0.001 && $section->end_time <= $span['end_time'] + 0.001)));
+        $cutSections = array_values(array_filter($selectedSections, static fn (ServiceSection $section): bool => ! in_array($section, $endedBefore, true)));
+        $violations = $spans === [] ? [] : $this->validator->validate($processingLog, $cutSections, $spans, $cuePlan['cue_edge_widening']);
         $violated = static fn (string $kind): array => array_merge([], ...array_column(
             array_filter($violations, static fn (array $violation): bool => $violation['kind'] === $kind),
             'section_ids',
@@ -683,6 +690,7 @@ class SermonExtractionPlanResolver
                 'held_sermon_section_ids' => $held,
                 'crossed_held_section_ids' => $crossed,
                 'plan_violations' => $violations,
+                'ended_before_section_ids' => array_map(static fn (ServiceSection $section): int => $section->id, $endedBefore),
                 'sermon_boundary' => $composition,
                 'continuation_section_ids' => array_values(array_filter($seen, fn (int $id): bool => $id !== $composition['sermon_section_id'] && $byId->get($id) instanceof ServiceSection && $this->continues($byId->get($id), (int) $composition['sermon_section_id']))),
                 'held_span_authorised_section_id' => $authority['section_id'] ?? null,

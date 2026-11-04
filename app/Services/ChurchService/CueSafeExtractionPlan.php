@@ -355,7 +355,7 @@ class CueSafeExtractionPlan
      * @param  bool  $sermonEnd  The last span ends a sermon output: beside a song it ends where the banked introduction answer says (K16, {@see SermonSongIntroductionCheck})
      * @param  OutputEdgeAnswers|null  $edgeAnswers  The operator's start and end for this output, applied after every edge rule
      * @param  ChurchServiceTranscript|null  $transcript  Read-only candidate evidence; never installs a transcript on the run
-     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null}
+     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, ended_before: list<array{start_time: float, end_time: float}>}  `ended_before`: the trailing parts a K16 end falls before, left out of the output
      */
     public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false, bool $sermonEnd = false, ?OutputEdgeAnswers $edgeAnswers = null, ?ChurchServiceTranscript $transcript = null): array
     {
@@ -380,7 +380,9 @@ class CueSafeExtractionPlan
         }
         // 962: the answer ends the sermon at its own last line, before a part of its own that follows
         // (the Lord's Prayer); the video ends there, so a part the end falls before is not in it.
+        $endedBefore = [];
         while (($keptLine['end'] ?? null) !== null && count($spans) > 1 && $keptLine['end'] <= $spans[array_key_last($spans)]['start_time'] + 0.001) {
+            $endedBefore = [$spans[array_key_last($spans)], ...$endedBefore];
             array_pop($spans);
         }
         $last = array_key_last($spans);
@@ -570,7 +572,7 @@ class CueSafeExtractionPlan
         $fade = array_values(array_filter($audit, static fn (array $entry): bool => ($entry['span_index'] ?? null) === $lastSpan
             && $entry['edge'] === 'end' && isset($entry['fade_out'])))[0]['fade_out'] ?? null;
 
-        return ['segments' => $merged, 'cue_edge_widening' => $audit, 'audio_fade_out' => $songEnds ? $fade : null];
+        return ['segments' => $merged, 'cue_edge_widening' => $audit, 'audio_fade_out' => $songEnds ? $fade : null, 'ended_before' => $endedBefore];
     }
 
     /**

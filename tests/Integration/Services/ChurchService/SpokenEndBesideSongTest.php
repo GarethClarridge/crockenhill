@@ -13,6 +13,7 @@ use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Laravel\Facades\OpenAI;
@@ -20,6 +21,7 @@ use OpenAI\Responses\Chat\CreateResponse;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Support\AudioTimelineFixture;
+use Tests\Support\BanksNoWordOutputEdges;
 use Tests\TestCase;
 
 /**
@@ -31,6 +33,7 @@ use Tests\TestCase;
  */
 class SpokenEndBesideSongTest extends TestCase
 {
+    use BanksNoWordOutputEdges;
     use DatabaseTransactions;
 
     /** The K16 tail must not include the first syllable of the following line (10-28 review). */
@@ -402,6 +405,40 @@ class SpokenEndBesideSongTest extends TestCase
     }
 
     /**
+     * 962 and 1150 (item 5, 2026-11-04): the plan dropped the trailing prayer the K16 end falls
+     * before, and the publication check then held the run because a selected section was not cut.
+     * A dropped prayer is acceptable (operator 10-29), so the plan stands without review.
+     */
+    #[Test]
+    public function a_trailing_prayer_the_end_falls_before_does_not_hold_the_sermon(): void
+    {
+        $log = $this->sermonWithTrailingPart('prayer');
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log);
+
+        $this->assertSame([], $plan['metadata']['plan_violations']);
+        $this->assertCount(1, $plan['metadata']['ended_before_section_ids']);
+        $this->assertFalse($plan['metadata']['requires_review']);
+        $this->assertCount(1, $plan['segments']);
+        $this->assertLessThan(3758.5, $plan['segments'][0]['end_time']);
+    }
+
+    /** A part of the sermon itself that the end falls before is sermon content dropped: still asked. */
+    #[Test]
+    public function a_trailing_sermon_part_the_end_falls_before_is_still_asked(): void
+    {
+        $log = $this->sermonWithTrailingPart('other');
+        $sermon = $log->serviceSections()->where('section_type', ServiceSectionType::Sermon)->sole();
+        $log->serviceSections()->where('section_type', ServiceSectionType::Other)->sole()
+            ->update(['metadata' => ['sermon_continuation' => ['of_section_id' => $sermon->id, 'evidence' => 'Same sermon continues', 'source' => 'review']]]);
+
+        $plan = app(SermonExtractionPlanResolver::class)->resolve($log->fresh());
+
+        $this->assertContains('selected_section_not_cut', array_column($plan['metadata']['plan_violations'], 'kind'));
+        $this->assertTrue($plan['metadata']['requires_review']);
+    }
+
+    /**
      * Never asked is evidence not yet gathered, as undecoded words are: the plan waits for the
      * edge step, which asks before it decodes. A re-cut route that plans first (`sermons:re-extract`)
      * therefore goes on to the edge step instead of refusing the run.
@@ -613,6 +650,33 @@ class SpokenEndBesideSongTest extends TestCase
             ['start' => 3837.30, 'end' => 3837.55, 'word' => ' way'],
             ['start' => 3837.60, 'end' => 3838.20, 'word' => ' and the truth.'],
         ];
+    }
+
+    /**
+     * 962's shape: a sermon, a part after it of the given type, then the closing song; K16 ends
+     * the sermon at its own last line, before that part starts.
+     */
+    private function sermonWithTrailingPart(string $type): MediaProcessingLog
+    {
+        $log = $this->service([
+            ['start' => 1957.0, 'end' => 1960.0, 'text' => 'Please turn to Matthew 6.'],
+            ['start' => 3750.0, 'end' => 3754.0, 'text' => 'This is the hope we have in Christ.'],
+            ['start' => 3754.0, 'end' => 3757.1, 'text' => "Let's pray together."],
+            ['start' => 3758.5, 'end' => 3762.0, 'text' => 'Our Father, who art in heaven,'],
+            ['start' => 3795.0, 'end' => 3801.5, 'text' => 'for ever and ever. Amen.'],
+            ['start' => 3803.0, 'end' => 3806.0, 'text' => 'Lord, teach us how to pray aright'],
+        ], [['sermon', 1956.64, 3757.86], [$type, 3757.86, 3802.0], ['song', 3802.41, 4030.64]],
+            timeline: [[1950, 3802, 0.01, 0.8], [3802, 4030, 0.8, 0.02]]);
+        $this->bankNoWordOutputEdges($log);
+        $spans = [['start_time' => 1956.64, 'end_time' => 3757.86], ['start_time' => 3757.86, 'end_time' => 3802.0]];
+        $this->introduction($log, $spans, [3, false, 3], [3, false, 3]);
+        $this->bank($log, 3757.1, [
+            ['start' => 3755.2, 'end' => 3755.9, 'word' => ' pray'],
+            ['start' => 3756.0, 'end' => 3757.05, 'word' => ' together.'],
+            ['start' => 3758.5, 'end' => 3758.8, 'word' => ' Our'],
+        ]);
+
+        return $log->fresh();
     }
 
     /** @param list<array{start: float, end: float, word: string}> $words */
