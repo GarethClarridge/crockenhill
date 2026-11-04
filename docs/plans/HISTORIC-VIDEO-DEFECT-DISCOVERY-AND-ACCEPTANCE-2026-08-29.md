@@ -1270,6 +1270,34 @@ queue and route state are in the archive; a historical “final” label is not 
          30 s cadence over 1789.8–1969.8, mostly the song before the sermon) and 1197 §2476, a children's talk ("you
          can't see the baby" ×5, perhaps call and response), whose publication moved `pending_approval` →
          `not_applicable` while it is under review. Records: `repair-20261104/` (`log.txt`, `before-apply.json`).
+     - **Items 6–8 investigated 11-04 (read-only; operator "Yes"), nothing changed.** Tools and outputs in
+       `storage/scratch/item5/` (`songclass.txt`, `frag.txt`).
+       - **Item 8, 1294 §3679/§3680:** 198.5–228.5 measures −45 to −48 dB mean against −21 for the song either side,
+         well above digital zero; the transcript repeats one line throughout. Paged: "One Song In Two Clips"
+         https://claude.ai/artifact/VnbFpc9SkeyHdGUo1Tf3JC (builder `storage/scratch/split-song-1294-listening-20261104/`,
+         template = round-ends page, `rulings` id `1294-s3680-gap`; B raises only the stretch by 24 dB).
+       - **Item 7, 1377 §4781 is not a song review: the hymn was never recorded.** The 16 s "song" is the
+         announcement ("Let's stand and sing a hymn… entitled According to Your Gracious Word"), and 4245–4368 is
+         −91 dB digital zero (the transcript has only "Amen" every 30 s). E14 already ends a song where the zeros
+         begin; no ruling covers a song with no sung audio at all. **A class:** 30 song sections have music share
+         < 0.15. Thirteen have 1377's shape (speech-only, then a minute of no music or speech), measured after the
+         section. **Muted feed, 8** (≤ −77 dB): 992 §163678, 1068 §3704, 1074 §164323, 1077 §3708, 1370 §4588,
+         1377 §4781, 18423 §335933, §335939. **Quiet, 5** (−33 to −58 dB, perhaps a faint song): 1142 §164721,
+         1172 §2324, 1368 §167015, 1381 §167073, 18421 §335821. **3 are `pending_approval`** (992 §163678, 18423
+         §335939, 1381 §167073): an announcement clip approved as the song. Owed: an operator ruling (likely: a song
+         with no sung audio keeps its identity in the order of service and makes no clip), then a failing test and a
+         detection or extraction rule.
+       - **Item 6, the K16 misses, three mechanisms.** (i) **956 and 962: fragment lines.** The question's lines are
+         the raw cues; on 94 of 482 runs the cues average < 4 words (956 1.7, 962 2.7), so the model picks "Preaching"
+         and "pray this", both mid-sentence. Of 118 K16 ends on fragment-cue runs, 45 end on a line with no sentence
+         end; most are a lone "Amen", leaving about 20 to read (956, 961, 962, 968, 1088, 1239, 1252, 1296, 1307, 1348,
+         …). Candidate fix: build the question's lines from sentences, not cues. That changes every question identity
+         on those 94 runs, so it is a measured change like the 10-30 reword. (ii) **1096: the cue says "things." and
+         the decoded words say "things, but…"**, so the 10-29 mid-sentence step-back, which reads cue text, does not
+         fire. Candidate: read the decoded words' punctuation at the chosen end. (iii) **1360 is not a miss:** the
+         decoded words put "Amen." 3012.25–3013.28 and "Well" at 3015.5, so 3013.58 is in the pause; the 11-03
+         "≈ 1 s into 'Well…'" came from cue timings. Owed: the operator's choice of fix and measurement; the redraw
+         change rate (282 same, 96 sub-second, 27 ≥ 1 s of 405) still to be written into §4.2.
 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
