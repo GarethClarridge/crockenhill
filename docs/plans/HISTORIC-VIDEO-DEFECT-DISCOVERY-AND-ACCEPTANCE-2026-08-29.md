@@ -1296,8 +1296,11 @@ queue and route state are in the archive; a historical “final” label is not 
          (`storage/scratch/item7/measure.php`, `measure.jsonl`): of 24 with no music window it takes **14**, the 13
          plus 1134 §2097 ("Finished, the Messiah Dies… let's stand and sing"), every one an announcement; the 10 it
          leaves include the unaccompanied singing (1252, 1352, 1138), still held by `SongSectionWithoutMusic`.
-         Owed: re-preparing the 14 (3 are `pending_approval`: 992 §163678, 18423 §335939, 1381 §167073), on the
-         operator's word.
+         **Re-prepared 11-04 18:07 (operator "yes")**: 11 of the 14 were already `not_applicable`, so only runs 992,
+         1381 and 18423 were re-cut (`sections:recut`, workers booted 13:37:36 after `a60971717`). Exactly the 3 moved
+         `pending_approval` → `not_applicable`; every other section on those runs kept its status (18423 §335932's
+         short talk still `pending_approval`); before/after in `storage/scratch/item7/recut/`. Their candidate clips
+         carry `unpublished_expires_at` and go with the temp-file cleanup when it is re-enabled.
        - **Item 6, the K16 misses, three mechanisms.** (i) **956 and 962: fragment lines.** The question's lines are
          the raw cues; on 94 of 482 runs the cues average < 4 words (956 1.7, 962 2.7), so the model picks "Preaching"
          and "pray this", both mid-sentence. Of 118 K16 ends on fragment-cue runs, 45 end on a line with no sentence
@@ -1325,6 +1328,17 @@ queue and route state are in the archive; a historical “final” label is not 
          sentence evidence or across an Amen. Not adoptable as measured; candidate refinement: join cues only when a
          sentence end closes the line within 30 words (else keep the raw cues), and an Amen always closes a line,
          which by construction undoes the 5 losses' line shapes; re-measure only the questions whose lines change.
+       - **Item 6 (i) v2 measured 11-04 (operator "yes"), nothing banked or adopted.** `measure.php` is now v2 (v1 kept
+         as `measure-v1.php`; `answers-v2/`, `measured-v2.json`, `final-v2.log`): cues join only when sentence evidence
+         closes the line (a decoded . ! ?, the FINISHED text, an Amen ending the cue, or an Amen opening the next);
+         a group closed by a pause, music change, section end or the cap falls back to its raw cues. 131 questions, 32
+         prompts identical to v1 (answers reused), 0 errors. Against today: **better 6** (956, 962, 968, 1214 p0, 1239
+         p1, 1348: v1's gains kept except 1047 p0, back to today's "for it"), **worse 2**, neutral 2 (956 p0, 958).
+         v1's losses 1204, 1252, 1254 are back to today's ends. Still worse: **961** (3884.74 "discouragements" →
+         3890.06 "we're going", into the song's introduction) and **983 p0** (2316.66 "for it" → 2316.26 "him",
+         0.4 s short of the reading's end). Both sit on raw, unpunctuated cues the same as today's, so the move is
+         a different draw on a changed prompt, not a line built wrongly (redraw rate: 27 of 405 move ≥ 1 s).
+         Owed: the operator's choice whether to put v2 into `SermonSongIntroductionCheck::question()`.
 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
