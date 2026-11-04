@@ -1164,7 +1164,7 @@ queue and route state are in the archive; a historical “final” label is not 
      - **Owed (next round, each on the operator's word):** (1) `cutNeutral()` timing-dependent questions (1148, 1150,
        1178, 1190); (2) alignment disputes must settle themselves or never reach a page (1196); (3) the ensemble gate
        must not fingerprint projection output — compare item identity, not positions (18424); (4) edge windows for
-       duration-less WebM runs (18432); (5) investigate 962, 1042, 1197; (6) the K16 redraw misses 956, 1096, 1360;
+       duration-less WebM runs (18432); (5) investigate 962, 1042, 1197 (done 11-04, below); (6) the K16 redraw misses 956, 1096, 1360, and 962 (11-04);
        (7) 1377 §4781's song review; (8) the 1294 §3680 split-song (unruled, as before). Records: `round-20261102a/`
        (snapshot, diff, route lists, stop files, acknowledgements), session memory lane log.
      - **Owed items 1–4: BUILT 11-03 on branch `fix-round-owed-items`, not merged** (plan `de42c11f5`). One commit per
@@ -1220,6 +1220,56 @@ queue and route state are in the archive; a historical “final” label is not 
          `sermon_composition_review_required` and `boundary_material_risk`; the answers offered only "other item"
          versions, so this needs the operator against the 10-16 "one sermon in parts" ruling. Rerun-diff: 5/5 changed,
          attention = the 2 held plus flags cleared by the answers; clips into quarantine; nothing public; 0 failed jobs.
+     - **Item 5 investigated 11-04 (962, 1042, 1197, 1148, 1150), nothing changed.** Records:
+       `storage/scratch/item5/` (`dump.json`, `edges.json`, `orphans.txt`, `membership.txt`). Side effect: the
+       diagnosis called `SermonExtractionPlanResolver::resolve()`, whose `compose()` rewrites `sermon_composition` and
+       the sermon's `sermon_boundary`. It recomputed the same composition on the same inputs, so no flag or hold
+       changed (sections 2201 and 2481 touched 09:21Z). Three causes:
+       - **962, 1150: the 10-31 trailing-part fix is incomplete (`e9936b555`).** `forSpans()` drops a part that the
+         K16 end falls before, but `PublicationPlanValidator` then reports that part as `selected_section_not_cut`,
+         so the plan goes to review. The fix's test covered only `forSpans()`. 1150's end is right by the words: the
+         preacher's "Amen." at 1321, and the dropped part is an invitation to open prayer ("if one or two could just
+         lead in prayer"), and a dropped prayer is acceptable (10-29). **962 also has a K16 redraw miss** (item 6's
+         class): the answer names the two-word cue "pray this", and the cut lands at 3750.24 after "But that said,".
+         That is mid-sentence and 7 s before both ruled points (3757.1 / 3798.94, "Either fine, but B better").
+       - **1042: a real question.** K16 answered `ties_to_sermon: true` and named no line, so the end at 4140.52
+         ("Fine, it's fine.") is `spoken_end_thought_unresolved`, as designed. By the words, the preacher's prayer
+         ends "…face to face, forever. Amen." at 4059.82, followed by 80 s of hymn introduction ("I found a hymn
+         which was literally my sermon… let's look through the verses", "Do you want to play through the tune?").
+         Under the 10-28 ruling, the end is the Amen. Its sermon end is unruled.
+       - **1197, 1148: operator reviews orphaned by recomposition.** Both have a 10-18 operator
+         `sermon_composition_review` (1197: §2478 Matthew 2:1-12 + §2481; 1148: "Okay, right." is the hand-over,
+         §2201/2205/2207). The round's recompose (1197) and the 11-03 repair (1148) rewrote sections in the plan's
+         dependency stretch, so `input_identity` no longer matches and the same risk is raised again. Class scan:
+         3 of 18 operator reviews no longer match (1148, 1197, and 1250, which now completes by rule). The strict
+         identity is right: on 1148 the recompose kept ids 2205/2207 for 2 s dropout fragments and moved the sermon
+         body to new sections 338348/338350, so carrying the old selection over by id would drop 39:55–52:46. Today's
+         1148 cut (688.0–1723.8, 2392.5–3171.4, 3382.6–3540.2) is the 10-18 approved plan within 1.3 s. Revelation 5
+         stays out (10-16: "read by Andrew"), so the "one sermon in parts" ruling holds; only the parts' types
+         (`other`) differ. Reading questions in the corpus: 4 runs (1197, 1223, 1324, 1327); 1197 is the only one
+         with one reading that holds the passage plus a subset, so this is no case for a new rule.
+       - **Proposed, each on the operator's word:** (a) code, failing test first: a part dropped by the K16 end is
+         not `selected_section_not_cut`; it releases 1150 and moves 962 into item 6. (b) re-apply the 10-18 answers
+         to 1148 and 1197 through the screen's composition-review action against today's sections, and Confirm their
+         sermon sections (only Confirm clears `boundary_material_risk`). (c) 1042: end at the Amen (4059.82), banked
+         `claude-review` on the 10-28 ruling, or paged.
+       - **Done 11-04 (operator "Yes" to all three).** (a) `73243ee3c`: the resolver leaves out of the
+         `selected_section_not_cut` check a non-sermon part inside a span that `forSpans()` reports as `ended_before`,
+         and records it as `ended_before_section_ids`. A sermon part dropped this way is still asked. Two resolver-level
+         tests, red first on 962's shape; suite 10,994 green, Dusk 63/63, PHPStan clean. (b) The compositions were
+         re-applied by `reviewComposition()` against today's ids and identity (1148: the rules' 7 parts, the same
+         meaning as 10-18's; 1197: §2478 + §2481), outside the staging context, then `ConfirmServiceSection` on §2201
+         and §2481 as user 1. (c) `SetOutputEdge` §1527 end 4060.5, note `claude-review-20261104`. All five then
+         planned without review. Snapshot `repair-20261104/snapshot.json` at `73243ee3c`; `rerun-extract` refuses
+         without a detection round at this commit, and a recompose could orphan the answers again, so
+         `ProcessingRunOrchestrator::reExtract()` was used (gate clear on all five). **All five completed**, with 0
+         failed jobs. Cuts: 962 1674.54–1772.80 + 1956.64–3750.24 (Lord's Prayer left out; end still item 6's
+         miss); 1042 …–4060.50; 1148 unchanged from 10-18's plan, ending 3540.2; 1150 0–182.0 + 331.68–1321.0; 1197
+         1432.95–1544.9 + 2219.15–3909.04. `rerun-diff` (`repair-20261104/diff.json`): 0 need attention, nothing
+         public. **New review items, left for the queue:** `transcript_repetition_suspect` on 962 §846 (a sparse
+         30 s cadence over 1789.8–1969.8, mostly the song before the sermon) and 1197 §2476, a children's talk ("you
+         can't see the baby" ×5, perhaps call and response), whose publication moved `pending_approval` →
+         `not_applicable` while it is under review. Records: `repair-20261104/` (`log.txt`, `before-apply.json`).
 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
