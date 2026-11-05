@@ -49,6 +49,75 @@ class AuditSectionAssetsCommandTest extends TestCase
         $this->assertSame(0, $report['sections']['with_missing_assets']);
     }
 
+    /**
+     * The 11-05 audit reported 1,507 of 1,561 sections missing: it never read `asset_disk`, so
+     * quarantine clips were looked for on the default disk (§509/§510/§335939 were there).
+     */
+    #[Test]
+    public function it_finds_a_quarantine_asset_on_the_disk_the_section_records(): void
+    {
+        Storage::fake('historic_quarantine');
+        $path = 'section-publications/510/video.mp4';
+        ServiceSection::factory()->create([
+            'asset_disk' => 'historic_quarantine',
+            'extracted_video_path' => $path,
+        ]);
+        Storage::disk('historic_quarantine')->put($path, 'asset');
+
+        $this->artisan('audit:section-assets')->assertSuccessful();
+
+        $report = $this->jsonReport();
+        $this->assertSame(1, $report['kinds']['extracted_video']['present']);
+        $this->assertSame(0, $report['kinds']['extracted_video']['missing']);
+    }
+
+    /**
+     * A staging clip's path is relative to its run's batch root. The audit joins the two itself,
+     * read-only, rather than entering the staging context (a rolled-back replay inside one deleted
+     * 126 clips on 10-29).
+     */
+    #[Test]
+    public function it_finds_a_staging_asset_under_its_runs_batch_root(): void
+    {
+        Storage::fake('historic_staging');
+        $batchRoot = 'historic-batches/'.str_repeat('a', 64);
+        $path = 'section-publications/754/video.mp4';
+        $log = MediaProcessingLog::factory()->create(['processing_metadata' => ['historic_import' => ['staging_context' => [
+            'manifest_hash' => str_repeat('b', 64),
+            'plan_hash' => str_repeat('c', 64),
+            'staging_disk' => 'historic_staging',
+            'batch_root' => $batchRoot,
+            'storage_identity' => ['driver' => 'local', 'bucket' => null, 'root_fingerprint' => 'root', 'prefix_fingerprint' => 'prefix'],
+        ]]]]);
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'asset_disk' => 'historic_staging',
+            'extracted_video_path' => $path,
+        ]);
+        Storage::disk('historic_staging')->put($batchRoot.'/'.$path, 'asset');
+
+        $this->artisan('audit:section-assets')->assertSuccessful();
+
+        $this->assertSame(1, $this->jsonReport()['kinds']['extracted_video']['present']);
+    }
+
+    /** A staging clip of a run that records no batch is where its path says. */
+    #[Test]
+    public function it_finds_a_staging_asset_of_a_run_without_a_batch_at_its_own_path(): void
+    {
+        Storage::fake('historic_staging');
+        $path = 'section-publications/335/video.mp4';
+        ServiceSection::factory()->create([
+            'asset_disk' => 'historic_staging',
+            'extracted_video_path' => $path,
+        ]);
+        Storage::disk('historic_staging')->put($path, 'asset');
+
+        $this->artisan('audit:section-assets')->assertSuccessful();
+
+        $this->assertSame(1, $this->jsonReport()['kinds']['extracted_video']['present']);
+    }
+
     #[Test]
     public function it_reports_a_referenced_candidate_whose_file_is_gone_without_printing_the_path(): void
     {

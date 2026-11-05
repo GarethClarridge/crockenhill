@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Data\HistoricStagingContext;
+use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Support\MediaAssetPath;
 use App\Support\SourceMediaPresence;
@@ -49,6 +51,13 @@ class AuditSectionAssetsCommand extends Command
     /** @var list<array{section_id: int, kind: string, issue: string}> */
     private array $findings = [];
 
+    /**
+     * Each run's recorded staging batch, read once per run.
+     *
+     * @var array<int, HistoricStagingContext|null>
+     */
+    private array $stagingContexts = [];
+
     public function __construct(private readonly SourceMediaPresence $sourceMedia)
     {
         parent::__construct();
@@ -59,6 +68,7 @@ class AuditSectionAssetsCommand extends Command
         // Artisan reuses the resolved command instance, so repeated invocations
         // in one process must not accumulate the previous run's results.
         $this->findings = [];
+        $this->stagingContexts = [];
 
         foreach (self::ASSET_KINDS as $kind) {
             $this->countsByKind[$kind] = [
@@ -83,7 +93,7 @@ class AuditSectionAssetsCommand extends Command
         ];
 
         $sections = ServiceSection::query()
-            ->select(['id', 'media_processing_log_id', 'extracted_video_path', 'extracted_audio_path'])
+            ->select(['id', 'media_processing_log_id', 'asset_disk', 'extracted_video_path', 'extracted_audio_path'])
             ->where(function ($query): void {
                 $query->whereNotNull('extracted_video_path')
                     ->orWhereNotNull('extracted_audio_path');
@@ -164,6 +174,34 @@ class AuditSectionAssetsCommand extends Command
     }
 
     /**
+     * Where a section's asset is: on the disk the section records, and for a staging clip under
+     * its run's batch root. The batch root is joined here, read-only, rather than by entering the
+     * staging context: a rolled-back replay inside one deleted 126 real clips on 10-29.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function location(ServiceSection $section, string $path): array
+    {
+        $disk = $section->extractedAssetDisk();
+
+        if ($disk !== 'historic_staging') {
+            return [$disk, $path];
+        }
+
+        $runId = $section->media_processing_log_id;
+
+        if (! array_key_exists($runId, $this->stagingContexts)) {
+            $this->stagingContexts[$runId] = MediaProcessingLog::query()->select(['id', 'processing_metadata'])->find($runId)?->historicStagingContext();
+        }
+
+        $context = $this->stagingContexts[$runId];
+
+        return $context instanceof HistoricStagingContext
+            ? [$context->stagingDisk, rtrim($context->batchRoot, '/').'/'.ltrim($path, '/')]
+            : [$disk, $path];
+    }
+
+    /**
      * @return 'present'|'missing'|'check_error'
      */
     private function auditAsset(ServiceSection $section, string $kind, string $path): string
@@ -177,7 +215,8 @@ class AuditSectionAssetsCommand extends Command
         }
 
         try {
-            $exists = Storage::disk($section->extractedAssetDisk())->exists($path);
+            [$disk, $location] = $this->location($section, $path);
+            $exists = Storage::disk($disk)->exists($location);
         } catch (Throwable) {
             $this->countsByKind[$kind]['check_errors']++;
             $this->findings[] = ['section_id' => $section->id, 'kind' => $kind, 'issue' => 'check_error'];
