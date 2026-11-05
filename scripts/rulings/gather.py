@@ -807,6 +807,25 @@ records.append({'id': 'claude-review-20261031:1071-sermon-end', 'source': 'claud
                         'Thank you." before an unrecorded prayer (sermon end ruling 10-28: a dropped prayer is fine when the end '
                         'makes sense).', 'answer_source': 'claude-review', 'points': [1057.7, 1060.04]})
 
+# 11-05, K16 sentence lines (v3, plan §4.1a item 6): two ends the v3 lines move past older rulings, settled by the
+# 10-28 sermon-end rulings rather than a prompt change (a closing-prayer prompt rule, measured 11-04 in
+# k16-closing-prayer-20261104/, broke 1128's and 1157's own-last-line rulings). 1099's recording ends after "Let's
+# pray together." with no prayer recorded: v3 ends on "…for God's people." (decoded to 1363.46), as 1128's B drops
+# "Let's pray together." and 1071 drops it before an unrecorded prayer; the pre-v3 end after "together." (decoded to
+# 1364.50) stays right. 965's v3 end keeps the preacher's "Amen." after "…and for his sake." (decoded 2730.36–2730.90),
+# the 10-28 rule's end; the 10-18 keep before it stays acceptable.
+for run, points, note in [
+    (1099, [1363.6, 1364.78], 'ends "…This is not the end of the story for God\'s people."; drops "Let\'s pray together." '
+     'before an unrecorded prayer (1128\'s 10-28 B; 1071), or keeps it whole. Supersedes the 10-12 clips_word at 1364.5, '
+     'which heard "together" clipped.'),
+    (965, [2729.98, 2731.2], 'ends on the preacher\'s "Amen." after "…in Jesus name, and for his sake." (sermon end '
+     'ruling 10-28), or before it (the 10-18 keep).'),
+]:
+    records.append({'id': f'claude-review-20261105:{run}-sermon-end', 'source': 'claude-review-20261105', 'ruled_on': '2026-11-05',
+                    'ruled_at': '2026-11-05T00:30:00Z', 'run': run, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon',
+                    'title': None, 'edge': 'end', 'heard': points[1], 'answer': None, 'expect': 'either', 'ruled_time': None,
+                    'note': 'Claude review 11-05: '+note, 'answer_source': 'claude-review', 'points': points})
+
 # 11-01, register E25: 1011 §1285 "From Heaven You Came" is a quiet solo voice from the end of a dropout (−95 dB to
 # 458.81, then −55 to −70 dB) before the congregation and band at 520. Heard on "The Muted Song Opening"
 # (muted-opening-1011-listening-20261101), the cut at 519.73 starts partway through the song; the operator ruled

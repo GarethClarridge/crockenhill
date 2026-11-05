@@ -1339,6 +1339,70 @@ queue and route state are in the archive; a historical “final” label is not 
          0.4 s short of the reading's end). Both sit on raw, unpunctuated cues the same as today's, so the move is
          a different draw on a changed prompt, not a line built wrongly (redraw rate: 27 of 405 move ≥ 1 s).
          Owed: the operator's choice whether to put v2 into `SermonSongIntroductionCheck::question()`.
+       - **Item 6 (i) built 11-04 as v3 (operator "Yes, do that but document the side effects"; register K16 amended).**
+         *Why not v2:* v2's sentence stops came partly from the decoded edge words, which the edge step banks *after*
+         K16 answers and only where its answer moves the end. Lines built from them would differ between asking and
+         reading, and the banked answer would not be found again; in the harness they came from earlier rounds'
+         decodes a weekly run never has. v3 (`SermonSongIntroductionCheck::sentenceLines()`) reads the cue text only:
+         cues join until a cue ends . ! ?, ends on an Amen, or the next opens on one; a run closed instead by a 1.5 s
+         pause, a music change, the detected end or 30 words stays as raw cues. No prompt version bump: the identity
+         hashes the prompt, so exactly the questions whose lines change are asked again.
+         **Side effects, measured** (`storage/scratch/k16-sentence-lines-20261104/`: `measured-v2-cue-only.json`,
+         `measured-v3-rest.json`, `answers-v3/`; the first v3 pass's baseline was contaminated by the code landing
+         mid-run and was re-run clean with the code stashed, `measured-v3-contaminated.json` kept):
+         1. **Re-asked:** the lines change on **589 of 616** K16 questions (112 of 131 on the 94 fragment-cue runs,
+            477 of 485 on the other 358 runs: their cues are 77% punctuated, so most windows join somewhere). The
+            next round asks them again (≈ 1,300 Luna calls).
+         2. **Ends, of 558 with an answer today:** 536 same; **better 13**: 962 (the ruled B, "Amen."), 968, 1375
+            (back to the register keep after "life.", undoing a 10-30 accepted loss), 1008 (preacher's "Amen?",
+            not "Thank you, Peter."), 1286 p0, 1245 p0 and 1118 p0 (the reader's closing words kept), 1060 p0 (drops
+            the leader's "Thank you, Deborah."), 1166 (completes a sentence cut mid-way), 1247, 965, 1283, 975 (end
+            on the preacher's Amen); **worse 5**: 1219 (takes in "Let's stand, shall we? As we sing our final hymn"),
+            1275 (takes in an after-service invitation and "let me bring this meeting to a close"), 1025 p0 (drops
+            the reader's "The Lord add his blessing… for our hearts"), 1293 (drops the preacher's Amen), 1112 p0
+            (drops "for it this morning"); **mixed 1**: 1140 keeps its last point (today's end drops it, the one
+            thing K16 forbids) but stops mid-sentence, "…that sure and certain promise of"; **neutral 3**: 958,
+            1071, 1099. 22 moves in 558 (3.9%) is under the measured redraw rate (27 of 405 move ≥ 1 s re-asking
+            the same prompt), and 1293 and 1112 sit on lines unchanged locally: the worse ones look like draws.
+         3. **Not gained:** 956 (ruled-either A), 1239, 1348, 1214 p0 and 1047 p0 got v1/v2's gains only from
+            decoded punctuation; they keep today's question and end. 961's and 983's v2 losses do not occur.
+         4. **New rule, 1101:** v3's answers ended on "Thank you." after the congregation's "Amen." against the
+            ruled keep at the preacher's Amen (1411.2). A line straight after an answering Amen now steps back to
+            the preacher's Amen (the video is one stretch). Over every v3 decision it fires on 1101 and 1008 only.
+         5. **Plan code:** `CueSafeExtractionPlan` matched K16's kept line against single raw cues in three places
+            (1219's later copies, the next line's bound, the closing cue's pause); a joined line never matches, which
+            silently disabled the 1219 fix in its tests. `atKeptCue()` maps the line to the cue it ends on, so all
+            three behave as before.
+         6. **Tests:** 1111's shared fixture gets a 1.6 s pause so its judgement tests keep raw lines; 1219's
+            fixture looks up the joined line; a test pins that an answer banked to raw cues is not read once they
+            join. **Ruled-endings set:** 580 captures carry the v3 answers as banked artifacts (real Luna answers to
+            the exact new prompt, matched byte for byte; not banked live), 0 other bytes changed; 15 captures' (28
+            rulings') expected live cut updated to the new plan, old kept as `live.before_k16_sentence_lines_20261104`,
+            every ruling re-checked and holding. **12 tests (9 runs) still need evidence only the edge step makes:**
+            1112, 1099, 1025, 1285, 1293, 965, 957 (no decode at the new end), 1011 p0 and 1378 (their capture's
+            composition was not asked). Owed: `historic-import:prepare-output-edges` on those 9 and their recapture,
+            on the operator's word; nothing is committed until the set is green.
+         7. **Edge step and recapture, 11-04/05 (operator "Go ahead").** `prepare-output-edges` on the 9 runs (every K16
+            question asked; log `k16-sentence-lines-20261104/prepare-edges-9.log`), then the 52 rulings recaptured
+            (`--current`, `RMS_WINDOW=35`) and merged (`recapture-9/`, originals in `before/`). Each ruling keeps its
+            record and `open_defect`; the shared evidence and `live` come from the capture. 1378's two song rulings
+            stay on their old data (the 11-02 round re-detected §4618/§272906 as §4616/§327080; stale since the round,
+            not v3), its two sermon rulings move to `run-1378-2026-11-04`. 12 failures → 3, both v3 moves past older
+            rulings: **965** keeps the preacher's "Amen." (2731.2) against the 10-18 keep at 2729.98; **1099** drops
+            "Let's pray together." (1363.6), against the 10-12 clips_word at 1364.5.
+         8. **A closing-prayer prompt rule was measured and rejected (operator "B", then "A").** Two wordings of a
+            `PROMPT_VERSION` 4 rule, on all 455 ends (`k16-closing-prayer-20261104/`, ≈ 2,000 Luna calls): v4a
+            ("…the congregation's answering Amen is not") lost the preacher's own Amen on ≈ 45 ends, the model reading
+            every lone "Amen." line as the congregation's; v4b ("through its Amen, with the line that invites it, even
+            when the recording ends before the prayer") moved 23 of 450: better 7 (956 to ruled A, 1293, 1007, 1178,
+            1147, 1088, 958), worse 6 (1131, 1157, 1128 against their rulings; 1166, 18427, 1150) and 5 taking in a
+            bare invitation (1099, 1191, 995, 1026, 1086). The register already answered 1099: 1128's and 1157's 10-28
+            own-last-line rulings (both B) drop a bare invitation before an unrecorded prayer, as 1071's 10-31 review
+            does. Code back at v3 (patch `v4-on-top-of-v3.diff.full`). **Settled in the register instead:**
+            `claude-review-20261105:1099-sermon-end` either [1363.6, 1364.78] and `…:965-sermon-end` either [2729.98,
+            2731.2], the three fixtures recaptured on 11-05 so they read them. ChurchService suite green (1,241). Open,
+            not built: a narrower "closing prayer through its Amen" rule for the 1007/1178/1293 gains (would need its
+            own measurement; some may be redraws).
 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).

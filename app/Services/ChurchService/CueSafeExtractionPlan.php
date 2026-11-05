@@ -369,14 +369,14 @@ class CueSafeExtractionPlan
         // The output as composed: the K16 question and the operator's answers are about it.
         $composedSpans = $spans;
         $introductionAnswer = $introductionJoin === null ? null : $introduction->read($log, $composedSpans);
-        $keptLine = $introductionAnswer === null ? null : $this->whereKeptLineWasHeard($log, $cues, $introductionAnswer, $introductionJoin['end']);
+        $keptLine = $introductionAnswer === null ? null : $this->whereKeptLineWasHeard($log, $cues, $this->atKeptCue($cues, $introductionAnswer), $introductionJoin['end']);
         // An earlier part with a song before the next part ends on its own last line the same way.
         $innerKeptLines = [];
         foreach ($introduction === null ? [] : $introduction->innerParts($log, $composedSpans) as $part) {
             $innerJoin = app(SermonSongIntroductionCheck::class)->join($log, $composedSpans, $part);
             $innerAnswer = app(SermonSongIntroductionCheck::class)->read($log, $composedSpans, $part);
             $innerKeptLines[$part] = $innerJoin === null || $innerAnswer === null ? null
-                : $this->whereKeptLineWasHeard($log, $cues, $innerAnswer, $innerJoin['end']);
+                : $this->whereKeptLineWasHeard($log, $cues, $this->atKeptCue($cues, $innerAnswer), $innerJoin['end']);
         }
         // 962: the answer ends the sermon at its own last line, before a part of its own that follows
         // (the Lord's Prayer); the video ends there, so a part the end falls before is not in it.
@@ -598,13 +598,43 @@ class CueSafeExtractionPlan
             }
             $join = $answer === null ? null : $introduction->join($log, $spans, $part);
             if ($join !== null) {
-                foreach ($this->unheardKeptLineCopies($log, app(OutputEdgeWordTimings::class)->cues($log), $answer, $join['end']) as $copy) {
+                $cues = app(OutputEdgeWordTimings::class)->cues($log);
+                foreach ($this->unheardKeptLineCopies($log, $cues, $this->atKeptCue($cues, $answer), $join['end']) as $copy) {
                     $edges[] = $copy['end'];
                 }
             }
         }
 
         return $edges;
+    }
+
+    /**
+     * K16's answer with its kept line as the cue that line ends on.
+     *
+     * K16 asks with cues joined into sentences (item 6, 11-04), so its kept line can span cues:
+     * 1219's "Our trust must be in him, and in no one else." is two. The plan finds the kept line
+     * among the raw cues (its later copies, the next line's start, the closing cue's pause), so it
+     * reads the line's last cue, which is the line itself whenever K16 asked with the raw cues.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{end: float|null, ties_to_sermon: bool|null, line: string|null}  $introduction
+     * @return array{end: float|null, ties_to_sermon: bool|null, line: string|null}
+     */
+    private function atKeptCue(array $cues, array $introduction): array
+    {
+        $line = $introduction['line'] === null ? null : trim($introduction['line']);
+        if ($line === null || $introduction['end'] === null) {
+            return $introduction;
+        }
+
+        foreach ($cues as $cue) {
+            $text = trim($cue['text']);
+            if (abs($cue['end'] - $introduction['end']) <= 0.001 && $text !== '' && $text !== $line && str_ends_with($line, ' '.$text)) {
+                return [...$introduction, 'line' => $text];
+            }
+        }
+
+        return $introduction;
     }
 
     /**

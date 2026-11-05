@@ -89,6 +89,15 @@ class SermonSongIntroductionCheck
     /** A line whose last word is "Amen". */
     private const ENDS_ON_AMEN = '/(?:^|[^\p{L}\p{N}])amen[\s\p{P}]*$/iu';
 
+    /** A cue whose first word is "Amen". */
+    private const OPENS_ON_AMEN = '/^[\s\p{P}]*amen(?:[^\p{L}\p{N}]|$)/iu';
+
+    /** A pause this long between cues ends a line, sentence or not. */
+    private const LINE_PAUSE_SECONDS = 1.5;
+
+    /** Cues joined into one line give up after this many words without a sentence end. */
+    private const LINE_WORDS = 30;
+
     private const SYSTEM_PROMPT = <<<'TXT'
 You read the end of a sermon in a church-service transcript and what is said between it and the next song. Rules from the person who publishes the sermon videos:
 - The sermon video ends at the join to the song, and never after the music has started. Lines marked [music] are after the music started and are never in the video. Lines marked [music may start] may be in the video only to finish a sentence begun before them.
@@ -385,6 +394,8 @@ TXT;
             return ['end' => $end, 'lines' => [], 'prompt' => '', 'identity' => []];
         }
 
+        $lines = $this->sentenceLines($lines, $end);
+
         $prompt = $this->prompt($log, $song, $songStart, $end, $lines, $partType);
 
         return ['end' => $end, 'lines' => $lines, 'prompt' => $prompt, 'identity' => [
@@ -398,6 +409,66 @@ TXT;
             'transcript' => hash('sha256', $prompt),
             'media_processing' => MediaProcessingVersion::signature(),
         ]];
+    }
+
+    /**
+     * The question's lines as sentences (item 6, operator 11-04): on fragment-cue runs (956 1.7 words
+     * a cue, 962 2.7) the model chose "Preaching" and "pray this", both mid-sentence.
+     *
+     * Consecutive cues join into one line only when sentence evidence closes it: a cue ending in
+     * {@see self::FINISHED}, a cue ending on an Amen, or the next cue opening on one, so an Amen is
+     * never joined to the words around it (1254's "Amen Let's sing together", 1204's answering
+     * Amen). A run closed instead by a pause, a change of music state, the detected end or
+     * {@see self::LINE_WORDS} words stays as its raw cues: joining without a sentence end split
+     * 961's and 983's unpunctuated sentences mid-clause.
+     *
+     * The evidence is the cue text alone. The decoded edge words are banked after this question is
+     * asked, and only where its answer moves the end, so lines built from them would differ between
+     * the asking and the reading, and the banked answer would not be found again.
+     *
+     * Measured 11-04 over the 94 fragment-cue runs (`storage/scratch/k16-sentence-lines-20261104/`,
+     * v3): see the plan, §4.1a item 6.
+     *
+     * @param  list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>  $cues
+     * @return list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>
+     */
+    private function sentenceLines(array $cues, float $end): array
+    {
+        $lines = [];
+        $group = [];
+        $words = 0;
+
+        foreach ($cues as $index => $cue) {
+            $group[] = $cue;
+            $words += str_word_count($cue['text']);
+            $next = $cues[$index + 1] ?? null;
+            $evidenced = preg_match(self::FINISHED, $cue['text']) === 1
+                || preg_match(self::ENDS_ON_AMEN, $cue['text']) === 1
+                || ($next !== null && preg_match(self::OPENS_ON_AMEN, $next['text']) === 1);
+            $closes = $next === null
+                || $evidenced
+                || $next['start'] - $cue['end'] >= self::LINE_PAUSE_SECONDS
+                || $next['music'] !== $cue['music']
+                || ($cue['start'] < $end - 0.05 && $next['start'] >= $end - 0.05)
+                || $words >= self::LINE_WORDS;
+
+            if (! $closes) {
+                continue;
+            }
+
+            $joined = $evidenced && count($group) > 1
+                ? [[...$group[0], 'end' => $cue['end'], 'text' => implode(' ', array_column($group, 'text'))]]
+                : $group;
+
+            foreach ($joined as $line) {
+                $lines[] = [...$line, 'n' => count($lines) + 1];
+            }
+
+            $group = [];
+            $words = 0;
+        }
+
+        return $lines;
     }
 
     /**
@@ -506,7 +577,8 @@ TXT;
      * three, else the earlier of two (the longer answer ran on into housekeeping: 1160's "Maybe
      * we can have the words on the screen"), stepped back off any line after the music started.
      * Both song and recording-end joins vote on the sermon itself, keeping the preacher’s
-     * closing prayer and excluding the congregation’s answering Amen. No end when the answers fail or name no line.
+     * closing prayer and excluding the congregation’s answering Amen and the line straight after it.
+     * No end when the answers fail or name no line.
      *
      * @param  list<array{sermon_last_line: int|null, ties_to_sermon: bool|null, video_last_line: int|null, reason: string|null}>  $calls
      * @param  list<array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>  $lines
@@ -543,6 +615,14 @@ TXT;
 
         while ($chosen !== null && $this->answersAmen($byNumber, $chosen)) {
             $chosen--;
+        }
+
+        // The video is one stretch: a line straight after the answering Amen is outside it too (1101's "Thank you.").
+        if ($chosen !== null && $this->answersAmen($byNumber, $chosen - 1)) {
+            $chosen--;
+            while ($this->answersAmen($byNumber, $chosen)) {
+                $chosen--;
+            }
         }
 
         while ($chosen !== null && isset($byNumber[$chosen]) && preg_match(self::OPEN_CLAUSE, $byNumber[$chosen]['text']) === 1

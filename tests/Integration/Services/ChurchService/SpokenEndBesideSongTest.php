@@ -612,7 +612,8 @@ class SpokenEndBesideSongTest extends TestCase
     }
 
     /**
-     * 1219's closing passage (2023-07-16 morning), cued twice; K16 keeps the first "and in no one else.".
+     * 1219's closing passage (2023-07-16 morning), cued twice; K16 keeps the first "Our trust must be in
+     * him, and in no one else.", one line since its two cues close a sentence (item 6, 11-04).
      *
      * @return array{0: MediaProcessingLog, 1: list<array{start_time: float, end_time: float}>}
      */
@@ -631,7 +632,7 @@ class SpokenEndBesideSongTest extends TestCase
         ], [['sermon', 2112.56, 3858.0], ['song', 3862.0, 4040.0]]);
         $spans = [['start_time' => 2112.56, 'end_time' => 3858.0]];
         $line = collect(app(SermonSongIntroductionCheck::class)->question($log, $spans)['lines'])
-            ->firstWhere('text', 'and in no one else.')['n'];
+            ->firstWhere('text', 'Our trust must be in him, and in no one else.')['n'];
         $this->introduction($log, $spans, [$line, false, $line], [$line, false, $line]);
 
         return [$log, $spans];

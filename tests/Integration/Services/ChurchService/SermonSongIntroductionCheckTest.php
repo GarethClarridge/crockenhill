@@ -384,6 +384,25 @@ class SermonSongIntroductionCheckTest extends TestCase
         OpenAI::assertSent(Chat::class, 2);
     }
 
+    /**
+     * 1101 (sermon-own-last-line-20261028, kept at the preacher's Amen, 1411.2): asked with sentence
+     * lines 11-04, two answers of three ended on "Thank you." after the congregation's "Amen.". The
+     * answering Amen is not in the sermon and the video is one stretch, so neither is the line after it.
+     */
+    #[Test]
+    public function a_line_straight_after_the_answering_amen_steps_back_to_the_preachers_amen(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3024.83]], timeline: [[2950, 3080, 0.01, 0.8]], cues: [
+            ['start' => 3010.0, 'end' => 3013.0, 'text' => "And we ask these things in Jesus' name and for his sake."],
+            ['start' => 3013.0, 'end' => 3014.0, 'text' => 'Amen.'],
+            ['start' => 3014.0, 'end' => 3016.0, 'text' => 'Amen.'],
+            ['start' => 3016.0, 'end' => 3017.0, 'text' => 'Thank you.'],
+        ]);
+        $this->answers([1, false, 4], [4, false, 4], [4, false, 4]);
+
+        $this->assertSame(3014.0, app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans())['end']);
+    }
+
     #[Test]
     #[DataProvider('chosenAmenLines')]
     public function a_chosen_answering_amen_steps_back_to_the_first_amen_line(string $previous, string $chosen, int $chosenLine, bool $ties, bool $song, float $expected): void
@@ -512,6 +531,34 @@ TXT;
 
         $this->answers([2, true, 6], [2, true, 6]);
         $this->assertTrue($check->prepare($log->fresh(), $this->spans())['asked']);
+        OpenAI::assertSent(Chat::class, 2);
+    }
+
+    /**
+     * Item 6 (11-04): lines joined into sentences are a different question, so an answer banked to
+     * the raw cues on a run whose cues now join is not read, and the next round asks it afresh.
+     * Runs whose lines do not change keep their answers: no prompt version is bumped.
+     */
+    #[Test]
+    public function an_answer_banked_to_the_raw_cues_is_not_read_once_they_join_into_a_sentence(): void
+    {
+        $cues = $this->cues();
+        $cues[0]['end'] = 3017.4;
+        $log = $this->service(cues: $cues);
+        $check = app(SermonSongIntroductionCheck::class);
+        $question = $check->question($log, $this->spans());
+        $rawPrompt = str_replace("1. You'll meet your king to begin a life of eternal joy with him and all his people.\n",
+            "1. You'll meet your king to begin a life of eternal joy with\n2. him and all his people.\n", $question['prompt']);
+        $this->assertNotSame($rawPrompt, $question['prompt']);
+        $identity = [...$question['identity'], 'transcript' => hash('sha256', $rawPrompt)];
+        $kind = 'sermon-song-introduction-'.hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $kind, [
+            'identity' => $identity, 'calls_completed' => true, 'end' => 3019.1, 'ties_to_sermon' => false, 'line' => 'him and all his people.',
+        ]);
+
+        $this->assertNull($check->read($log->fresh(), $this->spans()));
+        $this->answers([1, false, 1], [1, false, 1]);
+        $this->assertSame(3019.1, $check->prepare($log->fresh(), $this->spans())['end']);
         OpenAI::assertSent(Chat::class, 2);
     }
 
@@ -710,17 +757,92 @@ TXT;
         $this->assertSame(3024.8, app(SermonSongIntroductionCheck::class)->prepare($log->fresh(), $this->spans())['end']);
     }
 
+    /**
+     * 962 (item 6, operator 11-04): the cues are fragments, so the question read as "pray this" and
+     * the model ended there, mid-sentence. Cues join into the sentence their text closes.
+     */
+    #[Test]
+    public function fragment_cues_are_asked_as_the_sentences_their_text_closes(): void
+    {
+        $log = $this->service(cues: [
+            ['start' => 3010.0, 'end' => 3011.2, 'text' => "But that said, let's just"],
+            ['start' => 3011.2, 'end' => 3012.1, 'text' => 'pray this'],
+            ['start' => 3012.1, 'end' => 3014.0, 'text' => 'prayer now, shall we?'],
+            ['start' => 3014.4, 'end' => 3016.0, 'text' => 'Our Father in heaven,'],
+            ['start' => 3016.0, 'end' => 3018.2, 'text' => 'hallowed be your name.'],
+            ['start' => 3018.6, 'end' => 3019.1, 'text' => 'Amen.'],
+            ['start' => 3023.5, 'end' => 3024.8, 'text' => "Well, let's sing our final hymn."],
+        ]);
+
+        $question = app(SermonSongIntroductionCheck::class)->question($log, $this->spans());
+
+        $this->assertSame([
+            "But that said, let's just pray this prayer now, shall we?",
+            'Our Father in heaven, hallowed be your name.',
+            'Amen.',
+            "Well, let's sing our final hymn.",
+        ], array_column($question['lines'], 'text'));
+        $this->assertSame([3010.0, 3014.0], [$question['lines'][0]['start'], $question['lines'][0]['end']]);
+        $this->assertStringContainsString("1. But that said, let's just pray this prayer now, shall we?", $question['prompt']);
+    }
+
+    /**
+     * 1254 and 1204 (item 6 v1, 11-04): joined lines carried "Amen Let's sing together" as one line,
+     * and an answering Amen onto the prayer's. An Amen closes its line and opens none.
+     */
+    #[Test]
+    public function an_amen_is_never_joined_to_the_words_around_it(): void
+    {
+        $log = $this->service(cues: [
+            ['start' => 3012.0, 'end' => 3014.0, 'text' => 'and we ask these things'],
+            ['start' => 3014.0, 'end' => 3016.0, 'text' => 'in his name'],
+            ['start' => 3016.0, 'end' => 3016.6, 'text' => 'Amen'],
+            ['start' => 3016.6, 'end' => 3019.0, 'text' => "Let's sing together as we conclude our time."],
+            ['start' => 3023.5, 'end' => 3024.8, 'text' => 'Amen Amen'],
+        ]);
+
+        $question = app(SermonSongIntroductionCheck::class)->question($log, $this->spans());
+
+        $this->assertSame(['and we ask these things in his name', 'Amen', "Let's sing together as we conclude our time.", 'Amen Amen'], array_column($question['lines'], 'text'));
+    }
+
+    /**
+     * 961 and 983 (item 6 v1, 11-04): an unpunctuated transcript has no sentence to close, and a
+     * cap on the joined length split one mid-clause ("disappointments and | discouragements"). With
+     * no sentence end in sight the cues stay as they are.
+     */
+    #[Test]
+    public function cues_with_no_sentence_end_stay_as_they_are(): void
+    {
+        $cues = [];
+        foreach (['to encourage us to keep us going', 'to prevent us from falling into the depths', 'of despair when life in this world gets tough',
+            'or when we face disappointments and', 'discouragements we are going to sing', 'a final hymn written on these words'] as $index => $text) {
+            $cues[] = ['start' => 3000.0 + 3 * $index, 'end' => 3003.0 + 3 * $index, 'text' => $text];
+        }
+        $log = $this->service(cues: $cues);
+
+        $question = app(SermonSongIntroductionCheck::class)->question($log, $this->spans());
+
+        $this->assertSame(array_column($cues, 'text'), array_column($question['lines'], 'text'));
+    }
+
     /** @return list<array{start_time: float, end_time: float}> */
     private function spans(): array
     {
         return array_map(static fn (array $span): array => ['start_time' => $span[0], 'end_time' => $span[1]], self::SERMON);
     }
 
-    /** @return list<array{start: float, end: float, text: string}> */
+    /**
+     * 1111's cues before its song. The first cue ends 1.6 s before the second starts, so the two stay
+     * separate lines ({@see SermonSongIntroductionCheck} joins cues only up to a 1.5 s pause): these
+     * tests are about the judgement, and their answers name lines as the raw cues number them.
+     *
+     * @return list<array{start: float, end: float, text: string}>
+     */
     private function cues(): array
     {
         return [
-            ['start' => 3012.7, 'end' => 3017.4, 'text' => "You'll meet your king to begin a life of eternal joy with"],
+            ['start' => 3012.7, 'end' => 3015.8, 'text' => "You'll meet your king to begin a life of eternal joy with"],
             ['start' => 3017.4, 'end' => 3019.1, 'text' => 'him and all his people.'],
             ['start' => 3023.5, 'end' => 3024.8, 'text' => "We're going to sing."],
             ['start' => 3029.6, 'end' => 3032.2, 'text' => "We're going to sing a hymn that I chose."],
@@ -734,16 +856,17 @@ TXT;
     /**
      * @param  list<array{0: string, 1: float, 2: float}>  $sections
      * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float}>  $timeline
+     * @param  list<array{start: float, end: float, text: string}>|null  $cues  {@see self::cues()} when null
      */
     private function service(array $sections = [['sermon', 0.0, 3024.83], ['other', 3024.83, 3071.99], ['song', 3072.7, 3300.0]],
-        array $timeline = [[2950, 3070, 0.01, 0.8], [3070, 3300, 0.8, 0.02]]): MediaProcessingLog
+        array $timeline = [[2950, 3070, 0.01, 0.8], [3070, 3300, 0.8, 0.02]], ?array $cues = null): MediaProcessingLog
     {
         Storage::fake('local');
         config(['media-processing.storage.service_artifact_disk' => 'local']);
         $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 5000, 'audio_timeline_path' => 'service-transcripts/introduction.classes.json']);
         Storage::disk('local')->put('service-transcripts/introduction.classes.json', AudioTimelineFixture::json($timeline, 5000.0));
         $log->putServiceTranscriptPath('temp/introduction.json');
-        Storage::disk('local')->put('temp/introduction.json', json_encode(ChurchServiceTranscript::fromCues($this->cues(), 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        Storage::disk('local')->put('temp/introduction.json', json_encode(ChurchServiceTranscript::fromCues($cues ?? $this->cues(), 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
 
         foreach ($sections as [$type, $start, $end]) {
             ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::from($type), 'start_time' => $start, 'end_time' => $end]);
