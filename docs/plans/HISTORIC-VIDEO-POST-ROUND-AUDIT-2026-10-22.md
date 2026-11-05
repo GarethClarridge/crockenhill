@@ -171,7 +171,7 @@ throughput and coordination, not the review units or evidence standard.
 after 94 services because it kept finding examples of classes already known, while the corpus-wide
 class scans (10-24) found and counted the real classes. This scope replaces "every eligible service"
 in Pass B for discovery. It is planned, not started; it authorises no processing, publication or
-production write, and the paid Batches API calls below wait for the operator's word.
+production write, and it makes no paid API calls.
 
 **Purpose and order.** Before the next round: find defect *classes* not yet known, each with an
 affected population and a mechanism, so the code is fixed before re-running (fix the mechanism, not
@@ -218,10 +218,12 @@ the residual risk is a one-off that no scan detects (the 1147 shape).
 - Re-run the 24-case calibration set (`overnight-20261023/audit/cases-key.json`,
   `calibration-truth.json`) on the narrow tasks first; the gate is that all 8 positives are
   *located*. A class Haiku misses goes to Sonnet 5.5.
-- Mechanics: pack each request's inputs into one file. Prefer the **Message Batches API** through the
-  app's key for fixed-shape tasks: it is reproducible, re-runnable after the round, and does not
-  spend the Claude Code allowance. With subagents instead, each is a fresh Haiku agent that reads one
-  bundle, writes one JSONL file and returns one line, with at most 4–6 concurrent and a checkpoint.
+- Mechanics: **Haiku subagents** (operator, 11-05). At sample size the Haiku work is under 1–2% of a
+  week, so a Batches harness and paid calls would save almost nothing. Pack each task's inputs into
+  one bundle file. Each agent is a fresh Haiku agent that reads one bundle, writes one JSONL file and
+  returns one line, with at most 4–6 concurrent and a checkpoint. Keep prompts and bundles as files,
+  so the same tasks re-run after the round. Reconsider Batches only if a later pass reads the whole
+  corpus.
 
 **3. Each new class becomes a scan.** Write the scan, run it on the whole corpus for the affected
 population, trace the code path and record a test-first fix lead in the video plan §4.1b. Reading
@@ -229,7 +231,7 @@ stops for a class once its scan exists.
 
 **4. Targeted reading only where a scan cannot decide** (meaning-dependent hits). Optional one-off
 cover: ask one narrow question of every sermon, e.g. "does this sermon contain material that is not
-the sermon?", for about $1 by Batches API.
+the sermon?", which costs about 1–2% of a week with subagents.
 
 **5. After the round: acceptance.** Scripted checks on every regenerated output, plus §5's
 independent sample (min(P, max(30, ceil(0.10 P))), about 44 services, Sonnet or Opus, blind). Reuse
@@ -240,9 +242,9 @@ sermon-opening class check (1027) is carried as a scan in step 1 plus this sampl
 word), production census and rehearsal, browser and mobile delivery, speaker/thumbnail/P5 wording,
 and bulk listening pages (page only what needs the operator's ear after triage).
 
-**Expected cost and time (estimates from packet sizes, not measured).** Model calls: a dollar or two
-of API spend with the Batches route. Claude Code allowance: about **15–30% of a week**, almost all
-Opus build and adjudication. Calibration: the 10-16 → 10-23 week that hit the weekly limit priced at
+**Expected cost and time (estimates from packet sizes, not measured).** No API spend. Claude Code
+allowance: about **15–30% of a week**, almost all Opus build and adjudication; the Haiku subagents
+add under 2%, and the post-round Sonnet sample about 5–8%. Calibration: the 10-16 → 10-23 week that hit the weekly limit priced at
 about $321 at API rates (Opus $312, Sonnet $8, Haiku $1, from the local transcripts), so a week ≈ $320
 in that unit. Activity outside these transcripts, such as claude.ai chats, also counts, so the
 percentages lean high. Keep Opus context small: adjudicate in fresh sessions from packed evidence
