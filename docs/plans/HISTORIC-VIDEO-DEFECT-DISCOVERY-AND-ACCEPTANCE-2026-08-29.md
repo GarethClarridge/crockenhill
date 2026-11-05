@@ -1,14 +1,16 @@
 # Historic Video Defect Discovery and Acceptance Plan
 
-**Current worklist — reconciled 2026-10-30.** Historic outputs remain quarantined; no release batch
+**Current worklist — updated 2026-11-05.** Historic outputs remain quarantined; no release batch
 is authorised. The 10-21/22 round closed. Later shared-path fixes still need a measured round and
 current-output acceptance. 1288's onset leak is fixed (§4.1a step 2). §4.1a steps 3–4 are done (10-31). **The
 11-02 round ran and closed 11-03** (§4.1a step 5, "ROUND RUN"): 420 of 423 members and 13 of 15 re-imports complete,
-nothing public; post-round checks done. Owed: the eight items listed at the end of that record, for the next round.
+nothing public; post-round checks done. The repairs through 11-05 are recorded in §4.1a; the newly
+reproduced defects and missed follow-up are in §4.1b. Processing completion is not output acceptance.
 
 This file owns **current video work and status**, not execution diaries or acceptance procedures.
 The complete prior text is preserved in the [execution record through 10-29](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md).
-Reconciliation below uses recorded evidence, not a fresh database or production census.
+The earlier reconciliation uses recorded evidence. §4.1b and the linked 11-05 audit checkpoint
+add a fresh local snapshot/inventory; no fresh production census has been performed.
 
 ## 1. Outcome and boundaries
 
@@ -49,7 +51,8 @@ These explain decisions; they do not supply current route lists or counts.
 
 ## 3. Current measurement status
 
-No new census was run for this consolidation. October 16 membership, readiness counts and disk
+No new census was run for the 10-30 consolidation. The 11-05 local inventory is scoped in §4.1b
+and the audit checkpoint; it is not accepted release membership. October 16 membership, readiness counts and disk
 figures are historical. Even the later 426-run / 1,351-ruling counts predate subsequent changes.
 Recount eligible runs, unresolved rulings and unassessable evidence on final code before freezing.
 The audit's dated discovery totals similarly require hash reconciliation, not automatic credit.
@@ -1438,6 +1441,81 @@ queue and route state are in the archive; a historical “final” label is not 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
 
+### 4.1b Exploratory pre-round findings (2026-11-05)
+
+Read-only investigation of the 11-02/03 logs, retained receipts and current local records against
+code through `88afb351b`; Luna surveyed the larger evidence sets. No runtime fix, paid re-analysis,
+processing dispatch or publication was performed. Two added characterisation tests reproduce
+the faulty behaviour, not the desired repaired behaviour: 19 focused tests/79 assertions pass;
+PHPStan has zero errors and Pint passes. Convert their expectations when implementing the fixes.
+
+| Finding | Current evidence and consequence | Required next action |
+|---|---|---|
+| Scripture refresh rejects provider tracking tokens | 33 last-round `FetchBibleTextForSermon: validation failed` entries on 33 sermons, all for `fums_token` longer than 255 characters. The model rule, service validation and database column all cap it at 255. Every sermon remains linked to an existing passage, but all 33 passages predate the round's 28-day refresh cutoff (fetched 05-08–09-07). `enrichSermon()` returns failure; the queue job ignores the result and returns normally. A mocked 256-character token reproduces discarded passage data without a failed job. | Accommodate provider tokens without truncation, align schema/model/service validation, and make unsuccessful enrichment visible to the caller/queue. Test first, then retry the exact affected refreshes and verify their timestamps/content. See `tests/Feature/FetchBibleTextForSermonTest.php::oversized_provider_token_discards_the_passage_without_failing_the_job`. |
+| Asset audit checks the wrong disk | `audit:section-assets` reports 1,507 of 1,561 sections with referenced assets missing; this is **not a verified loss count**. Its SELECT omits `asset_disk`, so `extractedAssetDisk()` falls back to the global disk. Quarantine files for §509/§510/§335939 exist at their recorded paths despite being reported missing. Mocked separate default/quarantine disks reproduce it. Staging batch-relative paths and source recoverability also require their owning context. | Fix the selected disk and verify batch-context resolution; rerun the audit against exact current outputs before claiming presence or loss. See `tests/Feature/Console/AuditSectionAssetsCommandTest.php::it_reports_present_quarantine_assets_as_missing_when_the_default_disk_differs`. |
+| Completed runs still carry degraded analysis | The two non-superseded degraded runs are **1225 → sermon 1143** (processing UUID `7fbf47e2-6afc-4421-aeac-4d8bb39f7c47`, malformed JSON) and **1250 → sermon 1169** (`d2d241cb-753a-4f06-b1bf-2fedc384b269`, 63-character title rejected). Both belong to operation 4, have fallback `ai_analysis`, and retain older populated sermon metadata. Run 1250 also has unequal `transcript_content.hash` and `analysed_transcript.hash`. This is unresolved freshness, not proof the displayed fields are wrong. | Explicitly re-analyse both and verify cleared degraded flags plus current transcript stamps/editorial fields. The existing `historic-import:reanalyse-degraded-completions` command is narrower than recutting media. Recompose alone cannot repair analysis; extraction includes analysis if these runs are selected. Count them separately from successful completions until verified. |
+
+Exact scripture sermon IDs: `842,875,897,929,964,993,995,997,1000,1011,1024,1053,1056,1064,1101,1120,1144,1151,1157,1159,1163,1164,1169,1173,1175,1181,1193,1217,1250,1252,1259,1297,1306`.
+The log is `storage/logs/laravel.log` (11-02/03 entries); the November round snapshot/diff remains
+`storage/app/private/round-20261102a/`. These findings do not reopen the already repaired host
+encoder truncations, stuck runs, E26 or split-song decisions. The split-song change still needs
+application and actual-output verification in the next round.
+
+**Further output-quality investigation, 11-05: the complete corpus is not ready for production
+upload/acceptance.** The [audit's 11-05 checkpoint](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md#2026-11-05-current-output-investigation)
+owns coverage, evidence and dispositions; the next actions belong here:
+
+| Priority | Work before relying on the next round's completion |
+|---|---|
+| 1 — confirmed output-generation defect | **1025, 1055, 1133, 1199, 1214, 1286, 1299, 1305, 1325, 1349:** every quarantine main video has a different hash from its recorded new output; each matching new video survives in staging. The first seven also have different MP3/transcript generations and videos 1.64–39.30 s longer than the recorded new spans. These are exactly the ten section-failure repairs: standalone `sections:recut` marks the run completed and dispatches cleanup without `PromoteHistoricAssets`. Fix/test recovery so an outstanding full-run promotion cannot be skipped, and add an actual-destination generation check to completion/readiness. Preserve and recover the already generated staged artifacts as one video/audio/transcript set; all ten still have `re_extraction.replacement_authorised=true`. Determine a bounded promotion-tail recovery route before choosing an expensive re-extraction. Existing historic-promotion totals are not proof of this generation. No recovery was performed. |
+| 2 — confirmed storage-access defect | **21 pending section clips across 16 runs** return `ENOTDIR` through the application container despite their parent being listed as a directory. All 21 exist on the host and match their recorded hashes. This is distinct from the audit's omitted `asset_disk` column and is not data loss. Diagnose/restore the container's view of these exact paths and repeat application-user readability checks before the next round/export. Do not delete or regenerate the valid host copies as a response to the misleading existence result. |
+| 3 — consequential song-edge lead | **1307 §4665**, “All I Once Held Dear”: current hashed clip ends at 4020.62 with a 1.5 s fade. Retained decoded words place “Just a little reminder” from 4019.36–4020.62 before the next word “before”; the edge is inside the following announcement. The broad cue at 4012.32 is too early to prove eight seconds of speech. Verify the actual faded edge and the zero-duration opening-word mechanism before changing a rule; E24 applies. The existing 1307 rulings cover other edges, not this song end. |
+
+Release/editorial follow-up remains separate from these pre-round fixes: 421 non-excluded main
+sermons still use the default “Visiting Speaker” identity; P3 requires evidence or honest unknown
+wording, not automatic speaker recognition. The six-service text sample and two reference challenge
+checks did not establish a new wrong-reference defect. A4 keeps video peak overshoots as reported
+treatment issues rather than automatic holds: the measured +5.6 dBTP on 1055 warrants diagnosis,
+while the MP3/integrated-loudness cases retain their separate policy. See the audit checkpoint for
+limits and the outstanding full-media, song, editorial and production-convergence checks.
+
+**Claude review and fixes, 11-05 (operator "Yes, do 1-4").** Each claim was checked against code and data
+first. Done, uncommitted at writing:
+
+1. **The 21 unreadable clips: a stale container, not a path or code defect.** Inside the two-day-old
+   `laravel.test`, §754's directory `754-0e7d13494f0247b0` read as a 17,734-byte *file* dated 2025-04-16
+   (so the "parent lists as a directory" reading above was wrong from inside it); on the host and in every
+   worker and fresh `docker run --rm` container it is the round's 11-03 directory with `video.mp4`. None of
+   the 21 was among the 10-29 deletions. `sail up -d --force-recreate --no-deps laravel.test` → **21 of 21
+   readable** as the application user (`output-quality-20261105/recheck-paths.txt`). Runbook §8 now checks
+   readability from a fresh container after every round.
+2. **Recut promotion: fixed.** A standalone historic `PrepareSectionPublicationCandidates` now ends as the chain
+   does: `PromoteHistoricAssets` → `CleanupTemporaryFiles` (cleanup closes the run; failures go to
+   `ProcessingRunFailureHandler`), so a recut after the chain failed at section preparation promotes. An
+   ordinary run keeps its direct close and cleanup. Tests: the standalone historic test now requires the
+   chain and an unclosed run (red before); a new ordinary-run guard. **Generation check:**
+   `historic-import:verify-output-generations` (read-only; size, `--hash` for SHA-256; staging paths joined to
+   the batch root without entering the context): on the live data **436 checked, 426 current, stale exactly
+   1025, 1055, 1133, 1199, 1214, 1286, 1299, 1305, 1325, 1349**, 0 missing, 2.5 s. 5 tests. Runbook §8 runs it
+   at every close. *No recovery of the staged copies:* all ten are round members and the next round re-extracts
+   them through the full chain, which promotes; the check confirms it after the round.
+3. **Scripture tokens: fixed.** `fums_token` is `text` (migration `2026_11_05_184631`, schema dump rebuilt from
+   the committed dump plus it, loaded standalone; production needs the migration), with the 255 cap removed
+   from the model and service rules, so a token is stored whole. `FetchBibleTextForSermon` now throws when a
+   returned passage could not be stored, so the queue retries and records it; not found and unparseable stay
+   terminal. Codex's characterisation test became the desired-behaviour test (1,200-character token stored);
+   two more for the failure and the not-found guard. The 33 sermons refresh at the next round (they are past
+   the 28-day cutoff); no api.bible call was made now.
+4. **Section asset audit: fixed.** `audit:section-assets` selects `asset_disk` and joins a staging path to its
+   run's batch root, read-only. Live: **1,507 → 21** sections missing, every one outside the historic
+   quarantine/staging set: retired weekly runs 889/914/918, excluded funerals 1051/1098, closed run 1035, run
+   910's legacy `sermons/songs/349/335.mp4`, and published weekly song videos §455/§3111/§3119 on the default
+   disk (production holds those; this machine is separate). 3 tests replace Codex's characterisation test.
+
+**Not pre-round, checked after it instead:** 1225/1250's degraded analysis (both are re-extracted, and
+extraction includes analysis); 1307 §4665's song end (a lead for the E24 faded-edge check); editorial,
+thumbnail and peak items stay release work.
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Weekly processing resumes after the historic import is done (R8); preparation can proceed now.
@@ -1523,8 +1601,8 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Current evidence / next action |
 |---|---|
-| Processing round 11-02 | **Run and closed 11-03** (§4.1a step 5, "ROUND RUN"): snapshot `round-20261102a`, 420/423 members + 13/15 re-imports complete, nothing public, all quarantined; post-round diff, re-approval, 126-clip and K16 checks done; 957/1166/1247 heard "either". Owed for the next round: 5 runs stuck at this commit (1148, 1150, 1178, 1190, 1196) and re-imports 18424/18432, all four code fixes built on `fix-round-owed-items` (unmerged, 11-03); 3 held (962, 1042, 1197), K16 misses 956/1096/1360, 1377 §4781 review. Host ffmpeg now `--jobs 2`. |
-| Content acceptance | Not established for the next outputs: audit current artifacts under §4.3/§4.5. |
+| Processing round 11-02 | **Run and closed 11-03**: snapshot `round-20261102a`; 420/423 members + 13/15 re-imports was the close's count, not a current acceptance count. Four code fixes merged and stuck runs/re-imports repaired 11-03; held-run investigation, E26 and K16 follow-up completed as recorded through 11-05 in §4.1a. Split-song code is built but awaits the next recompose. Host ffmpeg remains `--jobs 2`. Newly reproduced defects and two degraded completions remain open in §4.1b. |
+| Content acceptance | **Not ready as a complete production batch (11-05).** Ten main-output generations are stale in quarantine and 21 section clips are unreadable through Docker; §4.1b owns repairs. The audit's fresh inventory, six-service exploratory sample and bounded media checks do not replace corpus acceptance under §4.3/§4.5. |
 | Production convergence and delivery | Not established by local processing: programme census, rehearsal and destination checks remain. |
 | Public release | No batch authorised. Programme §8 owns the separate signed act. |
 

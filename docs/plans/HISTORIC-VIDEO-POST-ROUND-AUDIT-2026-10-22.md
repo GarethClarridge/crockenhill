@@ -1,6 +1,10 @@
 # Historic video post-round audit
 
-**Status — 2026-10-24: initial 70-service discovery completed; luna-batch50-03 at 24/50 reviewed, stopped_at_usage_limit. See live checkpoint below.**
+**Status — updated 2026-11-05:** fresh output inventory and bounded exploratory review found stale
+quarantine generations and container-unreadable clips; the complete batch is not production-ready.
+See [the current-output checkpoint](#2026-11-05-current-output-investigation). The earlier initial
+70-service discovery and luna-batch50-03's 24/50 reviews remain historical evidence, not current
+acceptance; the 26 unfinished services have not been silently marked reviewed.
 **Reconciliation required before the next audit batch (2026-10-29):** the discovery report is a
 dated lead ledger, not a current defect count. Its run 1011 `supported_material` song-opening
 omission still stands: the 10-24 class scan (`storage/scratch/class-scan-20261024/summary.json`,
@@ -397,8 +401,9 @@ are retained in coverage, rather than represented as fully blind source-first re
 ## 7. Acceptance ledger and reconciled obligations (2026-10-29)
 
 This is the single output-acceptance worklist, consolidating video-plan §§4.3/4.5. Procedures are
-in §§0–6 above; production authority belongs to the programme. Reconciliation used later dated
-records, not fresh corpus checks. “Revalidate” means closure was not established, not that the
+in §§0–6 above; production authority belongs to the programme. The 10-29 reconciliation used later dated
+records, not fresh corpus checks; the explicitly scoped 11-05 checkpoint below adds current checks.
+“Revalidate” means closure was not established, not that the
 old case remains a confirmed defect. All counts below labelled historical must be recounted.
 
 | Work remaining | Completion evidence / scope |
@@ -414,6 +419,82 @@ old case remains a confirmed defect. All counts below labelled historical must b
 | Speaker proposals and unresolved identity | Reuse the 19 confirmations in `storage/scratch/preacher-proposals-20261017/answers/rulings/`; verify which have been applied before proposing changes. Preserve three can't-tell answers and the rejected 2026-03-29 visiting-speaker inference. Verify all current named assignments, including previously unchecked sermons 845/850; old 423-default/16-named and 13-model-attribution counts are dated, not current membership. Speaker automation remains disabled; no retraining is authorised here. |
 | Thumbnails and partial recordings | After editorial QA, explicitly generate deferred thumbnails for exact release membership on the correct holding disk; verify frame within current spans, image quality and current text, including existing thumbnails. P5 disclosure must work on pages, feeds and downloads as applicable. The 10-29 code review found podcast summary wording absent and MP3 tags unchecked; verify/build/test before releasing partial recordings. |
 | Exposure and release handoff | Asset inventory, Scripture outcomes, quarantine visibility and notification containment verified; deliver accepted membership/holds to programme §§0.4/7/8 for production reconciliation, Bundle A, hymn convergence, signed release, observation and rollback. Do not duplicate the programme procedure here. |
+
+### 2026-11-05 current-output investigation
+
+**Decision: not ready as a complete production upload/release batch.** This is a fresh local
+inventory and exploratory quality check, not a replacement for the acceptance protocol above.
+The [video worklist §4.1b](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md#41b-exploratory-pre-round-findings-2026-11-05)
+owns the repair actions, including the earlier scripture-refresh, audit-disk and degraded-analysis
+findings. No processing records, media assets, holds or publication states were changed.
+
+**Frozen evidence:** `storage/scratch/output-quality-20261105/`, with a consistent 328,119,170-byte
+SQL snapshot restored into the separate read-only application schema `crockenhill_audit_20261105`.
+`snapshot.sha256` binds that copy; code was `88afb351b` plus the prior two characterisation tests.
+The working database and existing audit schema were not replaced. `service-audit:packets` generated
+442 current packets. Four explicitly excluded runs (955, 1043, 1051, 1098) were removed from the
+following output inventory: **438 non-excluded completed runs, 436 main sermons and 1,276 section
+outputs marked pending/approved/published**. That section population includes held/unapproved
+content and is not release membership. Two adopting runs have no separate main sermon. Historical
+media entries for ineligible sections are not counted as required outputs.
+
+| Dimension | Checked evidence | Result and limit |
+|---|---|---|
+| Main media presence and streams | `main-media-probes.json`: actual sermon-row disk/path, 436 videos and 436 MP3s | All 872 files exist and ffprobe succeeds. This does not prove full decode, synchronisation, semantic quality or destination delivery. |
+| Main output generation | Every main video's size compared with the recorded new output; all ten size mismatches hashed against quarantine and staging (`quarantine-main-generation-mismatches.json`) | Ten stale quarantine videos: 1025, 1055, 1133, 1199, 1214, 1286, 1299, 1305, 1325, 1349. Every expected new video survives in staging with its exact recorded hash. Seven differ by >1 s in duration (1.64–39.30 s); the other three prove duration-only checks are insufficient. The other main videos were size-checked, not exhaustively hashed. |
+| Dependent audio/text generation | Both locations hashed for all ten (`stale-main-audio-transcripts.json`) | The first seven above also have older quarantine MP3s and transcripts; 1305/1325/1349's audio/text hashes agree. Recorded new cuts and actual served files therefore describe different generations for seven services. All ten retain replacement authority; their prior `historic_promotion` totals are not evidence of the new generation. |
+| Section asset access | 1,276 active section paths resolved on their recorded disks and owning batch roots (`asset-inventory.json`) | 21 paths on 16 runs are unreadable inside Docker with errno 20, “Not a directory”; their parent entries nevertheless list as directories. All 21 host files exist and match recorded hashes (`host-container-reconciliation.json`, `container-path-errors.json`, `host-missing-candidate-hashes.txt`). No loss is established. This is additional to `audit:section-assets` omitting `asset_disk`. |
+| Semantic discovery | Seeded six-service draw: 18431, 1006, 1059, 1015, 1307, 1093; separate targeted reference challenges 936/1010 | Luna/medium read complete source text, saved source-first outlines, then compared delivered text/metadata/executed spans. Six current sermon hashes match their recorded outputs. These eight text reviews are not the stratified independent apparent-pass sample and do not estimate a corpus defect rate. Source/derived text share ancestry. Selection, exclusions, packet hashes and per-service reviews are retained in `selection.json`, `packets/`, `reviews/`. |
+| Bounded decode checks | All six sampled MP3s and their videos' complete AAC streams; one complete audio/video decode (1015) | 12 audio decodes and the full 1015 audio/video decode return zero with no decoder errors. `sample-full-audio-decodes.json`, `run1015-full-av-decode-result.json`. No normal-speed semantic listening, full-corpus video decode or browser/mobile delivery certification is claimed. |
+| Audio treatment | Retained measurements plus fresh continuous EBU measurement of 1055's current first 55.38 s | 68 per-part rendition misses on 58 runs (53 video, 15 MP3; five include integrated-loudness misses). Actual 1055 AAC measures +5.6 dBTP, confirming the reported large overshoot (`run1055-current-peak.log`); it is not proof of audible clipping. A4 treats video peak as a target, not an automatic hold, and does not waive MP3/integrated misses. Diagnose the pre-AAC versus decoded-AAC transient before choosing a fix. |
+| Editorial/release fields | Current local snapshot | 421 non-excluded main sermons still use default “Visiting Speaker”; visitor status is not proven by that default. P3 remains open. 395 main thumbnail paths are blank under deliberate P2 deferral, and three recordings are marked partial; these need the planned editorial/thumbnail/P5 delivery work, not speculative identity assignments. |
+
+**Confirmed generation mechanism.** The ten mismatches are exactly the November round's ten
+section-candidate failures repaired by `sections:recut`. Its standalone
+`PrepareSectionPublicationCandidates::finishStandalonePreparation()` marks completion and
+dispatches `CleanupTemporaryFiles`, bypassing `PromoteHistoricAssets` in the normal full chain.
+The new main outputs were produced before section preparation failed. Recutting the sections
+successfully did not complete that main-output custody transition. For example, 1055's stored
+plan/video evidence says 1853.57/1853.59 s, while quarantine holds 1888.21 s. Preserve the staged
+set; repair the completion/recovery contract and verify actual destination hashes for the exact
+recovered generation before accepting it. No recovery or additional paid analysis was run.
+
+**Content leads and adjudication:**
+
+- **1307 §4665, song end:** current file hash `d9fadd21c3b678885a27bea3663686ab3ffa76b9060f7489261067a60e771a99`
+  and 160.5 s duration match the recorded 3860.12–4020.62 cut. The retained v16 edge decode puts
+  “Just a little” at 4019.36 (zero-duration tokens), “reminder” at 4019.51–4020.62, then “before”.
+  The cut therefore reaches into the following announcement according to decoded timing, under
+  a 1.5 s fade. The initial coarse cue at 4012.32 overstates the speech overlap; do not report an
+  eight-second audible leak. This is an E24 candidate for actual faded-edge verification and
+  investigation of zero-duration opening words; no existing ruling on this particular end was
+  found. `run1307-song-end-words.json` retains the evidence. No new by-ear ruling was made.
+- **False positives rejected:** X5's “1015 was preached by the operator” names **sermon 1015 /
+  run 1088**, already assigned manually, not sampled **run 1015 / sermon 950**. Its alleged
+  speaker contradiction is withdrawn. Sampled run 1015's 2.98 s start already has an operator
+  `right/keep` ruling; the broad first cue does not override it. Both corrections are retained
+  in `reviews/1015-review.md`, not silently removed from the discovery history.
+- **Reference differences are leads, not errors:** 118 stored-versus-banked strings differ, often
+  because a chapter and verse range describe the same passage. Targeted source reviews support
+  stored 1 Peter 4:7–11 on 936 and John 18:28–40 on 1010; the alternate passages are thematic/other
+  readings. Do not overwrite incumbent metadata from AI disagreement alone.
+- **Unresolved small leads:** 1059's final benediction/song edge and 18431's announced final hymn
+  need source/scope reconciliation. Announcement text does not prove singing was recorded, and
+  absence of a standalone benediction clip does not by itself violate the output contract. Keep
+  these as candidates, not confirmed missing-content defects. No substantive sermon argument
+  omission was established in the six sampled services; this is limited, correlated text evidence.
+
+The new access-failure membership is: 941 (§754/759), 988 (§1149/173672), 1009 (§1274), 1038
+(§4805), 1127 (§2043/2046), 1217 (§2670), 1222 (§2736), 1232 (§2864), 1233 (§2877), 1253
+(§4722), 1275 (§3446), 1279 (§3498), 1298 (§3813), 1313 (§3976), 1328 (§176153), 1379
+(§4623/4625/176320). Keep host bytes intact while repairing the container view.
+
+**Still unestablished:** final release membership and current song acceptance; whole-corpus
+semantic/independent review and every assembled join; full-media and real-browser delivery;
+verified speaker/partial-recording presentation; final thumbnails; fresh production identity
+census and rehearsal against production-only content; destination object identity and signed
+release. The next processing round can supply new candidates but cannot itself certify these
+dimensions. No upload or release was attempted or authorised by this investigation.
 
 ### Named residue requiring current-evidence reconciliation
 
