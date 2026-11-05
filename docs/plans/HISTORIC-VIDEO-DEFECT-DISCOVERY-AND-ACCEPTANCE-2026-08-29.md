@@ -1537,6 +1537,17 @@ right (954.1's batch-2 "known instance" was wrong: its 10 s cue is timed earlier
 The 73 counts own-section *cue* words, so it is an upper bound; recount with decoded edge words before the fix
 is measured, and add 954 (1567.85) and 1347 (1576.7) to the guard set.
 
+**Build attempt, 11-05 — the start rule contradicts the operator's own start rulings; not applied.** Word-timed
+recount (`storage/scratch/start-snap-fix-20261105/recount.json`): 87 of 98 recorded `word_pause` start moves ≥ 2 s
+drop decoded words, in 84 runs. A rule "a spoken start moved inward stops at the first sentence boundary it
+reaches" (`first-sentence-start-rule.patch` there; 138/138 word-timed edge tests green) fixed 1136 (ruled late) but
+moved **7 starts ruled right across sound**: 1137 49.62 (canary 13 — the class's own first instance), 1105 6.66
+(three rulings), 1101 20.99, 1017 8.38, 932 2.71, 1086 0.71, 1292 1292.0. Of the ruled spoken starts that moved
+inward ≥ 2 s, 8 were heard right (also 1214, 1232) and 2 late (1136, 1308). So the dropped opening that defines the
+class (1137's "Well, do have your Bibles open at Luke chapter 13.") was already heard and ruled acceptable; the batch-1
+adjudication and step 3 did not check those rulings first. **The class stands only as the ruled-late cases**
+(1136, 1308, open defects in the fixtures) until the operator decides whether such openings are acceptable.
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Weekly processing resumes after the historic import is done (R8); preparation can proceed now.
