@@ -433,7 +433,14 @@ Also:
 - back up the service artifacts and detection rulings to Sonnics **as one tar each**, verified with
   `verify-tar.py` (§6 step 5), not file by file: on 11-03 an incremental rsync would have copied 16,831 files costing
   ≈ 16 GiB on exFAT;
-- check that the ffmpeg LaunchAgent is reached from a main worker after it is pointed back.
+- check that the ffmpeg LaunchAgent is reached from a main worker after it is pointed back;
+- run `historic-import:verify-output-generations` (seconds; add `--hash` before acceptance): every
+  completed run's sermon must serve the main video the run recorded. After the 11-02 round ten
+  section-failure repairs read as completed while quarantine held each video's previous generation;
+- check output readability from a container started after the round (`docker run --rm` with the
+  staging bind), not only from `laravel.test`: on 11-05 a two-day-old `laravel.test` read 21 of the
+  round's clip directories as stale files while every fresh container read them correctly. Recreate it
+  (`sail up -d --force-recreate --no-deps laravel.test`) if they differ.
 
 ## 9. Recovery
 

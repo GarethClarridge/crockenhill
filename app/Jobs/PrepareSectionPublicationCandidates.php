@@ -32,6 +32,7 @@ use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use App\Services\Media\Audio\AudioTreatmentSettings;
 use App\Services\Media\RecordedVideoOutput;
 use App\Services\Media\Video\VideoExtractionService;
+use App\Services\Processing\ProcessingRunFailureHandler;
 use App\Services\Processing\ProcessingRunOrchestrator;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Support\ChurchServiceProcessingTimeline;
@@ -44,10 +45,12 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Throwable;
 
 /**
  * Prepare each of a run's sections for publication review.
@@ -663,7 +666,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             && PublicationCandidate::settingsMatch($provenance['audio_treatment']['settings'] ?? null, $this->processingLog, $handler->audioProfile());
     }
 
-    protected function onJobFailure(\Throwable $exception): void
+    protected function onJobFailure(Throwable $exception): void
     {
         $this->initializeStepLogging($this->processingLog->processing_id);
         $this->logStepFailed(
@@ -699,13 +702,34 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         }
 
         $this->markHistoricNestedJobCompleted();
-        $this->markProcessingRunAsCompleted($processingLog, 'completed');
 
-        $cleanup = CleanupTemporaryFiles::dispatch($processingLog);
+        if ($processingLog->historic_import_operation_id === null) {
+            $this->markProcessingRunAsCompleted($processingLog, 'completed');
+            CleanupTemporaryFiles::dispatch($processingLog);
 
-        if ($processingLog->historic_import_operation_id !== null) {
-            $cleanup->onQueue(app(HistoricProcessingThroughput::class)->queueForClass(CleanupTemporaryFiles::class));
+            return;
         }
+
+        $this->dispatchHistoricTail($processingLog);
+    }
+
+    /**
+     * End a historic run as its chain does: promotion, then cleanup, which closes the run. A recut
+     * after the chain failed at this step is the run's first chance to promote; on 11-02 ten such
+     * repairs closed their runs without it and quarantine kept each main video's previous
+     * generation. Promotion is idempotent, so a run promoted before its recut only re-verifies.
+     */
+    private function dispatchHistoricTail(MediaProcessingLog $processingLog): void
+    {
+        $throughput = app(HistoricProcessingThroughput::class);
+        $processingId = $processingLog->processing_id;
+
+        Bus::chain([
+            (new PromoteHistoricAssets($processingLog))->onQueue($throughput->queueForClass(PromoteHistoricAssets::class)),
+            (new CleanupTemporaryFiles($processingLog))->onQueue($throughput->queueForClass(CleanupTemporaryFiles::class)),
+        ])->catch(static function (Throwable $exception) use ($processingId): void {
+            app(ProcessingRunFailureHandler::class)->handle($processingId, $exception, ProcessingRunFailureHandler::PROFILE_LIVESTREAM);
+        })->dispatch();
     }
 
     private function cancelStandalonePreparation(): void
@@ -779,7 +803,7 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         ])->save();
     }
 
-    private function markHistoricNestedJobFailed(\Throwable $exception): void
+    private function markHistoricNestedJobFailed(Throwable $exception): void
     {
         $nestedJob = $this->historicNestedJob();
 

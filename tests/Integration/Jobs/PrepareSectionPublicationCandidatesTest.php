@@ -20,6 +20,7 @@ use App\Enums\ServiceSectionType;
 use App\Jobs\AutoPublishServiceSection;
 use App\Jobs\CleanupTemporaryFiles;
 use App\Jobs\PrepareSectionPublicationCandidates;
+use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\SendCompletionNotification;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
@@ -823,7 +824,14 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
     }
 
     #[Test]
-    public function a_standalone_historic_preparation_closes_the_run_and_queues_cleanup(): void
+    /**
+     * The 11-02 round's ten section-failure repairs (1025, 1055, 1133, 1199, 1214, 1286, 1299, 1305,
+     * 1325, 1349): the chain failed at section preparation, before promotion, and the standalone
+     * recut then closed the run and cleaned up without promoting, so quarantine kept the previous
+     * generation of each main video. A standalone historic preparation ends as the chain does:
+     * promotion, then cleanup, which closes the run once the outputs are in quarantine.
+     */
+    public function a_standalone_historic_preparation_promotes_before_cleanup_closes_the_run(): void
     {
         Storage::fake('local');
         Storage::fake('historic_staging');
@@ -866,11 +874,9 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             app(ServiceSectionPublicationTransitionService::class),
         );
 
-        $this->assertSame(ProcessingStatus::Completed, $processingLog->fresh()->status);
+        $this->assertNotSame(ProcessingStatus::Completed, $processingLog->fresh()->status);
         $this->assertSame('completed', HistoricImportNestedJob::query()->sole()->state);
-        Bus::assertDispatched(CleanupTemporaryFiles::class, static function (CleanupTemporaryFiles $cleanup): bool {
-            return true;
-        });
+        Bus::assertChained([PromoteHistoricAssets::class, CleanupTemporaryFiles::class]);
 
         /**
          * Run 1220, 2026-10-12: the chain's own preparation re-marked the standalone row running and
@@ -1494,6 +1500,29 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $this->assertSame(['batches/20260901-canary'], $registry->observed);
         Queue::assertPushed(PrepareSectionPublicationCandidates::class);
+    }
+
+    /** An ordinary run has nothing to promote: its standalone preparation closes it and cleans up, as before. */
+    #[Test]
+    public function a_standalone_ordinary_preparation_closes_the_run_and_queues_cleanup(): void
+    {
+        Storage::fake('local');
+        Bus::fake();
+        config(['media-processing.section_publishing.enabled' => true, 'media-processing.storage.temp_disk' => 'local']);
+
+        $processingLog = MediaProcessingLog::factory()->livestream()->completed()->create(['source_file_path' => 'temp/recut-source.mp4']);
+        $videoExtractor = $this->createStub(VideoExtractionService::class);
+
+        (new PrepareSectionPublicationCandidates($processingLog, true))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class),
+        );
+
+        $this->assertSame(ProcessingStatus::Completed, $processingLog->fresh()->status);
+        Bus::assertDispatched(CleanupTemporaryFiles::class);
+        Bus::assertNotDispatched(PromoteHistoricAssets::class);
     }
 
     #[Test]
