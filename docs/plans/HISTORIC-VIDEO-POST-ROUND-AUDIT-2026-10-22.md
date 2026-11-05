@@ -1,5 +1,9 @@
 # Historic video post-round audit
 
+**Next work — scoped 2026-11-05, not started:** [pre-round defect discovery](#2026-11-05-revised-scope-sample-to-discover-scan-to-count)
+replaces reading every service: scripted class scans over the whole corpus, a stratified sample
+read until it stops yielding new defect classes, and acceptance after the next round.
+
 **Status — updated 2026-11-05:** fresh output inventory and bounded exploratory review found stale
 quarantine generations and container-unreadable clips; the complete batch is not production-ready.
 See [the current-output checkpoint](#2026-11-05-current-output-investigation). The earlier initial
@@ -129,7 +133,7 @@ from the retired round clone.
 | Pass | Coverage | Work |
 |---|---|---|
 | A: inventory and media | Every eligible output and every excluded/held disposition | Start from the close's reconciliation (693 outputs, 0 missing, 0 live duplicate pointers, 0 failed jobs; hashes in `storage/scratch/close-final-round-20261022/`) and re-check only what it did not cover: duration versus executed spans, streams, partial-recording flags and late approvals. Decode-check all final outputs with throttled I/O, never during a cut; count failures/unreadable files explicitly. |
-| B: semantic review | Every eligible service with usable text; all its talk outputs and song bindings | Source-first outline, output reconciliation, whole-sermon coherence, metadata grounding, omitted-content review and song identity review. |
+| B: semantic review | **Amended 11-05:** a seeded, stratified discovery sample read until it stops yielding new classes, plus scripted class scans over every eligible service ([revised scope](#2026-11-05-revised-scope-sample-to-discover-scan-to-count)); not a read of every service | Source-first outline, output reconciliation, whole-sermon coherence, metadata grounding, omitted-content review and song identity review. |
 | C: independent verification | Every material finding, every assembled join, and a fixed random sample of apparent passes | Verify against the actual output and source using bounded fresh transcription or supported media inspection. Inspect source windows selected before seeing detector labels. **Fresh transcription is processing:** report the window count and cost, then wait for the operator's word before any decode or provider call. |
 | D: adjudication and handoff | Every finding and every unassessable unit | Evidence-based routing (§5), targeted stronger review where useful, deduplication by cause, applicable rulings, severity, evidence and proposed next action. |
 
@@ -160,6 +164,95 @@ queue states for pending, running, reviewed, awaiting adjudication, and evidence
 On interruption, preserve completed results and explicit partial coverage; resume only unfinished
 work after the allowance resets. A partial review never counts as complete. Batching changes
 throughput and coordination, not the review units or evidence standard.
+
+### 2026-11-05 revised scope: sample to discover, scan to count
+
+**Operator decision (11-05):** do not read every output. October's per-service review was paused
+after 94 services because it kept finding examples of classes already known, while the corpus-wide
+class scans (10-24) found and counted the real classes. This scope replaces "every eligible service"
+in Pass B for discovery. It is planned, not started; it authorises no processing, publication or
+production write, and the paid Batches API calls below wait for the operator's word.
+
+**Purpose and order.** Before the next round: find defect *classes* not yet known, each with an
+affected population and a mechanism, so the code is fixed before re-running (fix the mechanism, not
+the instance). The round regenerates most outputs (405/423 changed last time; K16 v3, the split-song
+snap and the ten stale generations all land at the next recompose), so current outputs serve
+discovery, not acceptance. Acceptance is checked after the round, on the regenerated hashes.
+
+**Inputs.** The frozen 11-05 snapshot `crockenhill_audit_20261105` and its 442 packets in
+`storage/scratch/output-quality-20261105/packets/` (about 5.8M source and 4.3M delivered tokens;
+1,934 outputs, 2,350 segments ≈ 416 joins and 3,868 edges; 1,280 song sections). Revalidate packet
+hashes first. Media checks on 1025, 1055, 1133, 1199, 1214, 1286, 1299, 1305, 1325 and 1349 use their
+staged generation, not the stale quarantine copy. Known classes are tagged, not re-reported: K16 v3
+and split-song (built, not applied), E25, E26, K6 reading groups and declined same-chapter readings,
+preacher attribution (out of scope), the "Visiting Speaker" default, P2 thumbnail deferral, the 33
+Scripture refreshes, 1225/1250 degraded analysis, and every register ruling.
+
+**1. Scripted class scans over every eligible service (no model calls).** This is the whole-corpus
+coverage.
+
+- Media: throttled `ffmpeg -v error` full decode of the 872 main files and 1,276 section clips (two
+  jobs, never during a cut; time the first 20 files before estimating the rest, roughly overnight);
+  `historic-import:verify-output-generations --hash`.
+- Text: sermon ends without a sentence end or Amen; repeated lines across a join; transcribed speech
+  in no output and under no ruling; long `other` sections; loops in stored transcripts; title or
+  reference disagreeing with the section; an order-of-service song with no section.
+- Song identity: fuzzy-match each clip's first and last lines against the bound song's catalogue
+  lyrics. `service-audit:packets` needs the lyrics added first.
+- Scan hits are review tasks, not findings.
+
+**2. Discovery sample, read to saturation.** Seed `20261105`, stratified by era, repaired versus never
+repaired, and with versus without an independent order of service. Read in batches of 15 services.
+**Stop after two consecutive batches yield no new class**; expect 30–60 services. Record membership,
+seed and allocation before reading. Record the members so the post-round acceptance draw (seed
+`20261022`) excludes them or reports them separately. A 50-service sample finds a class present in
+5% of services with 92% probability, 2% with 64% and 1% with 39%. Common classes surface quickly;
+the residual risk is a one-off that no scan detects (the 1147 shape).
+
+- Reviewer contract: Haiku 5.5 **locates and quotes, never rates severity**. October's calibration
+  showed it places defects precisely but rates boundary and identity defects as minor. Narrow
+  questions per task (edge/join window, omitted interval, metadata claim support, whole-sermon
+  coherence, song identity residue), JSON answers, with `check_citations.py` dropping any quotation
+  or timestamp not in the source. Opus adjudicates against the register, assigns §6 severity and
+  dedups by cause.
+- Re-run the 24-case calibration set (`overnight-20261023/audit/cases-key.json`,
+  `calibration-truth.json`) on the narrow tasks first; the gate is that all 8 positives are
+  *located*. A class Haiku misses goes to Sonnet 5.5.
+- Mechanics: pack each request's inputs into one file. Prefer the **Message Batches API** through the
+  app's key for fixed-shape tasks: it is reproducible, re-runnable after the round, and does not
+  spend the Claude Code allowance. With subagents instead, each is a fresh Haiku agent that reads one
+  bundle, writes one JSONL file and returns one line, with at most 4–6 concurrent and a checkpoint.
+
+**3. Each new class becomes a scan.** Write the scan, run it on the whole corpus for the affected
+population, trace the code path and record a test-first fix lead in the video plan §4.1b. Reading
+stops for a class once its scan exists.
+
+**4. Targeted reading only where a scan cannot decide** (meaning-dependent hits). Optional one-off
+cover: ask one narrow question of every sermon, e.g. "does this sermon contain material that is not
+the sermon?", for about $1 by Batches API.
+
+**5. After the round: acceptance.** Scripted checks on every regenerated output, plus §5's
+independent sample (min(P, max(30, ceil(0.10 P))), about 44 services, Sonnet or Opus, blind). Reuse
+the same bundles and prompts for the changed hashes only. Not a read of every output. The missing
+sermon-opening class check (1027) is carried as a scan in step 1 plus this sample.
+
+**Out of scope here:** Pass C fresh transcription (window count and cost first, then the operator's
+word), production census and rehearsal, browser and mobile delivery, speaker/thumbnail/P5 wording,
+and bulk listening pages (page only what needs the operator's ear after triage).
+
+**Expected cost and time (estimates from packet sizes, not measured).** Model calls: a dollar or two
+of API spend with the Batches route. Claude Code allowance: about **15–30% of a week**, almost all
+Opus build and adjudication. Calibration: the 10-16 → 10-23 week that hit the weekly limit priced at
+about $321 at API rates (Opus $312, Sonnet $8, Haiku $1, from the local transcripts), so a week ≈ $320
+in that unit. Activity outside these transcripts, such as claude.ai chats, also counts, so the
+percentages lean high. Keep Opus context small: adjudicate in fresh sessions from packed evidence
+files. About 1–1.5 days elapsed, plus the overnight decode. Measure on calibration plus the first
+batch of 15, then report actual usage before continuing.
+
+**Deliverables:** an operator summary of new classes with mechanism, affected runs, fix lead and
+whether each blocks the next round; machine-readable findings, coverage and sample ledger in
+`storage/scratch/output-review-202611xx/`; a ruling or disposition for every flag; a readiness
+statement against §0's four results; and the post-round acceptance re-run plan.
 
 ## 3. Semantic review instructions
 
@@ -360,7 +453,11 @@ under its §4.6. The song protocol remains authoritative for its measurement.
 Browser/access checks use the existing staging and production acceptance lane. This audit's source
 sample supplements, and does not silently replace, the predeclared release-membership sample.
 
-**Next execution slice:** schedule the remaining frozen services in queues of 50–100, reusing
+**Superseded 11-05 by the [revised scope](#2026-11-05-revised-scope-sample-to-discover-scan-to-count):**
+discovery no longer schedules every remaining service. The text below is kept for its obligations
+(sermon-opening class check, full decode, assembled joins, Pass C), which the revised scope carries.
+
+**Next execution slice (10-29):** schedule the remaining frozen services in queues of 50–100, reusing
 hash-valid completed reviews rather than repeating the pilot. Route flags by available evidence,
 maintain the corpus-level apparent-pass sampling ledger, and complete the triggered sermon-opening
 class check plus its disjoint follow-up sample. Keep a separate pending record for full decode,
