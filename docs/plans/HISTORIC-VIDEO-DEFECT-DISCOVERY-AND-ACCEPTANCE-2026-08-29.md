@@ -1277,9 +1277,26 @@ queue and route state are in the archive; a historical “final” label is not 
          https://claude.ai/artifact/VnbFpc9SkeyHdGUo1Tf3JC (builder `storage/scratch/split-song-1294-listening-20261104/`,
          template = round-ends page, `rulings` id `1294-s3680-gap`; B raises only the stretch by 24 dB).
          **Operator 11-05: "Yes: one song, one clip"** (saved 10:18Z) — the song carries on through the quiet stretch, so
-         §3679/§3680 should be one clip, 135–330. Nothing built: the fix belongs in detection (a quiet stretch above
-         digital zero inside one song does not split it), measured on the 8 one-song-two-clips pairs (E25 step 1, "Found beside it" (b)) before it changes 1294,
-         and it is not yet in the register.
+         §3679/§3680 should be one clip, 135–330.
+         **Built 11-05 (operator "Please build the split song logic"; closing-prayer rule declined).** Cause, not the quiet
+         stretch: 196–366 is an unobservable window (`retranscription_failed`); the draw's end (366) snapped past the
+         prayer's first line, and `TranscriptCueBoundaries::snapEdge` pulled it back to the song's last cue (196), across
+         the window; `SustainedSoundSongSections` then proposed "Unidentified singing" over the rest (230–330). Scan of
+         every snap beyond the 30 s window (`split-song-snap-20261105/scan.php`): 11 edges, 8 songs across unobservable
+         windows (1020, 1073, 1106, 1138, 1220, 1294, 1295, 1377), 3 pre-service `other`s with none (left). Fix: the
+         pull-back keeps the window's music, to the last 5 s window at `AudioTimeline::MUSIC_CUTOFF` before the next line
+         (`lastMusicEnd()`; starts mirrored, `firstMusicStart()`); no timeline → as before. A first version taking the
+         whole window was measured and rejected: 1138's window after a 33 s introduction is 5 min of near-nothing and then
+         speech (it made a 7-min "song"). Measured (`replay.php` = `ServiceStructureEnsembleReplay` on every run's latest
+         banked draws, 457 runs, read-only; `diff.txt`): 8 runs change composition. Full detection chain on those 8
+         (`chain/measure.php`, the 10-29 harness with every disk refusing writes; `before.jsonl` code stashed, `after.jsonl`):
+         **1294 one clip 136.88–334.54** (was 136.88–204.37 + 230–334.54; new flag `song_identity_unverified_from_suspect_transcript`);
+         **1073** one "In Awe And Wonder" 2698.64–2895.23 (was a 5 s micro clip + "Unidentified singing"); **1106** one clip
+         375–530.3 (the 4 s micro clip gone); **1138** the 2 s fragment becomes 487.5–520.32, still held
+         (`song_over_dead_feed`, now `song_swallows_speech`), its speech-only "Unidentified singing" §2121 unchanged;
+         1020, 1220, 1261, 1308 section ends move ≤ 11 s, cuts identical. 1295 and 1377 do not change on their latest
+         draws (the DB sections came from older composition). 5 tests in `SilenceSnapServiceTest` (red without the change).
+         Reaches the live sections at the next round's recompose; nothing applied by hand.
        - **Item 7, 1377 §4781 is not a song review: the hymn was never recorded.** The 16 s "song" is the
          announcement ("Let's stand and sing a hymn… entitled According to Your Gracious Word"), and 4245–4368 is
          −91 dB digital zero (the transcript has only "Amen" every 30 s). E14 already ends a song where the zeros

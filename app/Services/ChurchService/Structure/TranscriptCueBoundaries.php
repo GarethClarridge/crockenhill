@@ -72,6 +72,15 @@ class TranscriptCueBoundaries
      * for its words over music, running across a spoken item's edge, is the music's, not speech the
      * edge must keep whole: 1311's baptism snapped on to the end of a 30 s "Thank you." written
      * over the song after it (canary 13). A song keeps such a line: it is the song's own.
+     *
+     * A proposal past the next item's first line goes back to the section's own outermost line, but
+     * not across music the transcript could not see: no line there is no evidence the section has
+     * ended. 1294's "From Heaven You Came" was transcribed to 196 and unobservable from there to the
+     * prayer at 366; the pull-back to 196 cut 134 s of the song away, and the sound left over became a
+     * second song (operator 11-05: "one song, one clip"). The edge keeps the window's music, up to
+     * the last window that reads as music (1294: 330, before the prayer's untranscribed opening), and
+     * no further: 1138's window after a 33 s introduction is five minutes of near-nothing and then
+     * speech, which no song owns.
      */
     public function snapEdge(ServiceStructureSection $section, float $proposal, string $edge, ChurchServiceTranscript $transcript, ?AudioTimeline $timeline = null): float
     {
@@ -82,14 +91,51 @@ class TranscriptCueBoundaries
         $proposal = $edge === 'end' ? max($boundary, $proposal) : min($boundary, $proposal);
         foreach ($transcript->cues as $cue) {
             if ($edge === 'end' && $cue['start'] >= $boundary && $proposal > $cue['start']) {
-                $proposal = $boundary;
+                $proposal = $this->throughUnobservedMusic($boundary, $cue['start'], $transcript, $timeline);
             }
             if ($edge === 'start' && $cue['end'] <= $boundary && $proposal < $cue['end']) {
-                $proposal = $boundary;
+                $proposal = $this->backThroughUnobservedMusic($cue['end'], $boundary, $transcript, $timeline);
             }
         }
 
         return $proposal;
+    }
+
+    /**
+     * Where an end pulled back from a later line stops: the section's last line, or the end of the
+     * last music inside an unobservable window between that line and the later one.
+     */
+    private function throughUnobservedMusic(float $lastLineEnd, float $nextLineStart, ChurchServiceTranscript $transcript, ?AudioTimeline $timeline): float
+    {
+        if ($timeline === null) {
+            return $lastLineEnd;
+        }
+        $end = $lastLineEnd;
+        foreach ($transcript->unobservableWindows as $window) {
+            $from = max($window['start'], $lastLineEnd);
+            $to = min($window['end'], $nextLineStart);
+            $music = $to > $from ? $timeline->lastMusicEnd($from, $to) : null;
+            $end = $music === null ? $end : max($end, $music);
+        }
+
+        return $end;
+    }
+
+    /** The mirror of {@see self::throughUnobservedMusic()} for a start pushed forward past an earlier line. */
+    private function backThroughUnobservedMusic(float $previousLineEnd, float $firstLineStart, ChurchServiceTranscript $transcript, ?AudioTimeline $timeline): float
+    {
+        if ($timeline === null) {
+            return $firstLineStart;
+        }
+        $start = $firstLineStart;
+        foreach ($transcript->unobservableWindows as $window) {
+            $from = max($window['start'], $previousLineEnd);
+            $to = min($window['end'], $firstLineStart);
+            $music = $to > $from ? $timeline->firstMusicStart($from, $to) : null;
+            $start = $music === null ? $start : min($start, $music);
+        }
+
+        return $start;
     }
 
     /**

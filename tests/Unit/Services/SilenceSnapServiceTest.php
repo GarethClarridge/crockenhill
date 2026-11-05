@@ -527,6 +527,103 @@ class SilenceSnapServiceTest extends TestCase
         $this->assertLessThanOrEqual(1520.0, $result->sections[0]->endTime);
     }
 
+    /**
+     * Run 1294's "From Heaven You Came" (2021-12-19): drawn 135–366, its transcript stops at 196 and the
+     * rest of the song is a window whisper could not transcribe. A silence just past the prayer's first
+     * line at 366 sent the end back to the song's last cue, 196, across 134 s of song the transcript never
+     * saw, and the sound left over became a second "song" (operator 11-05: "one song, one clip"). The end
+     * keeps the window's music, to the last window that reads as music before the prayer's untranscribed
+     * opening at 330, including a quieter stretch inside it.
+     */
+    #[Test]
+    public function a_song_end_is_not_pulled_back_across_music_the_transcript_could_not_see(): void
+    {
+        $result = $this->service->snap($this->song1294(), $this->silenceAt367(), $this->transcript1294(),
+            AudioTimeline::fromArray(AudioTimelineFixture::payload([[135, 200, 0.7, 0.02], [200, 205, 0.06, 0.16], [205, 330, 0.6, 0.05], [330, 366, 0.02, 0.8]], 3000.0)));
+
+        $this->assertSame(330.0, $result->sections[0]->endTime);
+    }
+
+    /**
+     * Run 1138 (2024-09-01): "Let's stand and sing" at 485, music to 520, then five minutes reading as
+     * near-nothing and untranscribed speech from 820 to the talk's first line at 906.94. The end keeps
+     * the music and none of what follows it.
+     */
+    #[Test]
+    public function a_song_end_keeps_only_the_music_of_an_untranscribed_window(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 485.0, 'end' => 487.5, 'text' => "Let's stand and sing, I will glory in my Redeemer."],
+            ['start' => 906.94, 'end' => 912.04, 'text' => 'Gideon, who you can see in the top left-hand corner of the'],
+        ], 3000, ChurchServiceTranscript::SOURCE_MOCK, [['start' => 517.0, 'end' => 906.94, 'reason' => 'retranscription_failed']]);
+        $structure = ServiceStructure::fromSections([$this->section('song', 484.45, 906.0), $this->section('short_talk', 906.94, 1341.0)]);
+        $timeline = AudioTimeline::fromArray(AudioTimelineFixture::payload([[490, 520, 0.7, 0.02], [520, 820, 0.05, 0.01], [820, 906.94, 0.01, 0.8]], 3000.0));
+
+        $result = $this->service->snap($structure, $this->rmsLog([[0.0, -20.0], [907.5, -60.0], [908.0, -20.0], [3000.0, -20.0]]), $transcript, $timeline);
+
+        $this->assertSame(520.0, $result->sections[0]->endTime);
+    }
+
+    /** Without an audio timeline nothing says the window held the song, so the end returns to its last line. */
+    #[Test]
+    public function without_an_audio_timeline_a_song_end_returns_to_its_last_line(): void
+    {
+        $result = $this->service->snap($this->song1294(), $this->silenceAt367(), $this->transcript1294());
+
+        $this->assertSame(196.0, $result->sections[0]->endTime);
+    }
+
+    /** The same pull-back with every second transcribed still keeps the next item's first line out. */
+    #[Test]
+    public function a_song_end_past_the_next_line_still_returns_to_its_own_last_line(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 135.0, 'end' => 196.0, 'text' => '"From heaven you came helplessly."'],
+            ['start' => 366.0, 'end' => 370.31, 'text' => 'Those of us in church here this morning are having to wear'],
+        ], 3000, ChurchServiceTranscript::SOURCE_MOCK);
+
+        $result = $this->service->snap($this->song1294(), $this->silenceAt367(), $transcript,
+            AudioTimeline::fromArray(AudioTimelineFixture::payload([[135, 330, 0.7, 0.02]], 3000.0)));
+
+        $this->assertSame(196.0, $result->sections[0]->endTime);
+    }
+
+    /** A start is not pushed forward across music the transcript could not see either: the mirror of 1294's end. */
+    #[Test]
+    public function a_start_is_not_pushed_forward_across_music_the_transcript_could_not_see(): void
+    {
+        $transcript = ChurchServiceTranscript::fromCues([
+            ['start' => 96.0, 'end' => 100.0, 'text' => 'Let us stand to sing.'],
+            ['start' => 280.0, 'end' => 300.0, 'text' => '"Amazing grace how sweet the sound."'],
+        ], 3000, ChurchServiceTranscript::SOURCE_MOCK, [['start' => 100.0, 'end' => 280.0, 'reason' => 'retranscription_failed']]);
+        $structure = ServiceStructure::fromSections([$this->section('welcome', 0.0, 100.0), $this->section('song', 100.0, 300.0)]);
+        $timeline = AudioTimeline::fromArray(AudioTimelineFixture::payload([[0, 100, 0.02, 0.8], [100, 105, 0.05, 0.05], [105, 300, 0.7, 0.02]], 3000.0));
+
+        $result = $this->service->snap($structure, $this->rmsLog([[0.0, -20.0], [99.0, -60.0], [99.5, -20.0], [3000.0, -20.0]]), $transcript, $timeline);
+
+        $this->assertSame(105.0, $result->sections[1]->startTime);
+    }
+
+    private function song1294(): ServiceStructure
+    {
+        return ServiceStructure::fromSections([$this->section('song', 135.0, 366.0), $this->section('prayer', 366.0, 548.0)]);
+    }
+
+    private function transcript1294(): ChurchServiceTranscript
+    {
+        return ChurchServiceTranscript::fromCues([
+            ['start' => 133.0, 'end' => 135.0, 'text' => '"From heaven you came helplessly."'],
+            ['start' => 194.0, 'end' => 195.0, 'text' => '"And in the world of glory, hail."'],
+            ['start' => 195.0, 'end' => 196.0, 'text' => '"And in the world of glory, hail."'],
+            ['start' => 366.0, 'end' => 370.31, 'text' => 'Those of us in church here this morning are having to wear'],
+        ], 3000, ChurchServiceTranscript::SOURCE_MOCK, [['start' => 196.0, 'end' => 366.0, 'reason' => 'retranscription_failed']]);
+    }
+
+    private function silenceAt367(): string
+    {
+        return $this->rmsLog([[0.0, -20.0], [367.0, -60.0], [368.0, -20.0], [3000.0, -20.0]]);
+    }
+
     /** Run 949's merged sermon, as one draw detected it. */
     private function embeddedReadings(): ServiceStructure
     {

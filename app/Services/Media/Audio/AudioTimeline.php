@@ -237,6 +237,38 @@ final readonly class AudioTimeline
     }
 
     /**
+     * Where the last window of a span whose music score reaches the cut-off ends, clipped to the
+     * span; null when no window in it does.
+     */
+    public function lastMusicEnd(float $from, float $to): ?float
+    {
+        $end = null;
+
+        foreach ($this->windows as $window) {
+            if ($window['end'] > $from && $window['start'] < $to && $window['music'] >= self::MUSIC_CUTOFF) {
+                $end = min($to, $window['end']);
+            }
+        }
+
+        return $end;
+    }
+
+    /**
+     * Where the first window of a span whose music score reaches the cut-off starts, clipped to
+     * the span; null when no window in it does.
+     */
+    public function firstMusicStart(float $from, float $to): ?float
+    {
+        foreach ($this->windows as $window) {
+            if ($window['end'] > $from && $window['start'] < $to && $window['music'] >= self::MUSIC_CUTOFF) {
+                return max($from, $window['start']);
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * @param  callable(array{start: float, end: float, music: float, speech: float, singing: float}): bool  $counts
      */
     private function share(float $from, float $to, callable $counts): float
