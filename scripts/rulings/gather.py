@@ -783,6 +783,10 @@ RULED = [
     ('operator-20261103:1247-sermon-end', '2026-11-03T18:35:14Z', 1247, None, 'end', (3626.08, 3628.04),
      'Plan §4.1a step 5, after the 11-02 round, operator 11-03 on "Three Round Sermon Ends" (A the round\'s end after '
      '"In Jesus\' name we ask.", B keeping the "Amen."): "Either is fine."'),
+    ('operator-20261105:1378-s327080-start', '2026-11-05T10:36:07Z', 1378, 327080, 'start', (4358.8, 4364.78),
+     'Operator 11-05 on "Where The Second Song Starts" (round-1378-song2-start-20261105; A the 10-22 ruled start in the '
+     'silence after "What love could remember", B the 11-02 round\'s start on the fourth of four faint sounds before the '
+     'music): "Either start is fine. They are noise, but it doesn\'t really matter."'),
 ]
 # 10-24: song starts set by the operator's Intro Rule, Song Intros and Song Openings answers
 # (listening-intro-rule-20261024/record-starts.php; register D6 amended 10-24). They were stored as operator
@@ -826,6 +830,17 @@ for run, points, note in [
                     'title': None, 'edge': 'end', 'heard': points[1], 'answer': None, 'expect': 'either', 'ruled_time': None,
                     'note': 'Claude review 11-05: '+note, 'answer_source': 'claude-review', 'points': points})
 
+# 11-05, after the 11-02 round re-detected 1378's closing songs (§4618 → §4616, §272906 → §327080): "What love could
+# remember" now ends at 4360.6 (song_end_silence), 1.8 s past the 10-22 keep at 4358.8, over a −55 dB blip at
+# 4360.0–4360.2 inside the 4356.4–4361.2 silence between the songs (R11). The operator heard the louder sounds that
+# follow it the same morning ("They are noise, but it doesn't really matter"), so either end stands.
+records.append({'id': 'claude-review-20261105:1378-s4616-end', 'source': 'claude-review-20261105', 'ruled_on': '2026-11-05',
+                'ruled_at': '2026-11-05T10:50:00Z', 'run': 1378, 'output': 'section', 'section_id': 4616, 'section_type': 'song',
+                'title': 'What love could remember', 'edge': 'end', 'heard': 4360.6, 'answer': None, 'expect': 'either',
+                'ruled_time': None, 'answer_source': 'claude-review', 'points': [4358.8, 4360.6],
+                'note': 'Claude review 11-05: ends in the silence between the two closing songs, either at the 10-22 keep or '
+                        'after a −55 dB blip of the noise the operator ruled harmless on "Where The Second Song Starts".'})
+
 # 11-01, register E25: 1011 §1285 "From Heaven You Came" is a quiet solo voice from the end of a dropout (−95 dB to
 # 458.81, then −55 to −70 dB) before the congregation and band at 520. Heard on "The Muted Song Opening"
 # (muted-opening-1011-listening-20261101), the cut at 519.73 starts partway through the song; the operator ruled
@@ -844,10 +859,10 @@ records.append({'id': 'operator-20261101:1011-s1285-start', 'source': 'operator-
 # newest id-less ruling on a run replaced every other on the same edge, whatever its section (1304's §3879 start by a
 # §4884 one), and none was replaced by a later ruling that names its section (1221 §2718's 10-03 start by the 10-27
 # either).
-ruling_sections = load('section-id-drift-20261030/sections.json')
+ruling_sections = load('section-id-drift-20261105/sections.json')
 
 # Rulings whose section id now holds another item (re-detection shifts rows by section_order) take the section they
-# were heard on; see section_binding.py. Sections: section-id-drift-20261030/export-sections.php.
+# were heard on; see section_binding.py. Sections: section-id-drift-20261105/export-sections.php (re-exported after the 11-02 round).
 unbound = rebind_drifted_sections(records, ruling_sections)
 if unbound:
     sys.exit(f"no section of the ruled type near the cut heard for {unbound}; check them or re-run export-sections.php")

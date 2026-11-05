@@ -1276,6 +1276,10 @@ queue and route state are in the archive; a historical “final” label is not 
          well above digital zero; the transcript repeats one line throughout. Paged: "One Song In Two Clips"
          https://claude.ai/artifact/VnbFpc9SkeyHdGUo1Tf3JC (builder `storage/scratch/split-song-1294-listening-20261104/`,
          template = round-ends page, `rulings` id `1294-s3680-gap`; B raises only the stretch by 24 dB).
+         **Operator 11-05: "Yes: one song, one clip"** (saved 10:18Z) — the song carries on through the quiet stretch, so
+         §3679/§3680 should be one clip, 135–330. Nothing built: the fix belongs in detection (a quiet stretch above
+         digital zero inside one song does not split it), measured on the 8 one-song-two-clips pairs (E25 step 1, "Found beside it" (b)) before it changes 1294,
+         and it is not yet in the register.
        - **Item 7, 1377 §4781 is not a song review: the hymn was never recorded.** The 16 s "song" is the
          announcement ("Let's stand and sing a hymn… entitled According to Your Gracious Word"), and 4245–4368 is
          −91 dB digital zero (the transcript has only "Amen" every 30 s). E14 already ends a song where the zeros
@@ -1403,6 +1407,16 @@ queue and route state are in the archive; a historical “final” label is not 
             2731.2], the three fixtures recaptured on 11-05 so they read them. ChurchService suite green (1,241). Open,
             not built: a narrower "closing prayer through its Amen" rule for the 1007/1178/1293 gains (would need its
             own measurement; some may be redraws).
+         9. **1378's song rulings re-bound after the round (11-05).** Sections re-exported
+            (`section-id-drift-20261105/`; vs 10-30 only 1148, 1305, 1378 differ) and `gather.py` pointed at them:
+            exactly two rulings re-bind, §4618 → §4616 and §272906 → §327080. "When I Was Lost" now starts at 4364.78,
+            6 s after the 10-22 keep (4358.8), past four faint sounds (−34 to −41 dB); paged "Where The Second Song
+            Starts" https://claude.ai/artifact/VQw91tjXvLZxFGhCCtvz83 (`round-1378-song2-start-20261105/`, one clip per
+            cut + the stretch raised 18 dB). **Operator 11-05: "Either start is fine. They are noise, but it doesn't
+            really matter"** → `operator-20261105:1378-s327080-start` either [4358.8, 4364.78]. "What love could
+            remember" ends at 4360.6, over a −55 dB blip of the same noise → `claude-review-20261105:1378-s4616-end`
+            either [4358.8, 4360.6]. Both rulings recaptured into `run-1378-2026-10-23` (captured_on 11-05; old file in
+            `recapture/before/`); ruled endings 645/645.
 
 Detailed measurements and prior interpretations are in the
 [pre-freeze record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-10-29.md#41a-before-the-next-round-regression-coverage-and-combined-verification-2026-10-29).
