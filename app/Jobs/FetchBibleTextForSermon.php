@@ -13,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\FailOnException;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class FetchBibleTextForSermon implements ShouldQueue
 {
@@ -33,7 +34,12 @@ class FetchBibleTextForSermon implements ShouldQueue
             return;
         }
 
-        $scriptureOperatorService->enrichSermon($this->sermon);
+        // A passage the provider returned but that could not be stored is a failure the queue must
+        // see and retry: on 11-02, 33 refreshes discarded their passages and returned normally.
+        // Not found and unparseable references are terminal outcomes, not failures.
+        if ($scriptureOperatorService->enrichSermon($this->sermon) === 'failed') {
+            throw new RuntimeException("Scripture passage for sermon {$this->sermon->id} could not be stored.");
+        }
     }
 
     /**

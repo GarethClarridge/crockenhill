@@ -117,12 +117,15 @@ class ScripturePassageIntegrityTest extends TestCase
             $this->assertFalse(Validator::make($invalidData, ScripturePassage::validationRules())->passes(), "Validation should fail when $field is missing");
         }
 
-        // Test max length
-        foreach (['bible_id', 'normalized_reference', 'api_passage_id', 'display_reference', 'fums_token'] as $field) {
+        // Test max length. The FUMS token has none: it is api.bible's usage receipt, sent back as
+        // written, and the 11-02 round's tokens ran past 255 characters (see the next assertion).
+        foreach (['bible_id', 'normalized_reference', 'api_passage_id', 'display_reference'] as $field) {
             $invalidData = $validData;
             $invalidData[$field] = str_repeat('a', 256);
             $this->assertFalse(Validator::make($invalidData, ScripturePassage::validationRules())->passes(), "Validation should fail when $field exceeds 255 chars");
         }
+
+        $this->assertTrue(Validator::make([...$validData, 'fums_token' => str_repeat('a', 1200)], ScripturePassage::validationRules())->passes());
     }
 
     #[Test]

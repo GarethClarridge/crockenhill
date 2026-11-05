@@ -512,7 +512,7 @@ class ScriptureOperatorService
             'normalized_reference' => ['sometimes', 'required', 'string', 'max:255'],
             'api_passage_id' => ['nullable', 'string', 'max:255'],
             'display_reference' => ['nullable', 'string', 'max:255'],
-            'fums_token' => ['nullable', 'string', 'max:255'],
+            'fums_token' => ['nullable', 'string'],
             'html_content' => ['required', 'string'],
             'copyright' => ['required', 'string'],
             'fetched_at' => ['required', 'date'],

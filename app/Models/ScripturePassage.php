@@ -66,7 +66,7 @@ class ScripturePassage extends Model
             'display_reference' => ['nullable', 'string', 'max:255'],
             'html_content' => ['required', 'string', 'max:500000'],
             'copyright' => ['required', 'string', 'max:65535'],
-            'fums_token' => ['nullable', 'string', 'max:255'],
+            'fums_token' => ['nullable', 'string'],
             'fetched_at' => ['required', 'date'],
         ];
     }

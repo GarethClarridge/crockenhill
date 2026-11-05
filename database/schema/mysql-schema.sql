@@ -1095,7 +1095,7 @@ CREATE TABLE `scripture_passages` (
   `display_reference` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `html_content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `copyright` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `fums_token` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `fums_token` text COLLATE utf8mb4_unicode_ci,
   `fetched_at` timestamp NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -1860,3 +1860,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073200_stamp
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_25_222923_add_audio_timeline_path_to_media_processing_logs_table',105);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_10_22_120331_add_partial_recording_to_sermons_table',106);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_01_222802_add_quiet_recording_to_song_videos_table',107);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_05_184631_widen_fums_token_on_scripture_passages_table',108);

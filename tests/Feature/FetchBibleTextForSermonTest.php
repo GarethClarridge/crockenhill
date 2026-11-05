@@ -12,6 +12,8 @@ use App\Services\Scripture\ApiBibleClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Queue\Middleware\FailOnException;
 use Illuminate\Support\Facades\Config;
+use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\TestCase;
 
 class FetchBibleTextForSermonTest extends TestCase
@@ -99,6 +101,83 @@ class FetchBibleTextForSermonTest extends TestCase
         $this->assertStringContainsString('For God so loved', $passage->html_content);
     }
 
+    /**
+     * The 11-02 round's refresh discarded 33 valid passages because api.bible sent FUMS tokens
+     * longer than 255 characters. The token is the provider's usage receipt and is sent back as
+     * written, so it is stored whole, never truncated.
+     */
+    #[Test]
+    public function a_provider_token_longer_than_255_characters_is_stored_whole(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'reference' => 'John 3:16',
+            'scripture_passage_id' => null,
+        ]);
+        $token = str_repeat('x', 1200);
+
+        $client = $this->createMock(ApiBibleClient::class);
+        $client->expects($this->once())->method('searchPassage')->willReturn(new ApiBiblePassageResult(
+            passageId: 'JHN.3.16',
+            displayReference: 'John 3:16',
+            htmlContent: '<p>For God so loved the world.</p>',
+            copyright: 'NIV Copyright',
+            fumsToken: $token,
+        ));
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        FetchBibleTextForSermon::dispatchSync($sermon);
+
+        $passage = ScripturePassage::query()->where('normalized_reference', 'John 3:16')->sole();
+        $this->assertSame($passage->id, $sermon->fresh()->scripture_passage_id);
+        $this->assertSame($token, $passage->fums_token);
+    }
+
+    /**
+     * A refresh that could not store its passage failed: the job says so, so the queue retries it
+     * and records it, instead of returning normally over discarded passage data.
+     */
+    #[Test]
+    public function a_passage_that_cannot_be_stored_fails_the_job(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'reference' => 'John 3:16',
+            'scripture_passage_id' => null,
+        ]);
+
+        $client = $this->createStub(ApiBibleClient::class);
+        $client->method('searchPassage')->willReturn(new ApiBiblePassageResult(
+            passageId: 'JHN.3.16',
+            displayReference: 'John 3:16',
+            htmlContent: '<script>nothing a page may show</script>',
+            copyright: 'NIV Copyright',
+            fumsToken: null,
+        ));
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('could not be stored');
+
+        FetchBibleTextForSermon::dispatchSync($sermon);
+    }
+
+    /** A reference with no passage to find is a terminal outcome, not a failure. */
+    #[Test]
+    public function a_reference_the_provider_cannot_find_does_not_fail_the_job(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'reference' => 'John 3:16',
+            'scripture_passage_id' => null,
+        ]);
+
+        $client = $this->createStub(ApiBibleClient::class);
+        $client->method('searchPassage')->willReturn(null);
+        $this->app->instance(ApiBibleClient::class, $client);
+
+        FetchBibleTextForSermon::dispatchSync($sermon);
+
+        $this->assertNull($sermon->fresh()->scripture_passage_id);
+    }
+
     public function test_reuses_cached_passage_when_not_stale(): void
     {
         $sermon = Sermon::factory()->create(['reference' => 'John 3:16']);
@@ -142,11 +221,11 @@ class FetchBibleTextForSermonTest extends TestCase
         $client = $this->createMock(ApiBibleClient::class);
         $client->expects($this->once())
             ->method('searchPassage')
-            ->willThrowException(new \RuntimeException('api.bible search failed with status 429 after retries'));
+            ->willThrowException(new RuntimeException('api.bible search failed with status 429 after retries'));
 
         $this->app->instance(ApiBibleClient::class, $client);
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $this->expectExceptionMessageMatches('/429/');
 
         FetchBibleTextForSermon::dispatchSync($sermon);
