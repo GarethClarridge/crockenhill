@@ -266,7 +266,9 @@ abstract class RuledEndingsTestCase extends TestCase
     protected function latestRulings(array $fixture, array $ruling): array
     {
         $own = [['id' => 'the fixture\'s ruling', ...$ruling]];
-        $capturedOn = $fixture['captured_on'] ?? null;
+        // A live cut recomputed on the capture's own evidence after a rule change (`live_revision`) was heard as
+        // that cut: a ruling given on it by then applies, as one given by the capture date does (1105, 11-06).
+        $capturedOn = max($fixture['captured_on'] ?? '', $fixture['live_rebaselined_on'] ?? '') ?: null;
         if ($capturedOn === null) {
             return $own;
         }

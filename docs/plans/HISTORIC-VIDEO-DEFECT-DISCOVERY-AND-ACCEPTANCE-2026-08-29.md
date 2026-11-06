@@ -1548,6 +1548,25 @@ class (1137's "Well, do have your Bibles open at Luke chapter 13.") was already 
 adjudication and step 3 did not check those rulings first. **The class stands only as the ruled-late cases**
 (1136, 1308, open defects in the fixtures) until the operator decides whether such openings are acceptable.
 
+**Built 11-06 (operator: K19, then "Three Sermon Starts").** K19: a start may drop only an opening invitation, and
+keeping it is preferred. `CueSafeExtractionPlan::keptOpeningInvitation()` (spoken starts only; song starts keep their
+own sentence trim): a start the pause rule moved inward and left inside a sentence goes back to that sentence's
+start; then each whole sentence it passed comes back while it is an invitation or the reading's announcement
+(`OPENING_INVITATION`: "Bibles", chapter, verse, "turn to/with", "open at/to"; the singular "Bible" left out for
+handovers), stopping at the first that is not. Boundaries are decoded sentence ends only, never the window's opening
+(that version moved recording starts to 0.0 against starts ruled right on 1086, 1101, 1017, 932). Operator 11-06:
+1105 B (whole sentence, 5.55) better; 1292 A (the leader's "Thank you, Lisa." stays out) better; 1233 neither, start at
+about 27:31 after the handover (`at` 1651.0, an open defect from its next capture). **Corpus replay**
+(`storage/scratch/start-snap-fix-20261105/replay.php`, read-only `forSpans`/`forSection` from recorded original
+edges; baseline 728/729 reproduce the recorded cuts): **11 of 729 spoken starts change, in 11 runs, all earlier**:
+invitations or announcements 1137, 1011, 1074, 1207, 1257 (join), 1302, 1010; a sentence completed 1105, 1065; the
+reading's first word 1339; silence 1129. Not reached: 1136 and 1308 (detection's start is already inside the opening;
+still open defects) and 1354 (detection mid-sentence). Fixtures: the 10 changed captures cannot be re-captured until
+the next round's edge step asks K16 v3 on their runs, so their `live` cuts were set on their own evidence
+(`rebaseline.py`, originals in `recapture/before/`) with a `live_revision` and `live_rebaselined_on`, which
+`latestRulings()` reads with `captured_on`. Rulings: `operator-20261106:*` for 1137 (either 45.0/49.62), 1105, 1292,
+1233, and K18's 990/1053 (outward). Ruled endings 659/659; word-timed edges 100/100; full suite 11,026 green.
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Weekly processing resumes after the historic import is done (R8); preparation can proceed now.

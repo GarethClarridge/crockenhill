@@ -854,6 +854,38 @@ records.append({'id': 'operator-20261101:1011-s1285-start', 'source': 'operator-
                         'is starting the clip halfway through the song." Then: "A, but we should flag it, as we do for broken '
                         'talk recordings." The solo starts at 458.81, after a dropout.'})
 
+# 11-06, register K19 (a start may drop only an opening invitation; keeping it is preferred) and the operator's answers on
+# "Three Sermon Starts" (start-rule-listening-20261106; A the current start, B the K19 start rule's). 1137's 10-08 keep at
+# 49.62 drops "Well, do have your Bibles open at Luke chapter 13."; K19 names that very sentence, so either start stands.
+records.append({'id': 'operator-20261106:1137-sermon-start', 'source': 'operator-20261106', 'ruled_on': '2026-11-06',
+                'ruled_at': '2026-11-06T00:30:00Z', 'run': 1137, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon',
+                'title': None, 'edge': 'start', 'heard': 45.0, 'answer': None, 'expect': 'either', 'ruled_time': None, 'points': [45.0, 49.62],
+                'note': 'Operator 11-06 (K19), on this start\'s dropped "Well, do have your Bibles open at Luke chapter 13.": "Yes, but '
+                        'only an invitation (and even here I\'d rather have it included)." Not a listening of 45.0.'})
+for run, ruled_at, expect, heard, ruled, note in [
+    (1105, '2026-11-06T10:05:10Z', 'keep', 5.55, None, '"B is better": opens after "…Hosea and chapter 5.", not inside "We\'re '
+     'taking │ our way" (6.66, ruled right three times in October).'),
+    (1292, '2026-11-06T10:04:52Z', 'keep', 1292.0, None, '"A is better": opens after the leader\'s "Thank you, Lisa.", not before '
+     'it (1291.44).'),
+    (1233, '2026-11-06T10:06:42Z', 'at', 1647.73, 1651.0, '"Neither are great. Should start at about 27:31 after the handover" '
+     '(A 1647.73 after "I would love that.", B 1646.70).'),
+]:
+    records.append({'id': f'operator-20261106:{run}-sermon-start', 'source': 'operator-20261106', 'ruled_on': '2026-11-06',
+                    'ruled_at': ruled_at, 'run': run, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon', 'title': None,
+                    'edge': 'start', 'heard': heard, 'answer': None, 'expect': expect, 'ruled_time': ruled,
+                    'note': 'Operator 11-06 on "Three Sermon Starts": '+note})
+
+# 11-06, register K18 (the preacher's introduction before the sermon's reading is in the sermon's media, however long):
+# the operator on the two 10-18 keeps that start the sermon after such an introduction (talk_opening_lost, plan §4.1b).
+for run, heard, note in [
+    (990, 87.0, 'the 0–87 s "Introduction to the Scripture reading" ("This evening to 1 Timothy and chapter 3…"), typed other'),
+    (1053, 72.81, 'the 0–72.8 s in no section ("Verses 1 to 21. I thought that I\'d worked it just right…")'),
+]:
+    records.append({'id': f'operator-20261106:{run}-sermon-start', 'source': 'operator-20261106', 'ruled_on': '2026-11-06',
+                    'ruled_at': '2026-11-06T11:00:00Z', 'run': run, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon',
+                    'title': None, 'edge': 'start', 'heard': heard, 'answer': None, 'expect': 'outward', 'ruled_time': None,
+                    'note': f'Operator 11-06 (K18): "{run} - should be in": the sermon starts before {note}. Supersedes the 10-18 keep.'})
+
 # A section ruling the page recorded without a section id is on the run's section of its type whose edge is nearest
 # the cut heard, as RuledEndingsTestCase::latestRulings() and the round's analyze.py read it. Without that binding the
 # newest id-less ruling on a run replaced every other on the same edge, whatever its section (1304's §3879 start by a

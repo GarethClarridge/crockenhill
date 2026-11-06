@@ -613,6 +613,107 @@ class WordTimedOutputEdgesTest extends TestCase
     }
 
     /**
+     * The largest pause in 1137's window was the closing margin after "Luke chapter 13.", 0.08 s longer
+     * than the pause detection's start sat in, so the sermon opened after its first sentence
+     * (pre-round discovery, 11-05: 87 starts in 84 runs moved inward past decoded words). An opening
+     * invitation is better kept and a start never opens inside a sentence, but another speaker's
+     * sentence stays out (K19 and the operator's 1105/1292 answers, 2026-11-06).
+     */
+    #[Test]
+    #[DataProvider('startsMovedPastASentence')]
+    public function a_start_moved_inward_keeps_an_opening_invitation_and_never_opens_inside_a_sentence(array $cues, array $words, float $original, float $expected): void
+    {
+        $log = $this->logWithCues($cues);
+        $this->bankWindow($log, $original, $words);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => $original, 'end_time' => 5000.0]]);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    public static function startsMovedPastASentence(): array
+    {
+        return [
+            '1137 sermon keeps "Well, do have your Bibles open"' => [[
+                ['start' => 43.16, 'end' => 45.0, 'text' => 'as soon as possible.'],
+                ['start' => 45.0, 'end' => 50.0, 'text' => 'Well, do have your Bibles open at Luke chapter 13.'],
+            ], [
+                ['start' => 42.30, 'end' => 42.44, 'word' => ' as'],
+                ['start' => 42.48, 'end' => 43.00, 'word' => ' soon'],
+                ['start' => 43.00, 'end' => 43.28, 'word' => ' as'],
+                ['start' => 43.28, 'end' => 44.34, 'word' => ' possible'],
+                ['start' => 44.38, 'end' => 44.82, 'word' => '.'],
+                ['start' => 45.68, 'end' => 45.68, 'word' => ' Well'],
+                ['start' => 45.68, 'end' => 45.68, 'word' => ','],
+                ['start' => 45.68, 'end' => 45.68, 'word' => ' do'],
+                ['start' => 45.80, 'end' => 45.80, 'word' => ' have'],
+                ['start' => 45.83, 'end' => 46.13, 'word' => ' your'],
+                ['start' => 46.13, 'end' => 46.21, 'word' => ' B'],
+                ['start' => 46.21, 'end' => 46.61, 'word' => 'ibles'],
+                ['start' => 46.61, 'end' => 46.98, 'word' => ' open'],
+                ['start' => 46.98, 'end' => 47.36, 'word' => ' at'],
+                ['start' => 47.36, 'end' => 48.12, 'word' => ' Luke'],
+                ['start' => 48.12, 'end' => 48.91, 'word' => ' chapter'],
+                ['start' => 48.91, 'end' => 49.60, 'word' => ' 13'],
+                ['start' => 49.60, 'end' => 49.62, 'word' => '.'],
+            ], 45.0, 45.0],
+            '1105 sermon opens on its whole sentence, not inside "We are taking"' => [[
+                ['start' => 0.0, 'end' => 7.15, 'text' => "Let your Bibles open at Hosea and chapter 5. We're taking"],
+            ], [
+                ['start' => 0.00, 'end' => 0.33, 'word' => ' your'],
+                ['start' => 0.33, 'end' => 0.38, 'word' => ' B'],
+                ['start' => 0.41, 'end' => 0.83, 'word' => 'ibles'],
+                ['start' => 0.83, 'end' => 1.18, 'word' => ' open'],
+                ['start' => 1.18, 'end' => 1.41, 'word' => ' at'],
+                ['start' => 2.08, 'end' => 2.08, 'word' => ' H'],
+                ['start' => 2.19, 'end' => 2.98, 'word' => 'ose'],
+                ['start' => 2.98, 'end' => 3.29, 'word' => 'a'],
+                ['start' => 3.29, 'end' => 4.22, 'word' => ' and'],
+                ['start' => 4.22, 'end' => 4.82, 'word' => ' chapter'],
+                ['start' => 5.18, 'end' => 5.26, 'word' => ' 5'],
+                ['start' => 5.26, 'end' => 5.55, 'word' => '.'],
+                ['start' => 5.55, 'end' => 5.78, 'word' => ' We'],
+                ['start' => 6.15, 'end' => 6.46, 'word' => "'re"],
+                ['start' => 6.46, 'end' => 6.66, 'word' => ' taking'],
+                ['start' => 7.66, 'end' => 8.06, 'word' => ' our'],
+                ['start' => 8.06, 'end' => 8.10, 'word' => ' way'],
+                ['start' => 8.10, 'end' => 8.14, 'word' => '.'],
+            ], 0.0, 5.55],
+            '1292 reading leaves out the leader\'s "Thank you, Lisa."' => [[
+                ['start' => 1286.56, 'end' => 1290.64, 'text' => "I'll ask Lisa, if she will please, to come up and bring the"],
+                ['start' => 1290.64, 'end' => 1291.44, 'text' => 'Bible reading to us.'],
+            ], [
+                ['start' => 1285.70, 'end' => 1285.82, 'word' => ' I'],
+                ['start' => 1285.82, 'end' => 1286.61, 'word' => "'ll"],
+                ['start' => 1286.62, 'end' => 1287.42, 'word' => ' ask'],
+                ['start' => 1287.45, 'end' => 1287.76, 'word' => ' Lisa'],
+                ['start' => 1287.76, 'end' => 1287.84, 'word' => ','],
+                ['start' => 1287.91, 'end' => 1287.96, 'word' => ' if'],
+                ['start' => 1287.96, 'end' => 1288.11, 'word' => ' she'],
+                ['start' => 1288.11, 'end' => 1288.31, 'word' => ' will'],
+                ['start' => 1288.41, 'end' => 1288.59, 'word' => ' please'],
+                ['start' => 1288.76, 'end' => 1288.76, 'word' => ','],
+                ['start' => 1288.79, 'end' => 1288.91, 'word' => ' to'],
+                ['start' => 1288.96, 'end' => 1289.21, 'word' => ' come'],
+                ['start' => 1289.21, 'end' => 1289.37, 'word' => ' up'],
+                ['start' => 1289.38, 'end' => 1289.66, 'word' => ' and'],
+                ['start' => 1289.66, 'end' => 1289.89, 'word' => ' bring'],
+                ['start' => 1289.89, 'end' => 1290.25, 'word' => ' the'],
+                ['start' => 1290.25, 'end' => 1290.60, 'word' => ' Bible'],
+                ['start' => 1290.64, 'end' => 1291.10, 'word' => ' reading'],
+                ['start' => 1291.18, 'end' => 1291.27, 'word' => ' to'],
+                ['start' => 1291.27, 'end' => 1291.43, 'word' => ' us'],
+                ['start' => 1291.44, 'end' => 1291.44, 'word' => '.'],
+                ['start' => 1291.60, 'end' => 1291.60, 'word' => ' Thank'],
+                ['start' => 1291.62, 'end' => 1291.69, 'word' => ' you'],
+                ['start' => 1291.69, 'end' => 1291.75, 'word' => ','],
+                ['start' => 1291.75, 'end' => 1291.88, 'word' => ' Lisa'],
+                ['start' => 1291.88, 'end' => 1292.00, 'word' => '.'],
+            ], 1290.64, 1292.0],
+        ];
+    }
+
+    /**
      * A decode smeared over the edge says nothing about where the words were said: 932's "We" ran
      * 20 s across the sermon's start and its later words collapsed to one instant, and 1237's
      * "busy" ran 6 s across it. The start moved inward to the pause after them and dropped the

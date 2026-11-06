@@ -31,6 +31,13 @@ class CueSafeExtractionPlan
     private const CUE_BOUNDARY_TOLERANCE = 0.05;
 
     /**
+     * An opening invitation or a reading's announcement (K19, T4): "do have your Bibles open at Luke
+     * chapter 13", "Will you turn with me", "Deuteronomy chapter 24, verses 1-4". The singular "Bible"
+     * is left out: a leader's handover names "the Bible reading" and is not the reading's.
+     */
+    private const OPENING_INVITATION = '/\\b(?:bibles|chapters?|verses?|turn\\s+(?:with|to|in)|open\\s+(?:at|to|your|with))\\b/iu';
+
+    /**
      * How far after the next cue's start a K16 kept line's last word may be decoded and still be that line's:
      * whole-second cues ran 0.01–0.30 s ahead of the words at 1193, 1031 and 1375 (defect-fix plan F6, 10-30).
      */
@@ -1522,9 +1529,12 @@ class CueSafeExtractionPlan
      */
     private function placedEdge(MediaProcessingLog $log, array $words, array $window, array $cues, float $original, string $edge, bool $songEnds, ?string $closingLine = null): array
     {
-        $decision = $this->wordPause($words, $this->withoutClippedOpening($words, $window, $cues), $original, $edge, $closingLine);
+        $unclipped = $this->withoutClippedOpening($words, $window, $cues);
+        $decision = $this->wordPause($words, $unclipped, $original, $edge, $closingLine);
 
         if ($edge === 'start') {
+            // A song start drops the rest of a spoken sentence on purpose ({@see self::afterSongOpeningSentence()}).
+            $decision = $songEnds ? $decision : $this->keptOpeningInvitation($words, $unclipped, $original, $decision);
             $decision = $this->keptAtHeardStart($log, $words, $original, $decision);
 
             return $songEnds ? $this->keptMusicalOpening($log, $original, $decision) : $decision;
@@ -3331,6 +3341,69 @@ class CueSafeExtractionPlan
         // At the sentence's last word; the spoken-end tail then gives it room.
         return ['time' => $pause['start'], 'chosen_pause' => ['start' => $pause['start'], 'end' => $pause['end']],
             'word_before' => $pause['word_before'], 'word_after' => $pause['word_after']];
+    }
+
+    /**
+     * A start the pause rule moved inward keeps an opening invitation it passed, and never opens inside
+     * a sentence (K19, operator 2026-11-06). The largest pause in 1137's window was the closing margin
+     * after "Luke chapter 13.", 0.08 s longer than the pause before "Well, do have your Bibles open",
+     * so the sermon opened after that invitation (pre-round discovery, 2026-11-05: 87 starts in 84 runs
+     * moved inward past decoded words). A start the move left inside a sentence goes back to that
+     * sentence's start (1105's "We're taking │ our way", heard better whole). Then each whole sentence
+     * the move passed comes back while it is an invitation or the reading's announcement, nearest the
+     * cut first; another sentence stays out and stops the walk: the leader's "Thank you, Lisa." (1292)
+     * and a handover's reply (1233) were heard as not the reading's (operator, 2026-11-06).
+     *
+     * A boundary is a pause between a decoded sentence end and a word. The window's opening is not one:
+     * recordings that begin mid-speech opened at their first fragment, against starts ruled right
+     * there. Dropping the tail of the sentence before the item stands: that tail is no sentence of its
+     * own (1214's "Lord."). A start is never carried earlier than detection put it.
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
+     * @param  array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}  $decision
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
+     */
+    private function keptOpeningInvitation(array $words, array $window, float $original, array $decision): array
+    {
+        if (isset($decision['candidate_anchors']) || $decision['time'] <= $original + self::CUE_BOUNDARY_TOLERANCE) {
+            return $decision;
+        }
+
+        $placed = static fn (array $pause): float => max($pause['start'], min($original, $pause['end']));
+        $boundaries = array_values(array_filter($this->pauses($words, $window), fn (array $pause): bool => $pause['word_after'] !== null
+            && $pause['word_before'] !== null && $this->endsSentence($pause['word_before']['word'])
+            && $pause['word_after']['end'] - $pause['word_after']['start'] <= self::ANCHOR_REACH
+            && $placed($pause) >= $original - 0.001 && $placed($pause) < $decision['time'] - self::CUE_BOUNDARY_TOLERANCE));
+        usort($boundaries, static fn (array $a, array $b): int => $placed($b) <=> $placed($a));
+
+        if ($boundaries === []) {
+            return $decision;
+        }
+
+        $kept = null;
+        $until = $decision['time'];
+        $before = $decision['word_before'];
+
+        if ($before !== null && ! $this->endsSentence($before['word'])) {
+            $kept = array_shift($boundaries);
+            $until = $placed($kept);
+        }
+
+        foreach ($boundaries as $pause) {
+            $sentence = implode('', array_column(array_filter($words, static fn (array $word): bool => ($word['start'] + $word['end']) / 2 >= $placed($pause)
+                && ($word['start'] + $word['end']) / 2 < $until), 'word'));
+
+            if (preg_match(self::OPENING_INVITATION, $sentence) !== 1) {
+                break;
+            }
+
+            $kept = $pause;
+            $until = $placed($pause);
+        }
+
+        return $kept === null ? $decision : ['time' => $placed($kept), 'chosen_pause' => ['start' => $kept['start'], 'end' => $kept['end']],
+            'word_before' => $kept['word_before'], 'word_after' => $kept['word_after']];
     }
 
     private function endsSentence(string $text): bool
