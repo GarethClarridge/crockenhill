@@ -1592,11 +1592,36 @@ with a timeline. Fixtures: 21 entries in 17 captures take their new cuts on thei
 refuse with `edge_word_timings_missing` until the next round's edge step decodes them. Rulings
 `operator-20261106:1040-sermon-start` (either) and `:1154-sermon-start` (keep). Ruled endings 659/659.
 
-**Supplemental boundary lead review, 11-06 (operator requested two Luna rounds).**
-60 additional services / 640 section contexts from the frozen 11-05 packets were reviewed, then
-leads were assessed against source text and existing rulings. No new boundary defect was confirmed;
-1208's unlabelled Scripture introduction and 1259's worship reflection remain classification leads,
-not established output loss. The earlier report calling 1294's song gap unresolved is corrected:
+**Known start misses, 11-06 evening (operator "Yes to all").** Luna round 4 A/B not resumed (operator: no new leads).
+*1308 BUILT:* the sermon start was word-placed at 1513.54, then `outOfDeadFeed` moved it 35 s inward to 1548.8: the reading
+was spoken into a feed on the −80 dB dropout floor (about half its frames below it, none at the −48 dB threshold), so the
+quiet verses counted as dead feed. `CueSafeExtractionPlan::transcribedSpeechSounds()`: a spoken start does not move out of a
+"dead feed" when a transcript cue beginning inside the skipped stretch sounds (≥ half its frames above the floor). Of 90
+dead-feed moves, cues sound only in 1308's (52–83 % live); 1347's and 1020's cues lie over digital zero (Whisper fallback
+cues) and stay cut. Replay (`storage/scratch/dead-feed-speech-20261106/`, read-only, vs `start-snap-fix-20261105/k19.json`):
+**2 of 729 spoken starts change** — 1308 1548.8 → 1513.54 and 928 span 1 2599.14 → 2596.73 (its quiet "Do be encouraged to
+have your Bible open at Joshua chapter 8", peak −58 dB, no longer clipped; unruled span). Fixtures rebaselined on their own
+evidence (`rebaseline.py`, `live_revision`); ruled endings 659/659, full suite 11,041 green, Pint, PHPStan.
+*Still open on 1308:* detection (1511.38) sits inside "Colossians chapter 4, starting to read at verse 2.", so K19 cannot
+regain it — K19 never carries a start earlier than detection. Lifting that for an invitation sentence is a design call
+(song-adjacent starts such as 1354, cf. 1154's hard-cut answer).
+*1136 re-ruled:* source limitation (`operator-20261106:1136-sermon-start`, keep 15.06): dead feed 1.7–15.3 s (≈ −90 dB),
+speech resumes at 15.36. *1354:* within K19 (only the invitation is dropped; the repeated "Philippians chapter 3" stays).
+*1301:* known miss (Romans named inside the reading section). *1233 / opening thanks:* ≈ 25 spoken starts open on
+"Thank you, <name>."; the operator preferred it out on 1292 and 1233. Page "Opening Thanks"
+(`storage/scratch/thanks-listening-20261106/`, 941, 1128, 1230, 1117, 1258) asks before any rule.
+
+**Supplemental boundary lead review, 11-06 (four Luna rounds requested; fourth partial).**
+100 services / 1,116 section contexts from the frozen 11-05 packets have completed reviews, with
+leads assessed against source text and existing rulings. Round 3 added 30 / 354; round 4 group C
+added 10 / 122 before the agent usage limit. Its other 20 services / 205 sections remain pending,
+with exact resume membership in the audit checkpoint. No new boundary defect was confirmed;
+1208/1245's unlabelled Scripture introductions, 1259's worship reflection and 18426's notices/video
+material remain classification leads, not established output loss. The 1326 prayer split was
+rejected after correcting a bad citation and applying the closing-prayer convention; 1311's
+testimony ending already has a matching keep ruling. No-lead results do not clear known defects
+such as 1136 or validate the K18 fix against later outputs.
+The earlier report calling 1294's song gap unresolved is corrected:
 the operator already settled continuity and item 8 above records the built fix. No processing or
 acceptance state changed. Exact membership, lead dispositions, declared transcript blind spots and
 the proposed deduplicated gap queue are in the

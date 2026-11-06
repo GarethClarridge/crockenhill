@@ -1,8 +1,10 @@
 # Historic video post-round audit
 
-**Supplemental checkpoint — 2026-11-06:** two operator-requested Luna boundary-review rounds
-covered 60 additional services / 640 sections on the frozen 11-05 packets. No new boundary defect
-was confirmed. See [the review record and gap follow-up](#2026-11-06-supplemental-luna-boundary-reviews)
+**Supplemental checkpoint — 2026-11-06:** three complete operator-requested Luna boundary-review
+rounds plus 10 services of a fourth covered **100 services / 1,116 sections** on the frozen 11-05
+packets. Round 4's other 20 services remain pending after the agent usage limit; exact membership
+is recorded below. No new boundary defect was confirmed. See
+[the review record and gap follow-up](#2026-11-06-supplemental-luna-boundary-reviews)
 below; this does not clear outputs or replace the parallel source-audio, audiovisual, identity
 and delivery review. The 11-05 status paragraphs below are dated context.
 
@@ -58,22 +60,27 @@ publication, production writes or new provider calls.
 
 **Scope and evidence.** The operator requested Luna agents to generate section-boundary leads
 for coordinator assessment without disturbing the separate processing-output review, then requested
-another round. Three `gpt-6-luna` agents per round reviewed timestamped source context around section
-starts and ends, with expanded context for ambiguous transitions and uncovered speech. Round 2
-used ±45-second windows; truncated combined reads were recovered with bounded per-service reads.
+another round and subsequently two more rounds with a write-up. Three `gpt-6-luna` agents per round
+reviewed timestamped source context around section starts and ends, with expanded context for
+ambiguous transitions and uncovered speech. From round 2, reviews used ±45-second windows;
+truncated combined reads were recovered with bounded per-service reads.
 These were boundary-window reviews, not full line-by-line transcript reads or audio listening.
 Agent counts and confidence were checked by the coordinator, not accepted at face value.
 
 Inputs: `storage/scratch/output-quality-20261105/packets/{run}/packet.json`, `delivered.json`
 and `source.txt`, from `crockenhill_audit_20261105`. Selection continued the existing
 `storage/scratch/output-review-20261105/sample/sample-ledger.json` after its first 45 services:
-round 1 ranks 46–75, round 2 ranks 76–105. This is supplemental operator-requested lead discovery,
+round 1 ranks 46–75, round 2 ranks 76–105, round 3 ranks 106–135, round 4 ranks 136–165.
+Only round 4 ranks 156–165 have a completed review report. This is supplemental lead discovery,
 not a reopening of that earlier sample's stopping rule or a new acceptance sample. Section counts
 were checked from the packet JSON. All 30 round-2 source/delivered file hashes matched their packet
-manifests; this verifies frozen-input integrity, not correspondence to later live generations.
+manifests. All 60 planned round-3/4 packets also passed both hash checks before review; the 20
+unfinished reviews receive no semantic coverage credit from that check. Hashes verify frozen-input
+integrity, not correspondence to later live generations.
 No code, database, media, queue, processing or publication changes were made during these reviews.
 The findings below preserve the agent messages and coordinator dispositions; no separate per-service
-answer files or usage measurements were captured for these two rounds.
+answer files or token/cost measurements were captured for these rounds. Agents reported the account
+usage limit during round 4; no automatic credit purchase or provider workaround was attempted.
 
 | Round | Agent group | Runs | Sections |
 |---|---|---|---:|
@@ -83,8 +90,13 @@ answer files or usage measurements were captured for these two rounds.
 | 2 | A | 1325, 1177, 1240, 1317, 1114, 1030, 1218, 1076, 1334, 1225 | 123 |
 | 2 | B | 1316, 1049, 1162, 1254, 1029, 1122, 1083, 1303, 986, 18433 | 94 |
 | 2 | C | 950, 1208, 957, 988, 1058, 1284, 1259, 1318, 1239, 1135 | 115 |
+| 3 | A | 1153, 18423, 1219, 947, 1322, 1282, 1046, 1047, 1157, 1261 | 105 |
+| 3 | B | 1136, 1258, 1315, 18430, 1326, 994, 1188, 1063, 1198, 971 | 103 |
+| 3 | C | 1245, 1366, 949, 18426, 1106, 18434, 1141, 18427, 1299, 1357 | 146 |
+| 4 (partial) | C | 1248, 1033, 1231, 1097, 1279, 1160, 1173, 1311, 941, 18435 | 122 |
 
-Totals: round 1 **30 services / 308 sections**; round 2 **30 / 332**; combined **60 / 640**.
+Completed coverage: round 1 **30 services / 308 sections**; round 2 **30 / 332**;
+round 3 **30 / 354**; round 4 **10 / 122**; combined **100 / 1,116**.
 These counts describe inspected section contexts, including contexts with insufficient text;
 they are not counts of boundaries proven correct. No new boundary defect was confirmed, and
 no service was cleared for release by this exercise.
@@ -107,8 +119,42 @@ are different evidence; a transcript cue spanning either edge does not prove a c
 | 1049 / song §174158 | Section starts 3862.28; earlier hymn words are followed by another invitation at 3866.26–3867.88. | Rejected as a new defect: quoted lyrics do not prove singing. Existing `sentence-listening-20261026:174158-start` heard 3866.22 and records `expect: keep`; no new contrary audio evidence. |
 | 1325 / prayer §4121 | Prayer starts 908.16; 884.36–892.54 is a handover asking Richard to lead prayer. | Ordinary handover, with the prayer beginning “Shall we bow our heads in prayer?” No boundary correction supported. |
 
-No further concrete leads survived these reviews. This is not a claim that all other sections
+No further concrete leads survived rounds 1–2. This is not a claim that all other sections
 are correct, and it does not resolve the existing defect classes or independent acceptance work.
+
+### Rounds 3–4: assessed leads and interruption
+
+The next two requested rounds selected 60 services / 681 sections. Round 3 completed; round 4
+group C sent a complete coverage/lead report before its terminal usage-limit error. Groups A/B
+ended with the same limit and supplied no round-4 completion report, so their 20 services / 205
+sections remain **pending**, even if some windows had been read. Completed work in this extension
+is **40 services / 476 sections**. The other session's new media checkpoint and K18 build record
+were retained; this review did not run processing, transcription or audio jobs.
+
+| Run / section | Source evidence checked by coordinator | Disposition |
+|---|---|---|
+| 1245 / after notices §3049 | Notices end 310.831; song §3050 begins 370.48. At 311.04–348.10 the leader introduces Revelation 1 and reads verses before a separate song introduction. | Retain an unassigned Scripture/call-to-worship **classification lead**, like 1208. Already in `scans/text/speech_in_no_output.json`; not newly established output loss or justification to extend the song. |
+| 18426 / notices §335959 | Notices end 257.961; reading §335960 begins 457.48. Flyer/sign-up announcements continue at 268.42–281.38; at 453.36–457.22 the leader says the notices are finished. The intervening transcript includes promotional material. | Retain a **classification lead** for unassigned notices/video material, 258.68–457.22. Already in the same gap scan. Exact section split/type remains a policy question; no extractable talk omission established. |
+| 1326 / short talk §4135 | Luna placed a prayer invitation at 1161.46–1175.46, but those source cues are already prayer. The actual invitation is 970.16–975.24; prayer ends with Amen at 1264.24–1264.58. | **Reject the proposed split.** Citation was mismapped and withdrawn. A talk may include its closing prayer under ensemble decisions 20–21; its presence alone is not misattribution. The tiny overlap with song §4136 is not evidence of clipping. |
+| 1311 / testimony §3953 | Testimony ends 1149.31; father's remarks about her conversion run 1152.28–1167.48, followed by an exchange before baptism introduction §73575 at 1181.82. Output §3953 also ends 1149.31. | **No new boundary defect.** `endings:end-1311-3953` heard that exact ending and records `right` / `keep`. The unassigned remarks already appear in the gap scan. A different speaker's addendum does not establish that the accepted testimony ending should move. |
+
+Known defects are not cleared by a no-lead result. In particular, 1136's start remains an existing
+recorded miss; 1315 and 18434 are known K18 introduction cases. The video plan now records the K18
+fix as built on 11-06; reviewing older frozen sections does not establish its application or
+validate later outputs. This limitation, the rejected citation and the use of existing rulings
+reinforce that Luna is generating leads, not providing cheap-only clearance.
+
+**Resume round 4 after agent capacity is available**, preserving the same frozen inputs and
+checking whether a newer generation instead requires a separately identified review:
+
+| Pending group | Runs (ledger order) | Sections awaiting completed review |
+|---|---|---:|
+| A, ranks 136–145 | 1382, 970, 1205, 1377, 1081, 1067, 1252, 1362, 1230, 1183 | 86 |
+| B, ranks 146–155 | 1306, 985, 995, 1048, 1264, 1353, 1174, 1286, 1109, 1324 | 119 |
+
+Do not redraw membership, silently count these as reviewed, or rerun completed group C merely
+because its final notification was an error: its substantive completion report was received and
+its lead was adjudicated. Once A/B finish, assess their leads and update this checkpoint.
 
 ### Transcription gaps: proposed follow-up
 
@@ -131,6 +177,29 @@ The round-2 list is complete for its 30 packets: four services, five declared wi
 1294 entry is a checked example, not a completed round-1 gap census. **Correction to the round-2
 progress message:** it said “five services”; the actual count is four services / five windows.
 Ordinary no-cue intervals reported by agents are not additional declared transcription failures.
+
+Declared blind spots for the **completed** round-3/4 groups (source seconds; decimal display
+rounded to two places where JSON contains floating-point noise):
+
+| Run | Interval(s) | Packet reason |
+|---|---|---|
+| 18423 | 337.70–637.68; 3847.82–4057.80 | `window_holds_no_sound` |
+| 1219 | 183–455; 1073.66–1173.39 | `retranscription_failed`; `repetition_retry_looped`, respectively |
+| 1322 | 1486.84–1756.82 | `window_holds_no_sound` |
+| 1261 | 339.66–581.66; 3747.86–3898.86 | `retranscription_failed` |
+| 1198 | 867.52–1173.52; 1974.86–2188.86; 2509.52–2690.52; 3551.90–3791.88 | `retranscription_failed` |
+| 1106 | 375–532; 1355–1543 | `retranscription_failed` |
+| 1231 | 3679.04–3860.04 | `retranscription_failed` |
+| 1311 | 3944.84–4172.84 | `retranscription_failed` |
+| 941 | 2371.66–2430.66; 2372.66–2432.82 | `repetition_retry_looped`; `repetition_retry_empty`, respectively |
+
+Round 3: six services / 13 raw declared windows. Completed round-4 group C: three services /
+four raw windows. The overlapping 941 windows must be deduplicated when building the queue;
+raw window counts are not counts of independent incidents. These packet reasons were read, not
+independently verified by listening. No other completed packet in these groups declares a window.
+Separately, packet `gaps` record missing output segments for 949 (§4857, §4859) and 1311
+(§73575, §3956, §3955, §4875, §4877, §73577, §4931, §4972). Do not conflate missing output-segment
+evidence with source-transcription blind spots or claim audible correctness for either.
 
 Next work, proposed rather than performed or authorised by this documentation update:
 
