@@ -1409,6 +1409,155 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertNotContains($prayer->id, $plan['metadata']['selected_section_ids']);
     }
 
+    /**
+     * K18 (operator 11-05), run 1074's shape: the preacher's introduction naming the reading's
+     * passage, typed `other`, is in the sermon's media with the reading it introduces.
+     */
+    #[Test]
+    public function a_typed_introduction_naming_the_readings_passage_is_cut_with_the_sermon(): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 0.0, 'end' => 12.49, 'text' => "I'd like you to turn with me this evening to Luke chapter"],
+            ['start' => 12.49, 'end' => 20.44, 'text' => "22. We've been focusing on this chapter on a Sunday morning."],
+        ]);
+        $introduction = $this->section($log, ServiceSectionType::Other, 1, 0.0, 42.98, 'Introduction to Luke 22');
+        $reading = $this->reading($log, 2, 42.98, 165.96, reference: 'Luke 22:7-22');
+        $sermon = $this->sermon($log, 3, 165.96, 1054.4);
+
+        $this->assertSame([$introduction->id, $reading->id, $sermon->id], $this->resolver->compose($log)['selected_section_ids']);
+    }
+
+    /**
+     * K18, run 18434's shape: however long the introduction is (219 s), and however late it names
+     * the passage ("Paul's letter to the Ephesians").
+     */
+    #[Test]
+    public function a_long_typed_introduction_is_cut_with_the_sermon(): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 1835.0, 'end' => 1850.0, 'text' => 'The general consensus in the prayer meeting was that it is one more sign of the times.'],
+            ['start' => 1854.8, 'end' => 1859.1, 'text' => "We're going to read from Paul's letter to the Ephesians and"],
+            ['start' => 1859.1, 'end' => 1860.5, 'text' => 'chapter 1.'],
+        ]);
+        $this->section($log, ServiceSectionType::Song, 1, 1702.06, 1830.0);
+        $introduction = $this->section($log, ServiceSectionType::Other, 2, 1834.86, 2053.07, 'Sermon introduction');
+        $reading = $this->reading($log, 3, 2053.07, 2205.83, reference: 'Ephesians 1:1-14');
+        $sermon = $this->sermon($log, 4, 2205.83, 4000.0);
+
+        $this->assertSame([$introduction->id, $reading->id, $sermon->id], $this->resolver->compose($log)['selected_section_ids']);
+    }
+
+    /**
+     * K18, run 1053's shape: the recording opens mid-introduction, after the book was named, and the
+     * passage is named by its chapter alone ("chapters 32 and 33").
+     */
+    #[Test]
+    public function an_introduction_naming_the_readings_chapter_is_cut_with_the_sermon(): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 0.0, 'end' => 8.0, 'text' => "Verses 1 to 21. I thought that I'd worked it just right,"],
+            ['start' => 40.0, 'end' => 46.0, 'text' => 'I was wondering whether I should deal with chapters 32 and 33 as a whole.'],
+        ]);
+        $reading = $this->reading($log, 1, 67.9, 300.0, reference: 'Genesis 32:1-21');
+        $this->sermon($log, 2, 300.0, 2000.0);
+        $this->bankNoWordOutputEdges($log);
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertSame(['reading_section_id' => $reading->id, 'start_time' => 0.0, 'end_time' => 67.9], $composition['introduction']);
+        $this->assertSame(0.0, $this->resolver->resolve($log->fresh())['segments'][0]['start_time']);
+    }
+
+    /**
+     * K18, run 18429's shape: an introduction no section claims, after a song, starts where the
+     * song ends (F2: speech after a song belongs to the next item).
+     */
+    #[Test]
+    public function an_unsectioned_introduction_after_a_song_is_cut_with_the_sermon(): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 1313.83, 'end' => 1317.4, 'text' => 'Luke chapter 18.'],
+            ['start' => 1321.9, 'end' => 1326.9, 'text' => "We're making our way slowly through the book of Luke."],
+        ]);
+        $this->section($log, ServiceSectionType::Song, 1, 1100.0, 1313.83);
+        $reading = $this->reading($log, 2, 1347.28, 1500.0, reference: 'Luke 18:35-43');
+        $this->sermon($log, 3, 1500.0, 3000.0);
+        $this->bankNoWordOutputEdges($log);
+
+        $this->assertSame(['reading_section_id' => $reading->id, 'start_time' => 1313.83, 'end_time' => 1347.28], $this->resolver->compose($log)['introduction']);
+        $this->assertSame(1313.83, $this->resolver->resolve($log->fresh())['segments'][0]['start_time']);
+    }
+
+    /**
+     * Run 1154 (operator 11-06, "A is better"): the hymn's music runs through the stretch, so the
+     * introduction is a sentence begun under the song. Taking it would cut hard from the singing into
+     * its middle; the reading's start drops the partial sentence and avoids the cut. A song's last
+     * note in the stretch's first timeline window is the song ending, not music under the speech.
+     */
+    #[Test]
+    #[TestWith([[1470.0, 1475.0, 1480.0, 1485.0], false])]
+    #[TestWith([[1470.0], true])]
+    public function an_introduction_with_the_songs_music_running_through_it_is_not_cut_with_the_sermon(array $musicWindows, bool $taken): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 1471.32, 'end' => 1490.14, 'text' => 'Praise Him to Jonah and chapter 3'],
+        ]);
+        $windows = array_map(static fn (int $index): array => [
+            'start' => $index * 5.0, 'end' => $index * 5.0 + 5.0,
+            'music' => in_array($index * 5.0, $musicWindows, true) ? 0.75 : 0.0, 'speech' => 0.9,
+        ], range(0, 999));
+        Storage::disk('local')->put('temp/timeline.json', json_encode(['model' => 'test', 'model_revision' => '1', 'window_seconds' => 5,
+            'audio_seconds' => 5000, 'windows' => $windows], JSON_THROW_ON_ERROR));
+        $log->update(['audio_timeline_path' => 'temp/timeline.json']);
+        $this->section($log, ServiceSectionType::Song, 1, 1300.0, 1471.22);
+        $reading = $this->reading($log, 2, 1490.14, 1623.4, reference: 'Jonah 3:1-10');
+        $this->sermon($log, 3, 1623.4, 3000.0);
+
+        $introduction = $this->resolver->compose($log->fresh())['introduction'];
+
+        $this->assertSame($taken ? ['reading_section_id' => $reading->id, 'start_time' => 1471.22, 'end_time' => 1490.14] : null, $introduction);
+    }
+
+    /**
+     * T4 / K18's exception, runs 18428 and 1235: a leader handing the reading to someone stays out,
+     * even when the reader shares the reading's book's name ("John" before John 3).
+     */
+    #[Test]
+    #[TestWith(['typed'])]
+    #[TestWith(['unsectioned'])]
+    public function a_handover_naming_the_reader_is_not_cut_with_the_sermon(string $shape): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 1500.0, 'end' => 1506.0, 'text' => "I'm going to ask John, if you will, to come and do the Bible reading for us."],
+            ['start' => 1506.0, 'end' => 1508.0, 'text' => 'Thank you, John.'],
+        ]);
+        $this->section($log, ServiceSectionType::Prayer, 1, 1300.0, 1495.0);
+        if ($shape === 'typed') {
+            $this->section($log, ServiceSectionType::Other, 2, 1495.0, 1510.0, 'Bible reading handover');
+        }
+        $reading = $this->reading($log, 3, 1510.0, 1700.0, reference: 'John 3:1-16');
+        $sermon = $this->sermon($log, 4, 1700.0, 3000.0);
+
+        $composition = $this->resolver->compose($log);
+
+        $this->assertSame([$reading->id, $sermon->id], $composition['selected_section_ids']);
+        $this->assertNull($composition['introduction']);
+    }
+
+    /** Runs 936 and 975: a song's introduction typed `other` before the reading names no passage, so stays out. */
+    #[Test]
+    public function a_song_introduction_before_the_reading_is_not_cut_with_the_sermon(): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 900.0, 'end' => 910.0, 'text' => "We're going to sing In Christ Alone. It's one of the hymns that has it all."],
+        ]);
+        $this->section($log, ServiceSectionType::Other, 1, 900.0, 935.9, 'In Christ Alone');
+        $reading = $this->reading($log, 2, 935.9, 1100.0, reference: 'Acts 17:16-34');
+        $sermon = $this->sermon($log, 3, 1100.0, 3000.0);
+
+        $this->assertSame([$reading->id, $sermon->id], $this->resolver->compose($log)['selected_section_ids']);
+    }
+
     /** Amended D1: a gap between parts holding no other section, up to 15 s, plays straight through (992's 5.2 s jump). */
     #[Test]
     #[DataProvider('silentGaps')]

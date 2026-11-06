@@ -478,7 +478,11 @@ TXT;
     private function partType(MediaProcessingLog $log, float $start, float $end): ServiceSectionType
     {
         $section = $log->serviceSections()->where('start_time', '<=', $start + 0.05)->where('end_time', '>=', $end - 0.05)
-            ->orderByDesc('start_time')->first();
+            ->orderByDesc('start_time')->first()
+            // A part opening on its reading's introduction (K18) starts before any section does:
+            // it is the section it ends with.
+            ?? $log->serviceSections()->where('start_time', '<', $end)->whereBetween('end_time', [$end - 0.05, $end + 0.05])
+                ->orderByDesc('start_time')->first();
 
         return $section->section_type ?? ServiceSectionType::Sermon;
     }

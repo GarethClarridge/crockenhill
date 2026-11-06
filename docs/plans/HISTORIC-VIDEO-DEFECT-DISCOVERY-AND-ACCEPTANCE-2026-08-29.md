@@ -1567,6 +1567,31 @@ the next round's edge step asks K16 v3 on their runs, so their `live` cuts were 
 `latestRulings()` reads with `captured_on`. Rulings: `operator-20261106:*` for 1137 (either 45.0/49.62), 1105, 1292,
 1233, and K18's 990/1053 (outward). Ruled endings 659/659; word-timed edges 100/100; full suite 11,026 green.
 
+**`talk_opening_lost` (K18) BUILT 11-06 (operator: "Start").** Built in the sermon's extraction plan, not the structure
+composer the handover named: `SermonExtractionPlanResolver::readingIntroduction()` reaches a run at its next re-cut with
+no recompose, so the X7 runs (942) get it without a structural edit. Rule: when the sermon's first part is a reading,
+the stretch directly before it — an `other` section ending ≤ 30 s before it, or else the time since the section before
+(from 0.0 when none) — joins the sermon's media when its words name the reading's passage (`SpokenPassage::isNamedIn`):
+its book said as a book ("Luke chapter 22", "John's Gospel", "verses in James", "turn to Genesis", "letter to the
+Ephesians") or one of its chapters ("chapters 32 and 33"). A bare name is not enough — John, Mark, Luke and Ruth are also
+readers ("I'm going to ask John, if you will, to come and do the Bible reading" stays out before John 3). A stretch the
+song's music runs through past its first timeline window is no introduction (1154, below). A typed introduction is
+selected as a part; an unsectioned one is the composition's `introduction` and moves the first span's start. The
+composer's T4 book names moved to `SpokenPassage::bookNames()` unchanged. `SermonSongIntroductionCheck::partType()`
+falls back to the section a part ends with, or a reading part that opens on its introduction lost its type and so its
+banked K16 answer. **Measured on the frozen 11-05 packets** (`storage/scratch/k18-introduction-20261106/`): 15 runs
+change — 13 of the 14 confirmed (942, 990, 1074, 1169, 1224, 1313, 1315, 18434; 1027, 1053, 1072, 1337, 18429) plus
+1040 and 1172 (reading introductions naming the passage, T4) and 1154. Not reached: **1301** (its introduction never
+names Romans) and the no-passage stretches 1044, 1258, 960, 1163 — left out rather than loosen the test into a handover
+detector. Ruled endings with fidelity skipped broke one ruling, 1040's 10-19 keep. **Operator 11-06 ("Two Sermon
+Introductions", `k18-listening-20261106`):** 1040 either (1595.46 with the introduction, or 1661.44); 1154 A — "a hard
+cut from the recorded song to the middle of the reading introduction sentence"; A drops the partial sentence and avoids
+the cut. The music guard was built from that answer and measured: only 1154's stretch holds music among the changed runs
+with a timeline. Fixtures: 21 entries in 17 captures take their new cuts on their own evidence (`rebaseline.py`,
+`live_revision`); the 1027/1053/1072 entries, whose introductions start at 0.0 where no edge words were ever decoded,
+refuse with `edge_word_timings_missing` until the next round's edge step decodes them. Rulings
+`operator-20261106:1040-sermon-start` (either) and `:1154-sermon-start` (keep). Ruled endings 659/659.
+
 **Supplemental boundary lead review, 11-06 (operator requested two Luna rounds).**
 60 additional services / 640 section contexts from the frozen 11-05 packets were reviewed, then
 leads were assessed against source text and existing rulings. No new boundary defect was confirmed;

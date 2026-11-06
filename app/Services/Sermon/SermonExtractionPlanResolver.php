@@ -19,6 +19,7 @@ use App\Services\ChurchService\Structure\SermonContinuationScreen;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Scripture\ScriptureReferenceResolver;
+use App\Services\Scripture\SpokenPassage;
 use App\Support\CanonicalJson;
 use App\Support\SermonAutoExtractionPolicy;
 use App\Support\ServiceArtifactDisk;
@@ -62,6 +63,7 @@ class SermonExtractionPlanResolver
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SermonContinuationScreen $continuations,
         private readonly PublicationPlanValidator $validator,
+        private readonly SpokenPassage $spokenPassages,
     ) {}
 
     /**
@@ -76,6 +78,7 @@ class SermonExtractionPlanResolver
         $identity = $this->inputIdentity($log, $sections, $transcript);
         $sermons = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Sermon));
         $risks = [];
+        $introduction = ['section' => null, 'unsectioned' => null];
         $pendingEdgeEvidence = null;
         $selected = [];
         $sermon = count($sermons) === 1 ? $sermons[0] : null;
@@ -144,6 +147,10 @@ class SermonExtractionPlanResolver
                 // asked, never dropped.
                 $risks[] = ['kind' => 'sermon_reading_membership_unresolved', 'detail' => 'Choose the sermon reading: references are missing or multiple readings are plausible.'];
             }
+            $introduction = $this->readingIntroduction($log, $sections, $selected, $transcript);
+            if ($introduction['section'] !== null) {
+                $selected[] = $introduction['section'];
+            }
             foreach ($membership['could_be_cut'] as $index) {
                 foreach ($this->prayerHandovers($log, $readings[$index], $transcript) as $cue) {
                     $risks[] = ['kind' => 'sermon_reading_contains_prayer_handover', 'detail' => sprintf('Reading %s hands over to prayer at %.3f–%.3fs ("%s"): is a prayer inside the reading?', $readings[$index]->metadata->readingReference ?? '#'.$readings[$index]->id, $cue['start'], $cue['end'], trim($cue['text'], " \"'"))];
@@ -209,6 +216,7 @@ class SermonExtractionPlanResolver
         usort($selected, static fn (ServiceSection $a, ServiceSection $b): int => $a->start_time <=> $b->start_time);
         $composition = [
             'edge_word_timings_pending' => $pendingEdgeEvidence,
+            'introduction' => $introduction['unsectioned'],
             'input_identity' => $identity,
             'selected_section_ids' => array_map(static fn (ServiceSection $section): int => $section->id, $selected),
             'selection_source' => $selectionSource,
@@ -336,17 +344,15 @@ class SermonExtractionPlanResolver
      */
     private function prayerHandovers(MediaProcessingLog $log, ServiceSection $reading, ?ChurchServiceTranscript $candidate = null): array
     {
-        $path = $log->serviceTranscriptPath();
-        $raw = $candidate !== null ? CanonicalJson::encode($candidate->toArray())
-            : ($path === null ? null : rescue(static fn (): ?string => Storage::disk(ServiceArtifactDisk::for($path))->get($path), null, false));
+        $transcript = $this->transcript($log, $candidate);
 
-        if (! is_string($raw)) {
+        if ($transcript === null) {
             return [];
         }
 
         $handovers = [];
 
-        foreach (ChurchServiceTranscript::fromArray(json_decode($raw, true))->cues as $cue) {
+        foreach ($transcript->cues as $cue) {
             if ($cue['start'] >= $reading->start_time && $cue['end'] <= $reading->end_time - self::READING_AFTER_HANDOVER_SECONDS
                 && preg_match(self::PRAYER_HANDOVER, str_replace('’', "'", $cue['text'])) === 1) {
                 $handovers[] = ['start' => (float) $cue['start'], 'end' => (float) $cue['end'], 'text' => $cue['text']];
@@ -354,6 +360,84 @@ class SermonExtractionPlanResolver
         }
 
         return $handovers;
+    }
+
+    /** What was said: the candidate being previewed, or the run's stored transcript. */
+    private function transcript(MediaProcessingLog $log, ?ChurchServiceTranscript $candidate): ?ChurchServiceTranscript
+    {
+        if ($candidate !== null) {
+            return $candidate;
+        }
+
+        $path = $log->serviceTranscriptPath();
+        $raw = $path === null ? null : rescue(static fn (): ?string => Storage::disk(ServiceArtifactDisk::for($path))->get($path), null, false);
+
+        return is_string($raw) ? ChurchServiceTranscript::fromArray(json_decode($raw, true)) : null;
+    }
+
+    /**
+     * K18 (operator 11-05): the preacher's introduction before the sermon's reading is in the
+     * sermon's media, however long, typed `other` (18434's 219-s "Sermon introduction") or in no
+     * section at all (1027's 233 s the recording opens with). It is the stretch directly before
+     * the first part when that part is a reading — an `other` section ending at most
+     * {@see self::UNACCOUNTED_GAP_SECONDS} before it, or else the time since the section before —
+     * and it is the reading's introduction when it names the passage. A leader handing the
+     * reading to someone names no passage, and stays out (T4). An unsectioned introduction starts
+     * where the section before it ends (F2: speech after a song belongs to the next item), and a
+     * stretch the song's music runs through is no introduction of its own.
+     *
+     * @param  list<ServiceSection>|array<int, ServiceSection>  $sections  The run's sections in time order
+     * @param  list<ServiceSection>  $selected
+     * @return array{section: ?ServiceSection, unsectioned: array{reading_section_id: int, start_time: float, end_time: float}|null}
+     */
+    private function readingIntroduction(MediaProcessingLog $log, array $sections, array $selected, ?ChurchServiceTranscript $candidate): array
+    {
+        $none = ['section' => null, 'unsectioned' => null];
+        usort($selected, static fn (ServiceSection $a, ServiceSection $b): int => $a->start_time <=> $b->start_time);
+        $opening = $selected[0] ?? null;
+
+        if ($opening?->section_type !== ServiceSectionType::BibleReading) {
+            return $none;
+        }
+
+        $before = array_values(array_filter($sections, static fn (ServiceSection $section): bool => ! in_array($section, $selected, true)
+            && (float) $section->start_time < (float) $opening->start_time));
+        usort($before, static fn (ServiceSection $a, ServiceSection $b): int => [$a->end_time, $a->start_time] <=> [$b->end_time, $b->start_time]);
+        $previous = $before === [] ? null : $before[count($before) - 1];
+
+        // A section running into the reading leaves no stretch that is only the introduction.
+        if ($previous !== null && (float) $previous->end_time > (float) $opening->start_time + 0.001) {
+            return $none;
+        }
+
+        $readingStart = (float) $opening->start_time;
+        $typed = $previous?->section_type === ServiceSectionType::Other
+            && $readingStart - (float) $previous->end_time <= self::UNACCOUNTED_GAP_SECONDS;
+        $from = match (true) {
+            $previous === null => 0.0,
+            $typed => (float) $previous->start_time,
+            default => (float) $previous->end_time,
+        };
+        $transcript = $readingStart > $from ? $this->transcript($log, $candidate) : null;
+        $references = array_values(array_map(static fn (ServiceSection $reading): ?string => $reading->metadata?->readingReference,
+            array_filter($selected, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::BibleReading)));
+
+        if ($transcript === null || ! $this->spokenPassages->isNamedIn($transcript->sliceText($from, $readingStart), $references)) {
+            return $none;
+        }
+
+        // 1154 (operator 11-06): music past the stretch's first window is the song still sounding,
+        // so the introduction is a sentence begun under it. The reading's start drops that partial
+        // sentence and avoids a hard cut from the singing into its middle.
+        $timeline = app(CueSafeExtractionPlan::class)->audioTimeline($log);
+        $afterSongsLastNote = $from + ($timeline->windowSeconds ?? 0.0);
+        if ($timeline !== null && $afterSongsLastNote < $readingStart && $timeline->musicShare($afterSongsLastNote, $readingStart) > 0.0) {
+            return $none;
+        }
+
+        return $typed
+            ? ['section' => $previous, 'unsectioned' => null]
+            : ['section' => null, 'unsectioned' => ['reading_section_id' => $opening->id, 'start_time' => $from, 'end_time' => $readingStart]];
     }
 
     /** @param list<int> $sectionIds */
@@ -625,6 +709,10 @@ class SermonExtractionPlanResolver
                 $requiresReview = true;
             }
             $spans[] = ['start_time' => $start, 'end_time' => $end];
+        }
+        $introduction = $composition['introduction'] ?? null;
+        if (is_array($introduction) && ($selectedSections[0] ?? null)?->id === $introduction['reading_section_id']) {
+            $spans[0] = ['start_time' => (float) $introduction['start_time'], 'end_time' => $spans[0]['end_time']];
         }
         $spans = $this->throughSilentGaps($spans, $sections, $selectedSections);
         $structureSpans = $spans;

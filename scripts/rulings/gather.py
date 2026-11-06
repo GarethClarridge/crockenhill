@@ -886,6 +886,19 @@ for run, heard, note in [
                     'title': None, 'edge': 'start', 'heard': heard, 'answer': None, 'expect': 'outward', 'ruled_time': None,
                     'note': f'Operator 11-06 (K18): "{run} - should be in": the sermon starts before {note}. Supersedes the 10-18 keep.'})
 
+# "Two Sermon Introductions" (k18-listening-20261106; A the current start, B the K18 introduction rule's).
+records.append({'id': 'operator-20261106:1040-sermon-start', 'source': 'operator-20261106', 'ruled_on': '2026-11-06',
+                'ruled_at': '2026-11-06T15:23:05Z', 'run': 1040, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon',
+                'title': None, 'edge': 'start', 'heard': 1595.46, 'answer': None, 'expect': 'either', 'ruled_time': None,
+                'points': [1595.46, 1661.44],
+                'note': 'Operator 11-06 (K18), "Either is fine": with the 66-s introduction ("Last Sunday morning, Gareth was '
+                        'preaching… it\'s Luke chapter 1, 26 to 38.") or on the recorded reading (1661.44, ruled right 10-19).'})
+records.append({'id': 'operator-20261106:1154-sermon-start', 'source': 'operator-20261106', 'ruled_on': '2026-11-06',
+                'ruled_at': '2026-11-06T15:24:17Z', 'run': 1154, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon',
+                'title': None, 'edge': 'start', 'heard': 1490.16, 'answer': None, 'expect': 'keep', 'ruled_time': None,
+                'note': 'Operator 11-06 (K18), "A is better": "There\'s a hard cut from the recorded song to the middle of the '
+                        'reading introduction sentence" (B 1485.62). A avoids the hard cut by dropping the partial sentence.'})
+
 # A section ruling the page recorded without a section id is on the run's section of its type whose edge is nearest
 # the cut heard, as RuledEndingsTestCase::latestRulings() and the round's analyze.py read it. Without that binding the
 # newest id-less ruling on a run replaced every other on the same edge, whatever its section (1304's §3879 start by a

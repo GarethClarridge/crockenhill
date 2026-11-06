@@ -11,6 +11,7 @@ use App\Data\SongTitleMatch;
 use App\Enums\ServiceSectionType;
 use App\Enums\TalkType;
 use App\Services\Scripture\ScriptureReferenceResolver;
+use App\Services\Scripture\SpokenPassage;
 use App\Services\Song\SongTitleHygiene;
 use App\Services\Song\SongTitleResolver;
 
@@ -85,15 +86,13 @@ class ServiceStructureEnsembleComposer
      */
     public const READING_INTRODUCTION_SECONDS = 60.0;
 
-    /** Spoken forms of a numbered book's prefix. */
-    private const SPOKEN_BOOK_NUMBERS = ['1' => 'first', '2' => 'second', '3' => 'third'];
-
     /**
      * @param  SongTitleResolver|null  $songCatalogue  Read from the database on first use when not given
      */
     public function __construct(
         private readonly ScriptureReferenceResolver $scriptureReferences,
         private readonly SongTitleHygiene $songTitles,
+        private readonly SpokenPassage $spokenPassages,
         private ?SongTitleResolver $songCatalogue = null,
     ) {}
 
@@ -862,7 +861,7 @@ class ServiceStructureEnsembleComposer
         $announced = false;
 
         foreach ($supporters as $claim) {
-            foreach ($this->spokenBookNames($claim['section']->readingReference) as $book) {
+            foreach ($this->spokenPassages->bookNames($claim['section']->readingReference) as $book) {
                 $announced = $announced || preg_match('/\b'.preg_quote($book, '/').'\b/u', $introduction) === 1;
             }
         }
@@ -872,35 +871,6 @@ class ServiceStructureEnsembleComposer
             : [-$a['section']->startTime, $a['slot']] <=> [-$b['section']->startTime, $b['slot']]);
 
         return $supporters[0];
-    }
-
-    /**
-     * The ways a reading's book is said aloud: "John", "1 Corinthians" or "First Corinthians",
-     * "Psalm" or "Psalms".
-     *
-     * @return list<string>
-     */
-    private function spokenBookNames(?string $reference): array
-    {
-        $normalized = $reference === null ? null : $this->normalizedReference($reference);
-
-        if ($normalized === null || preg_match('/^(?:([1-3])\s+)?([A-Za-z][A-Za-z ]*?)\s+\d/', $normalized, $match) !== 1) {
-            return [];
-        }
-
-        $book = mb_strtolower($match[2]);
-        $names = [$book];
-
-        if (in_array($book, ['psalm', 'psalms'], true)) {
-            $names = ['psalm', 'psalms'];
-        }
-
-        if ($match[1] !== '') {
-            $names = [...array_map(static fn (string $name): string => "{$match[1]} {$name}", $names),
-                ...array_map(static fn (string $name): string => self::SPOKEN_BOOK_NUMBERS[$match[1]].' '.$name, $names)];
-        }
-
-        return $names;
     }
 
     /**
