@@ -264,6 +264,9 @@ class CueSafeExtractionPlan
     /** The shortest dead run an end moves back to: a single dropped frame is not where the feed died. */
     private const DEAD_FEED_RUN_SECONDS = 0.5;
 
+    /** The share of a transcript cue's frames above the dropout floor that shows its words sound. */
+    private const HEARD_CUE_LIVE_SHARE = 0.5;
+
     /** What a start moved out of a dead feed keeps before the first sound. */
     private const DEAD_FEED_LEAD = 0.3;
 
@@ -530,7 +533,7 @@ class CueSafeExtractionPlan
         if (! $songEnds) {
             $spans = $this->afterSongSound($log, $cues, $sectionSpans, $spans, $audit);
         }
-        $spans = $this->outOfDeadFeed($log, $sectionSpans, $spans, $audit, songStartsOnly: $songEnds, levels: $levels);
+        $spans = $this->outOfDeadFeed($log, $sectionSpans, $spans, $audit, songStartsOnly: $songEnds, levels: $levels, cues: $cues);
         if ($songEnds) {
             $spans = $this->atSongChangeDip($log, $cues, $sectionSpans, $spans, $audit, $levels);
             $spans = $this->atSongChangeDip($log, $cues, $sectionSpans, $spans, $audit, $levels, start: true);
@@ -1092,9 +1095,10 @@ class CueSafeExtractionPlan
      * @param  list<array{start_time: float, end_time: float}>  $spans  The spans as placed
      * @param  list<array<string, mixed>>  $audit
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
+     * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return list<array{start_time: float, end_time: float}>
      */
-    private function outOfDeadFeed(MediaProcessingLog $log, array $sectionSpans, array $spans, array &$audit, bool $songStartsOnly = false, ?array $levels = null): array
+    private function outOfDeadFeed(MediaProcessingLog $log, array $sectionSpans, array $spans, array &$audit, bool $songStartsOnly = false, ?array $levels = null, array $cues = []): array
     {
         $levels ??= $this->levels($log);
 
@@ -1116,7 +1120,7 @@ class CueSafeExtractionPlan
                     default => $this->deadFeedAfterLastSound($levels, (float) $span['start_time'], $placed),
                 };
 
-                if ($time === null) {
+                if ($time === null || ($edge === 'start' && ! $songStartsOnly && $this->transcribedSpeechSounds($levels, $cues, $placed, $time))) {
                     continue;
                 }
 
@@ -1351,6 +1355,34 @@ class CueSafeExtractionPlan
         }
 
         return null;
+    }
+
+    /**
+     * Whether a transcript cue that begins inside a stretch about to be skipped as dead feed sounds:
+     * at least {@see self::HEARD_CUE_LIVE_SHARE} of its frames are above the dropout floor. A reader
+     * spoken into a feed on that floor never reaches the threshold (1308's reading, ruled late), yet
+     * the words are there; cues over digital zero (1347, 1020) are words no feed carried.
+     *
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     */
+    private function transcribedSpeechSounds(array $levels, array $cues, float $from, float $to): bool
+    {
+        foreach ($cues as $cue) {
+            if (! TranscriptCueEvidence::hasWords($cue) || $cue['start'] < $from || $cue['start'] >= $to || $cue['end'] <= $cue['start']) {
+                continue;
+            }
+            $samples = $this->samplesBetween($levels, $cue['start'], min($cue['end'], $to));
+            if ($samples === []) {
+                continue;
+            }
+            $live = count(array_filter($samples, fn (array $sample): bool => ! $this->isDeadFeed($sample['rms'])));
+            if ($live >= self::HEARD_CUE_LIVE_SHARE * count($samples)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

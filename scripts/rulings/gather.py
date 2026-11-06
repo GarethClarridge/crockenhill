@@ -899,6 +899,15 @@ records.append({'id': 'operator-20261106:1154-sermon-start', 'source': 'operator
                 'note': 'Operator 11-06 (K18), "A is better": "There\'s a hard cut from the recorded song to the middle of the '
                         'reading introduction sentence" (B 1485.62). A avoids the hard cut by dropping the partial sentence.'})
 
+# 11-06, operator "Yes to all" on the known-miss review: 1136's 10-18 "late" is a source limitation, not a cut defect.
+# The feed is dead (about −90 dB) from 1.7 s to 15.3 s and the sermon resumes mid-thought at 15.36 s; the cut at 15.06
+# keeps every recorded word after the dropout. The only earlier start keeps a 1.7 s fragment ("Thank") and 13 s of silence.
+records.append({'id': 'operator-20261106:1136-sermon-start', 'source': 'operator-20261106', 'ruled_on': '2026-11-06',
+                'ruled_at': '2026-11-06T18:00:00Z', 'run': 1136, 'output': 'sermon', 'section_id': None, 'section_type': 'sermon',
+                'title': None, 'edge': 'start', 'heard': 15.06, 'answer': None, 'expect': 'keep', 'ruled_time': None,
+                'note': 'Operator 11-06: the first words are lost in the source (dead feed 1.7–15.3 s), not by the cut. '
+                        'Supersedes the 10-18 "late".'})
+
 # A section ruling the page recorded without a section id is on the run's section of its type whose edge is nearest
 # the cut heard, as RuledEndingsTestCase::latestRulings() and the round's analyze.py read it. Without that binding the
 # newest id-less ruling on a run replaced every other on the same edge, whatever its section (1304's §3879 start by a

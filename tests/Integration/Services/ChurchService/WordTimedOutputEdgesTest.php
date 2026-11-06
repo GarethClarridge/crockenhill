@@ -1314,6 +1314,42 @@ class WordTimedOutputEdgesTest extends TestCase
     }
 
     /**
+     * 1308's reading was spoken into a feed hovering on the dropout floor: about half its frames fall
+     * below −80 dB and none reaches the threshold, so the stretch read as 35 s of dead feed and the
+     * sermon started mid-verse (ruled late, 10-18). The transcript heard every verse in it, and the
+     * audio under those cues is live: a stretch whose transcribed words sound is not dead feed.
+     */
+    #[Test]
+    public function a_start_stays_where_the_words_put_it_when_transcribed_speech_sounds_in_the_quiet_stretch(): void
+    {
+        $log = $this->quietReadingStart();
+        $placed = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2133.5, 'end_time' => 3735.0]]);
+        $this->withLevels($log, [...$this->flickeringOnTheDropoutFloor(2121.0, 2149.4), [2149.4, 2200.0, -30.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2133.5, 'end_time' => 3735.0]]);
+
+        $this->assertEqualsWithDelta($placed['segments'][0]['start_time'], $plan['segments'][0]['start_time'], 0.001);
+        $this->assertLessThan(2138.0, $plan['segments'][0]['start_time']);
+        $this->assertArrayNotHasKey('dead_feed', $plan['cue_edge_widening'][0]);
+    }
+
+    /**
+     * 1347's and 1020's skipped stretches hold transcript cues over digital zero: words no feed
+     * carried (evenly spaced one-second cues, or cues of no length). Those are not heard, so the
+     * start still moves to the sound.
+     */
+    #[Test]
+    public function a_start_still_moves_out_of_a_dead_feed_holding_cues_that_do_not_sound(): void
+    {
+        $log = $this->quietReadingStart();
+        $this->withLevels($log, [[2121.0, 2149.4, null], [2149.4, 2200.0, -30.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => 2133.5, 'end_time' => 3735.0]]);
+
+        $this->assertEqualsWithDelta(2149.1, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    /**
      * 1275's sermon ended 39 s into a muted feed, after an "Amen." the decode smeared across it.
      * The end moves back to where the feed goes dead, keeping the word's decay in the room tone
      * before it; a single dropped frame in that decay is not where the feed goes dead.
@@ -1375,6 +1411,39 @@ class WordTimedOutputEdgesTest extends TestCase
         ]);
 
         return $log;
+    }
+
+    private function quietReadingStart(): MediaProcessingLog
+    {
+        $log = $this->logWithCues([
+            ['start' => 2120.5, 'end' => 2123.4, 'text' => 'in the back hall.'],
+            ['start' => 2133.5, 'end' => 2135.5, 'text' => "I'm starting to read at verse 2."],
+            ['start' => 2138.0, 'end' => 2140.3, 'text' => 'Devote yourselves to prayer.'],
+            ['start' => 2141.0, 'end' => 2143.0, 'text' => 'Be watchful and thankful.'],
+            ['start' => 2149.6, 'end' => 2153.4, 'text' => 'Well, salt in the Bible.'],
+        ]);
+        $this->bankWindow($log, 2133.5, [
+            ['start' => 2133.5, 'end' => 2133.8, 'word' => " I'm"],
+            ['start' => 2133.8, 'end' => 2134.4, 'word' => ' starting'],
+            ['start' => 2134.4, 'end' => 2135.5, 'word' => ' to read at verse 2.'],
+        ]);
+
+        return $log;
+    }
+
+    /**
+     * Alternating tenths at −82 and −72 dB: live for half its frames, never near the threshold.
+     *
+     * @return list<array{0: float, 1: float, 2: float}>
+     */
+    private function flickeringOnTheDropoutFloor(float $from, float $to): array
+    {
+        $stretches = [[$from, $to, -72.0]];
+        for ($tenth = (int) round($from * 10); $tenth < (int) round($to * 10); $tenth += 2) {
+            $stretches[] = [$tenth / 10, ($tenth + 1) / 10, -82.0];
+        }
+
+        return $stretches;
     }
 
     private function deadFeedEnd(): MediaProcessingLog
