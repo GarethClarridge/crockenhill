@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Services;
 
+use App\Enums\SermonPublicationState;
 use App\Models\Sermon;
 use App\Services\Sermon\SermonStorageService;
 use Illuminate\Filesystem\FilesystemAdapter;
@@ -217,6 +218,66 @@ class SermonStorageServiceTest extends TestCase
         $this->expectExceptionMessage('cannot be exposed through a public or CDN URL');
 
         $this->service->getVideoUrl($sermon);
+    }
+
+    /**
+     * Delivery URLs are built while pages render: staged media reads as absent
+     * rather than throwing, so one staged row cannot 500 a whole listing.
+     */
+    #[Test]
+    public function delivery_urls_are_absent_for_media_on_the_historic_staging_disk(): void
+    {
+        $this->pointMediaDisksAtStaging();
+
+        $sermon = Sermon::factory()->withAudio()->withVideo()->create([
+            'asset_disk' => null,
+            'thumbnail_file_path' => 'thumbnails/staged.jpg',
+        ]);
+
+        $this->assertNull($this->service->getAudioDeliveryUrl($sermon));
+        $this->assertNull($this->service->getVideoDeliveryUrl($sermon));
+        $this->assertNull($this->service->getThumbnailDeliveryUrl($sermon));
+        $this->assertNull($this->service->getCardThumbnailDeliveryUrl($sermon));
+        $this->assertNull($this->service->getPlainThumbnailDeliveryUrl($sermon));
+    }
+
+    #[Test]
+    public function delivery_urls_are_absent_when_the_rows_own_asset_disk_is_historic_staging(): void
+    {
+        Config::set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        $this->service->clearInternalCaches();
+
+        $sermon = Sermon::factory()->withAudio()->withVideo()->create([
+            'asset_disk' => 'historic_staging',
+        ]);
+
+        $this->assertNull($this->service->getAudioDeliveryUrl($sermon));
+        $this->assertNull($this->service->getVideoDeliveryUrl($sermon));
+    }
+
+    #[Test]
+    public function quarantined_sermons_keep_their_guarded_delivery_routes_while_media_is_staged(): void
+    {
+        $this->pointMediaDisksAtStaging();
+
+        $sermon = Sermon::factory()->withAudio()->withVideo()->create([
+            'asset_disk' => null,
+            'publication_state' => SermonPublicationState::Quarantined,
+            'thumbnail_file_path' => 'thumbnails/quarantined.jpg',
+        ]);
+
+        $this->assertSame(route('sermons.audio', ['sermon' => $sermon->slug]), $this->service->getAudioDeliveryUrl($sermon));
+        $this->assertSame(route('sermons.video', ['sermon' => $sermon->slug]), $this->service->getVideoDeliveryUrl($sermon));
+        $this->assertSame(route('sermons.thumbnail', ['sermon' => $sermon->slug]), $this->service->getThumbnailDeliveryUrl($sermon));
+    }
+
+    private function pointMediaDisksAtStaging(): void
+    {
+        Storage::fake('historic_staging');
+        Config::set('media-processing.storage.historic_staging_disk', 'historic_staging');
+        Config::set('media-processing.storage.sermon_disk', 'historic_staging');
+        Config::set('thumbnail-generation.storage.disk', 'historic_staging');
+        $this->service->clearInternalCaches();
     }
 
     #[Test]

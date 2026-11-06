@@ -317,6 +317,10 @@ class SermonStorageService
             return null;
         }
 
+        if ($this->isWithheldFromPublicUrl($sermon, $this->getSermonFileInfo($sermon)['disk'])) {
+            return null;
+        }
+
         return $this->getPublicUrl($sermon);
     }
 
@@ -337,6 +341,10 @@ class SermonStorageService
         }
 
         $this->validatePath((string) $videoPath, 'video file');
+
+        if ($this->isWithheldFromPublicUrl($sermon, $this->assetDisk($sermon, $this->sermonDisk))) {
+            return null;
+        }
 
         return $this->getVideoUrl($sermon);
     }
@@ -482,6 +490,10 @@ class SermonStorageService
 
         $this->validatePath((string) $path, $type);
 
+        if ($this->isWithheldFromPublicUrl($sermon, $this->assetDisk($sermon, $this->resolveThumbnailDisk((string) $path)))) {
+            return null;
+        }
+
         return match ($type) {
             'thumbnail' => $this->getThumbnailUrl($sermon),
             'card thumbnail' => $this->getCardThumbnailUrl($sermon),
@@ -601,6 +613,17 @@ class SermonStorageService
         if (is_string($path) && Path::isUnsafe($path)) {
             throw new InvalidArgumentException("Invalid {$type} path: Unsafe path detected.");
         }
+    }
+
+    /**
+     * Delivery URLs are built while a page renders, so media on a historic
+     * staging or quarantine disk reads as absent instead of failing the page.
+     * Quarantined sermons are excluded: they deliver through guarded app routes.
+     */
+    private function isWithheldFromPublicUrl(Sermon $sermon, string $disk): bool
+    {
+        return $sermon->publication_state !== SermonPublicationState::Quarantined
+            && HistoricStagingUrlGuard::isStagingDisk($disk);
     }
 
     private function assetDisk(Sermon $sermon, string $fallback): string

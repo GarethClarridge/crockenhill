@@ -15,6 +15,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\User;
 use App\Services\Public\PreacherListCache;
+use App\Services\Sermon\SermonStorageService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
@@ -73,6 +74,38 @@ class SermonPagesTest extends TestCase
 
         // Additional assertion to ensure the page contains expected content
         $this->assertStringContainsString('sermons', $response->getContent());
+    }
+
+    /**
+     * A sermon whose media resolves to the historic staging disk (a NULL
+     * asset_disk while a batch points the media disks at staging) shows as
+     * having no media; the listing must not 500 and must emit no staging URL.
+     */
+    #[Test]
+    public function sermon_index_renders_when_a_sermons_media_resolves_to_historic_staging(): void
+    {
+        Storage::fake('historic_staging');
+        config([
+            'media-processing.storage.historic_staging_disk' => 'historic_staging',
+            'media-processing.storage.sermon_disk' => 'historic_staging',
+            'thumbnail-generation.storage.disk' => 'historic_staging',
+        ]);
+        app()->forgetInstance(SermonStorageService::class);
+
+        Sermon::factory()->withAudio()->withVideo()->create([
+            'title' => 'Staged Media Sermon',
+            'slug' => 'staged-media-sermon',
+            'asset_disk' => null,
+            'thumbnail_file_path' => 'thumbnails/staged-media-sermon.jpg',
+        ]);
+
+        $response = $this->get('/christ/talks');
+
+        $response->assertOk();
+        $response->assertSee('Staged Media Sermon');
+        $response->assertDontSee('staged-media-sermon.mp3');
+        $response->assertDontSee('staged-media-sermon.mp4');
+        $response->assertDontSee('thumbnails/staged-media-sermon.jpg');
     }
 
     #[Test]
