@@ -1567,6 +1567,34 @@ the next round's edge step asks K16 v3 on their runs, so their `live` cuts were 
 `latestRulings()` reads with `captured_on`. Rulings: `operator-20261106:*` for 1137 (either 45.0/49.62), 1105, 1292,
 1233, and K18's 990/1053 (outward). Ruled endings 659/659; word-timed edges 100/100; full suite 11,026 green.
 
+**Supplemental boundary lead review, 11-06 (operator requested two Luna rounds).**
+60 additional services / 640 section contexts from the frozen 11-05 packets were reviewed, then
+leads were assessed against source text and existing rulings. No new boundary defect was confirmed;
+1208's unlabelled Scripture introduction and 1259's worship reflection remain classification leads,
+not established output loss. The earlier report calling 1294's song gap unresolved is corrected:
+the operator already settled continuity and item 8 above records the built fix. No processing or
+acceptance state changed. Exact membership, lead dispositions, declared transcript blind spots and
+the proposed deduplicated gap queue are in the
+[audit plan checkpoint](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md#2026-11-06-supplemental-luna-boundary-reviews).
+Consequential gaps go to the existing source-audio review; fresh transcription retains Pass C's
+authorisation requirement. More reviews of the same missing text cannot clear them.
+
+**Complementary media/identity/delivery checks, 11-06.** The
+[audit checkpoint](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md#2026-11-06-complementary-media-identity-and-delivery-checks)
+records 442 frozen identity packets, triage of 26 text-overlap pairs, direct source/video/MP3
+measurements in 18 windows across six services, three retained-transcription comparisons and six
+local HTTP requests. No new processing defect was confirmed. Runs 1049/1205 share sermon material
+but text supports distinct performances; 1006's black interval is in its source; 1015's freeze
+lead was not supported. Evidence: `storage/scratch/output-independent-20261106/summary.json`.
+
+Carry these as **acceptance follow-up, not new pre-round recuts**: semantic audio verification;
+materiality/audio adjudication of 1215 §2643's lyric disagreement (source 1980–2025 s); 1006's
+source visual-quality disposition; and actual published-media/browser delivery. Local delivery
+is blocked by the `historic_staging` default and its URL guard (listing 500); tested quarantine
+routes correctly deny access. Use an appropriate isolated published-media rehearsal environment,
+without exposing staging/quarantine, then authorised destination checks. The sample does not
+replace whole-output/join coverage, and changed artifacts require dependent checks to be rebound.
+
 ### 4.2 Regular uploads are the lasting outcome
 
 Weekly processing resumes after the historic import is done (R8); preparation can proceed now.

@@ -1,5 +1,16 @@
 # Historic video post-round audit
 
+**Supplemental checkpoint — 2026-11-06:** two operator-requested Luna boundary-review rounds
+covered 60 additional services / 640 sections on the frozen 11-05 packets. No new boundary defect
+was confirmed. See [the review record and gap follow-up](#2026-11-06-supplemental-luna-boundary-reviews)
+below; this does not clear outputs or replace the parallel source-audio, audiovisual, identity
+and delivery review. The 11-05 status paragraphs below are dated context.
+
+**Complementary checks — 2026-11-06:** the requested source/output media, identity, transcript
+and local-delivery checks are recorded in [the complementary checkpoint](#2026-11-06-complementary-media-identity-and-delivery-checks).
+No new processing defect was confirmed within that scope. Semantic audio verification and
+published delivery remain incomplete; neither this checkpoint nor the boundary reviews clear release.
+
 **Next work — scoped 2026-11-05, not started:** [pre-round defect discovery](#2026-11-05-revised-scope-sample-to-discover-scan-to-count)
 replaces reading every service: scripted class scans over the whole corpus, a stratified sample
 read until it stops yielding new defect classes, and acceptance after the next round.
@@ -42,6 +53,110 @@ human listening requirements already agreed, or production delivery checks.
 or assembled, with minimal additional operator listening. Deliver an evidenced exception list,
 coverage record and repair recommendations. This planning task authorises no processing,
 publication, production writes or new provider calls.
+
+## 2026-11-06 supplemental Luna boundary reviews
+
+**Scope and evidence.** The operator requested Luna agents to generate section-boundary leads
+for coordinator assessment without disturbing the separate processing-output review, then requested
+another round. Three `gpt-6-luna` agents per round reviewed timestamped source context around section
+starts and ends, with expanded context for ambiguous transitions and uncovered speech. Round 2
+used ±45-second windows; truncated combined reads were recovered with bounded per-service reads.
+These were boundary-window reviews, not full line-by-line transcript reads or audio listening.
+Agent counts and confidence were checked by the coordinator, not accepted at face value.
+
+Inputs: `storage/scratch/output-quality-20261105/packets/{run}/packet.json`, `delivered.json`
+and `source.txt`, from `crockenhill_audit_20261105`. Selection continued the existing
+`storage/scratch/output-review-20261105/sample/sample-ledger.json` after its first 45 services:
+round 1 ranks 46–75, round 2 ranks 76–105. This is supplemental operator-requested lead discovery,
+not a reopening of that earlier sample's stopping rule or a new acceptance sample. Section counts
+were checked from the packet JSON. All 30 round-2 source/delivered file hashes matched their packet
+manifests; this verifies frozen-input integrity, not correspondence to later live generations.
+No code, database, media, queue, processing or publication changes were made during these reviews.
+The findings below preserve the agent messages and coordinator dispositions; no separate per-service
+answer files or usage measurements were captured for these two rounds.
+
+| Round | Agent group | Runs | Sections |
+|---|---|---|---:|
+| 1 | A | 1232, 1108, 1131, 1356, 1026, 1271, 1216, 1105, 1367, 1031 | 88 |
+| 1 | B | 18432, 1345, 1100, 997, 1298, 1292, 1332, 1170, 1094, 1281 | 121 |
+| 1 | C | 996, 1294, 1175, 1253, 1368, 1023, 944, 976, 1040, 1238 | 99 |
+| 2 | A | 1325, 1177, 1240, 1317, 1114, 1030, 1218, 1076, 1334, 1225 | 123 |
+| 2 | B | 1316, 1049, 1162, 1254, 1029, 1122, 1083, 1303, 986, 18433 | 94 |
+| 2 | C | 950, 1208, 957, 988, 1058, 1284, 1259, 1318, 1239, 1135 | 115 |
+
+Totals: round 1 **30 services / 308 sections**; round 2 **30 / 332**; combined **60 / 640**.
+These counts describe inspected section contexts, including contexts with insufficient text;
+they are not counts of boundaries proven correct. No new boundary defect was confirmed, and
+no service was cleared for release by this exercise.
+
+### Assessed leads
+
+All times below are seconds in the source recording. A section edge and an extracted output edge
+are different evidence; a transcript cue spanning either edge does not prove a clipped word.
+
+| Run / section | Evidence | Coordinator disposition |
+|---|---|---|
+| 1271 / song §3391 | Section starts 919.68; output starts 920.92. Text names the song at 919.26–920.92, then says “let's stand to sing” through 922.26. | Uncertain spoken-introduction overlap. Text cannot locate the musical introduction; no timing correction established. |
+| 1298 / song §175943 | Section/output start 3560; hymn words appear at 3545.80–3552.28, followed by another “Let's stand and sing” at 3552.38–3553.24. | Downgraded Luna's high confidence: these may be spoken lyrics. Retain only as an unresolved onset question if consequential; no earlier start justified from text alone. |
+| 18432 / sermon §336060 | Section ends 4450, although final sermon words end 4407.92 and hymn setup follows. Output ends 4408.22. | Broad section extent does not establish output contamination; no output defect supported. |
+| 1294 / songs §3679–§3680 | Frozen sections split “From Heaven You Came”; §3680 lies inside the declared 196–366 transcript gap. | **Correction to this session's first report:** already heard and resolved by the operator on 11-05: one continuous song, one clip. The split-song fix is built and awaits the next recomposition, as recorded in the video plan §4.1a item 8. Do not ask the same listening question again or count this as a new lead. |
+| 1177 / sermon §2358 | Section starts 2409.64; repeated “Thank you” cues continue until about 2425.64; substantive speech begins at 2425.48 (“I'm not a pacifist”). | Unreliable repeated transcription, not proof of a late or early cut. No recommended timing change without audio evidence. |
+| 1208 / between notices §2550 and song §2551 | Notices end 240.08; song starts 275.04. At 248.50–274.04 the leader introduces and quotes 1 Timothy 6 (“God, the blessed and only ruler…”), outside any section. | Retain a **classification lead**: a Scripture/call-to-worship interval is unlabelled. Not confirmed output loss or a reason to extend the song automatically. Already present in `scans/text/speech_in_no_output.json` under the 11-05 review directory. |
+| 1259 / between reading §3232 and prayer §3233 | Reading ends 214; prayer starts 268.21. The unassigned interval reflects on worship with the heavenly assembly (“We don't simply worship God as a small group…”). | Retain a **classification lead**: substantive worship reflection, with a prayer invitation at the end. Decide whether it needs a section under the existing taxonomy before treating it as omitted extractable content. Already present in the same automated gap scan. |
+| 1135 / after sermon §2109 | Sermon ends 3722.20; song §164709 starts 3750. The intervening speech names the next songs and asks people to stand. | Ordinary song announcement; rejected as a boundary defect. The following song interval has a declared transcript blind spot. |
+| 1049 / song §174158 | Section starts 3862.28; earlier hymn words are followed by another invitation at 3866.26–3867.88. | Rejected as a new defect: quoted lyrics do not prove singing. Existing `sentence-listening-20261026:174158-start` heard 3866.22 and records `expect: keep`; no new contrary audio evidence. |
+| 1325 / prayer §4121 | Prayer starts 908.16; 884.36–892.54 is a handover asking Richard to lead prayer. | Ordinary handover, with the prayer beginning “Shall we bow our heads in prayer?” No boundary correction supported. |
+
+No further concrete leads survived these reviews. This is not a claim that all other sections
+are correct, and it does not resolve the existing defect classes or independent acceptance work.
+
+### Transcription gaps: proposed follow-up
+
+**Missing text is missing evidence, not proof of missing audio.** Intervals without transcript
+cues may contain music, silence or speech. Keep these distinct from explicit `unobservable_windows`
+in packet metadata. Do not repeatedly send inadequate text to stronger models or move a boundary
+across a gap merely to reach the nearest available cue.
+
+The checked packet-declared blind spots include:
+
+| Run | Source interval(s), seconds | Recorded reason / disposition |
+|---|---|---|
+| 1294 (round 1) | 196–366 | `retranscription_failed`; song continuity already heard and ruled, as above. |
+| 1177 (round 2) | 524–533 | `repetition_retry_empty`; distinct from the later repeated “Thank you” cues. |
+| 1316 (round 2) | 2439–2591 | `retranscription_failed`. |
+| 1239 (round 2) | 261–381; 2192–2376 | `retranscription_failed`. |
+| 1135 (round 2) | 3749.06–3961.06 | `retranscription_failed`; follows the song announcement. |
+
+The round-2 list is complete for its 30 packets: four services, five declared windows. Round 1's
+1294 entry is a checked example, not a completed round-1 gap census. **Correction to the round-2
+progress message:** it said “five services”; the actual count is four services / five windows.
+Ordinary no-cue intervals reported by agents are not additional declared transcription failures.
+
+Next work, proposed rather than performed or authorised by this documentation update:
+
+- [ ] Build a deduplicated gap queue from the frozen packet metadata, recording run, source hash,
+  interval, affected section/output edge or join, existing ruling, consequence and disposition.
+  Include consequential garbled-text leads separately; do not label every no-cue interval a failure.
+- [ ] Reuse applicable source-listening rulings before asking for new evidence. For 1294, check the
+  eventual recomposed output against the settled one-song decision instead of reopening continuity.
+- [ ] Prioritise gaps touching sermon speech, section edges or assembled joins. Route precise
+  intervals with surrounding context into the **existing parallel source-audio review**; avoid
+  duplicate media jobs or another independent processing round.
+- [ ] Establish from actual source audio whether each consequential interval contains speech,
+  singing, silence or missing/corrupt source sound. Record modality and source/output generation.
+  Lack of speech transcription alone establishes none of these categories.
+- [ ] Where audible speech matters, propose bounded retranscription under Pass C's existing
+  authorisation rule. Preserve the original text and hash; retain source-time offsets and record
+  the backend. Supply no inherited transcript as a prompt. Verify recovered words against audio
+  before using them to change sections; a second decoder is corroboration, not proof.
+- [ ] Keep unresolved intervals explicitly unassessable. Accepted source limitations, recovered
+  transcript evidence and supported boundary corrections get separate dispositions. Any later
+  processing change must invalidate/recheck dependent evidence against the new generation.
+
+This queue complements the other session's four investigations: source audio versus transcript;
+internal audiovisual quality (frozen frames, drift, channel loss/cancellation); content identity
+across services independent of labels; and actual playback/seeking/download delivery across MP3,
+video and metadata. The Luna reviews neither performed nor cleared those checks.
 
 ## 0. Wider release confidence and who does the checks (2026-10-29)
 
@@ -594,6 +709,54 @@ verified speaker/partial-recording presentation; final thumbnails; fresh product
 census and rehearsal against production-only content; destination object identity and signed
 release. The next processing round can supply new candidates but cannot itself certify these
 dimensions. No upload or release was attempted or authorised by this investigation.
+
+### 2026-11-06 complementary media, identity and delivery checks
+
+**Disposition: bounded checks complete; content/delivery acceptance remains incomplete.**
+These operator-requested checks complement Claude's **three batches / 45 services**, which stopped
+after two consecutive batches found no new classes, and the separately recorded supplemental
+boundary reviews. They are not another six-service semantic discovery round. The earlier full
+decode completed on **2,127 files with zero errors** (`output-review-20261105/STATUS.md`); it was
+not repeated here and does not establish semantic quality or playback delivery.
+
+Evidence is under `storage/scratch/output-independent-20261106/`, indexed by `summary.json`.
+Frozen text/identity evidence uses the 11-05 packets; actual media checks ran against retained
+source and quarantine files, with source/output hashes recorded, at code `3f4da2ea6` using
+FFmpeg 6.1.1. Local HTTP checks used the running app and read-only local record queries, not
+production. No application code, media, publication state or production data changed; no fresh
+transcription or paid-provider call was made. Luna performed bounded identity, transcript and
+delivery investigations; direct media measurements and lead adjudication were separate.
+
+| Dimension | Coverage and result | Limit / disposition |
+|---|---|---|
+| Cross-service identity | 442 frozen packets; 1,931 recorded output media hashes are unique. The 3 unhashed outputs are excluded sermons 1043/1051/1098. Corrected exact eight-word overlap scan across 438 service transcripts found 26 pairs: 25 longest matches are Scripture; 1049/1205 share sermon exposition. `identity/findings.json`, `identity/overlap-pairs.json`. | These are recorded hashes, not a fresh hash of every file. Runs 1049 (2025-11-09) and 1205 (2023-11-12) share a VE Day anecdote and Romans 5 material, but differing introductions, durations and segment structure support distinct performances. Intentional reuse is undetermined; no wrong-recording defect is established. |
+| Source/output audiovisual correspondence | Reused the six seeded services 18431/1006/1059/1015/1307/1093 for complementary measurements: 20-second windows at 10%, 50%, 90% of each output (18 windows), MP3/AAC/source audio comparisons and 18 source/output frame pairs. All six actual video hashes match frozen packets; files remained unchanged during checks. No sampled channel cancellation, rendition mismatch or growing timing drift; MP3/AAC measured lag was zero, source/output audio lag at most 25 ms. `media/summary.json` and underlying results. | This is a bounded sample, not a corpus rate or full audiovisual certification. Numerical audio alignment and frame correspondence do not establish spoken meaning or correct lip-sync in the original recording. |
+| Visual leads | Run 1006 is black through the sampled 131.235–151.235 s interval in both source and output; audio is nonzero. Its later static interval also appears in source. Run 1015's freeze-detector flags at 162.399–182.399 s were not supported by the 100-frame source/output comparison: both show movement and closely corresponding frames. | Record 1006 as a source visual limitation, not a new extraction defect or automatically accepted limitation. No recut is justified by these findings. The 1015 detector lead is closed without a frozen-output defect. |
+| Retained separate transcription | Three runs checked against retained H10B source decodes and delivered mappings/text. Delivered sermon interiors on 1330 (source 2138–2183 s) and 1069 (779.24–824.24 s) agree after text normalization. The 1330 announcement concern at 180–225 s is outside delivered membership, so it is not output loss. `text/source-decode-comparison.json`. | No semantic audio listening occurred; related ASR ancestry can correlate errors. Run 1215's song §2643 has divergent lyric text at 1980–2025 s and remains unassessable from text. Its initial 1393.49–1438.49 s window mostly overlaps another delivered song (§2639), not an omitted interval. |
+| Local delivery and exposure | Six local HTTP requests: health 200; sermon listing 500; nonexistent audio 404; selected published audio 404; quarantined audio GET+Range and video HEAD+Range both 404 without media bytes. Debugbar identifies `HistoricStagingUrlGuard` rejecting the configured `historic_staging` default in the listing. No published media rows explicitly use local `public`, and no published video rows were available. `delivery/check.json`. | The local staging configuration prevents a usable published-media candidate. Actual 206/range, seek, resume, download, rendered metadata and browser/mobile delivery remain unverified. This is not evidence of a production outage; quarantine must remain protected. |
+
+**Corrections retained in the evidence:** the initial zero lexical-overlap result was invalid
+because timestamps entered tokenization; the corrected scan strips them and reports 26 pairs.
+Missing segment arrays are **32 entries (3 sermons and 29 sections)**, not 30 missing media
+hashes; the 29 section hashes exist. The initial 1330 window attribution and 1215 membership
+description were corrected against actual mappings. Use the final dispositions above, not the
+intermediate leads, when counting defects.
+
+**Remaining work in the existing acceptance lanes:**
+
+- Pass C: semantic source-audio verification remains open. Triage 1215 §2643's lyric disagreement
+  for a material effect on identity, boundaries or presented text; if consequential, settle the
+  bounded source/output interval with audio-capable evidence. Transcript voting cannot close it;
+  fresh transcription retains the existing authorisation rule.
+- Passes A/C: retain 1006's black-source evidence in its visual-quality disposition and assess any
+  presentation consequence before release. Continue the existing whole-output/join and broader
+  media coverage; do not treat these 18 windows as their replacement.
+- §7 delivery / programme observation: use an appropriate isolated published-media environment
+  for playback, seeking, range responses, download identity, rendered metadata and replacement
+  freshness, then perform authorised destination checks. Resolve the local listing/configuration
+  obstacle for that rehearsal without making staging or quarantine public.
+- Rebind dependent checks after the next round changes artifacts. The six-service measurements,
+  old full-decode result and frozen packet hash comparisons do not automatically certify new bytes.
 
 ### Named residue requiring current-evidence reconciliation
 
