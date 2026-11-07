@@ -116,7 +116,7 @@ refactor a new prerequisite. Preserve accepted limitations and specific operator
    12 K18 part additions, 13 songs (945 never cut, 1295 held), 2 talks, 10 structures (split-song/music snap).
    **430 sermon ends are unassessable** (K16/edge words under signature v16 are missing), so the next round's edge
    step is the prerequisite for a complete comparison. The first pass leaked 4 writes after a deadlock (983/1042
-   `introduction: null` + `updated_at`, before-images kept, not restored); the guarded pass committed nothing.
+   `introduction: null` + `updated_at`; restored 11-07, see below); the guarded pass committed nothing.
    **Edge step on the 42 changed runs, 11-07** (`historic-import:prepare-output-edges`, 15 min, 0 failures;
    945/1019 left out as stopped runs; `storage/scratch/edge-step-20261107/`). Their word decodes were already
    banked under v16 (45 s of Whisper in all); the missing evidence was the K16 answers and sentence checks.
@@ -124,9 +124,17 @@ refactor a new prerequisite. Preserve accepted limitations and specific operator
    latest ruling (16 met, 12 have no ruling). 0 review-flag changes. 30 sermons change:
    K18 adds a first part on 990/1040/1074/1169/1172/1224/1313/1315/18434 and leaves the existing edges alone;
    962 now ends at 3798.94, the cut its 10-29 ruling preferred; 893's last end moves −27.3 s (met).
-   **Open: 1337.** K18 starts the sermon at 1770.33, 3.6 s inside held song 4276 (1478.49–1773.94, wrong-song
-   hold), so the plan is refused (`sermon_span_crosses_held_section`): safe, but it would park the sermon.
-   K18 should stop at the song's end, or that song's end is late; settle it before the freeze.
+   **1337 FIXED 11-07 (held content, not held bounds).** K18's introduction starts at the song section's end
+   (1773.94), and the cue-safe start rightly widened to the first spoken word, 1770.33. But song 4276's section
+   had grown past its music over that sentence: its own cut ends at 1769.42 (E24), and its wrong-song hold was
+   recorded on 1659–1767.49. `heldSectionsCrossed` now judges a held song, talk or reading by its own planned
+   cut plus its holds' recorded spans, inside its bounds. A held sermon, or a held section whose cut cannot be
+   planned, keeps its whole span. Measured on all 35 runs with a held section: only 1337 changes (no longer
+   refused; same cut, end 3818.96 against ruled 3819.0). 1304 (inside 3870's hold span), 1049 (12 ms into
+   1572's boundary hold) and 1347 (song into held sermon 4386's bounds) stay refused
+   (`storage/scratch/held-crossing-20261107/`).
+   The first replay pass's four leaked rows were restored 11-07 to their binlog before-images (JSON and
+   `updated_at` verified identical).
 3. **Record the required routes.** 942/974/1363 retain X7's hand-edited structures (`reExtract`, no
    recompose). 1295 remains held under S10. Split-song fixes need recompose; 1120's lyric extension
    cannot be reached by extraction alone. K18's extraction-plan fix reaches 942 without structural

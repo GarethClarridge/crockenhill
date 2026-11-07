@@ -23,6 +23,7 @@ use App\Support\ServiceArtifactDisk;
 use App\Support\ServiceTimestamp;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
+use Throwable;
 
 /** Put output edges in measured word pauses; no-word windows retain whole-cue widening. */
 class CueSafeExtractionPlan
@@ -368,7 +369,7 @@ class CueSafeExtractionPlan
      * @param  bool  $sermonEnd  The last span ends a sermon output: beside a song it ends where the banked introduction answer says (K16, {@see SermonSongIntroductionCheck})
      * @param  OutputEdgeAnswers|null  $edgeAnswers  The operator's start and end for this output, applied after every edge rule
      * @param  ChurchServiceTranscript|null  $transcript  Read-only candidate evidence; never installs a transcript on the run
-     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, ended_before: list<array{start_time: float, end_time: float}>}  `ended_before`: the trailing parts a K16 end falls before, left out of the output
+     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, ended_before: list<array{start_time: float, end_time: float}>} `ended_before`: the trailing parts a K16 end falls before, left out of the output
      */
     public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false, bool $sermonEnd = false, ?OutputEdgeAnswers $edgeAnswers = null, ?ChurchServiceTranscript $transcript = null): array
     {
@@ -2430,6 +2431,13 @@ class CueSafeExtractionPlan
      * checked against section bounds before edges widen into words and cues; a widened edge can
      * then carry held content into the output through a cue it shares with the held section.
      *
+     * A hold is on content ({@see HoldSectionForContentReview}): what it was found on and what the
+     * held section's own output cuts. Within the section's bounds, a stretch outside both is not held
+     * content: 1337's song section had grown past its music over the next item's first words (E24
+     * gives speech after a song to the next item), and the sermon's start, widened to that first
+     * word, was refused for reaching it (11-07). A held section whose own cut cannot be planned, or
+     * that is not a section output (a sermon), is judged by its whole span, as before.
+     *
      * @param  list<array{start_time: float, end_time: float}>  $segments
      * @param  list<int>  $cutSectionIds
      * @return list<int>
@@ -2437,11 +2445,41 @@ class CueSafeExtractionPlan
     public function heldSectionsCrossed(MediaProcessingLog $log, array $segments, array $cutSectionIds): array
     {
         return array_values($log->serviceSections()->orderBy('start_time')->orderBy('id')->get()
-            ->filter(static fn (ServiceSection $section): bool => ! in_array($section->id, $cutSectionIds, true)
+            ->filter(fn (ServiceSection $section): bool => ! in_array($section->id, $cutSectionIds, true)
                 && HoldSectionForContentReview::isHeld($section->metadata->reviewFlags ?? [])
-                && array_any($segments, static fn (array $segment): bool => $segment['start_time'] < (float) $section->end_time - 0.001
-                    && $segment['end_time'] > (float) $section->start_time + 0.001))
+                && array_any($this->heldContent($section), static fn (array $held): bool => array_any($segments,
+                    static fn (array $segment): bool => $segment['start_time'] < $held[1] - 0.001 && $segment['end_time'] > $held[0] + 0.001)))
             ->map(static fn (ServiceSection $section): int => $section->id)->all());
+    }
+
+    /**
+     * The stretches of a held section its hold protects: its own output's cut and its holds' recorded
+     * spans, inside the section's bounds; or the whole span when its own cut cannot be planned.
+     *
+     * @return list<array{0: float, 1: float}>
+     */
+    private function heldContent(ServiceSection $section): array
+    {
+        $bounds = [(float) $section->start_time, (float) $section->end_time];
+        if (! in_array($section->section_type, [ServiceSectionType::Song, ServiceSectionType::ShortTalk, ServiceSectionType::BibleReading], true)) {
+            return [$bounds];
+        }
+        try {
+            $stretches = array_map(static fn (array $segment): array => [(float) $segment['start_time'], (float) $segment['end_time']], $this->forSection($section)['segments']);
+        } catch (Throwable) {
+            // Unplannable (missing evidence or an invalid plan): the whole span stays protected.
+            return [$bounds];
+        }
+        foreach ($section->metadata->raw[HoldSectionForContentReview::METADATA_KEY] ?? [] as $hold) {
+            if (is_array($hold) && is_numeric($hold['start_time'] ?? null) && is_numeric($hold['end_time'] ?? null)) {
+                $stretches[] = [(float) $hold['start_time'], (float) $hold['end_time']];
+            }
+        }
+
+        return array_values(array_filter(
+            array_map(static fn (array $stretch): array => [max($stretch[0], $bounds[0]), min($stretch[1], $bounds[1])], $stretches),
+            static fn (array $stretch): bool => $stretch[1] > $stretch[0],
+        ));
     }
 
     /**
@@ -3200,7 +3238,7 @@ class CueSafeExtractionPlan
 
         try {
             return AudioTimeline::fromJson((string) Storage::disk(ServiceArtifactDisk::for($path))->get($path));
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
     }
