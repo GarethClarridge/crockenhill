@@ -79,7 +79,19 @@ class PrepareOutputEdgeEvidence
             $summary['exposed_edges'] = $this->prepare->prepare($run, $followup);
             $run->refresh();
         }
-        $cues = app(OutputEdgeWordTimings::class)->cues($run);
+        $evidence = app(OutputEdgeWordTimings::class);
+        // Each song's tail in overlapping windows (RA3 fix b), banked before its cut is planned below.
+        $tailWindows = [];
+        foreach ($run->serviceSections()->where('section_type', ServiceSectionType::Song)->orderBy('start_time')->get() as $section) {
+            foreach (app(SongTailSpeechOnset::class)->windows((float) $section->end_time, $run->duration) as $window) {
+                $tailWindows[$evidence->kind($evidence->identity($run, $window))] = $window;
+            }
+        }
+        if ($tailWindows !== []) {
+            $summary['song_tails'] = $this->prepare->prepareWindows($run, $tailWindows);
+            $run->refresh();
+        }
+        $cues = $evidence->cues($run);
         $dependent = app(DependentSongOpening::class);
         $windows = [];
         foreach ($run->serviceSections()->where('section_type', ServiceSectionType::Song)->orderBy('start_time')->get() as $section) {

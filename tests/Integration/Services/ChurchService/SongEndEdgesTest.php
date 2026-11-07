@@ -10,6 +10,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
+use App\Services\ChurchService\SongTailSpeechOnset;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
@@ -875,6 +876,77 @@ class SongEndEdgesTest extends TestCase
         $this->assertSame(CueSafeExtractionPlan::SONG_END_SPEECH_OVER_MUSIC, $this->endEdge($plan)['reason']);
         // The fade spans the gap from the last sung sound ("God." to 329.91), at least 1.5 s.
         $this->assertEqualsWithDelta(1.5, $plan['audio_fade_out'], 0.001);
+    }
+
+    /**
+     * 1274 §3430 (RA3, heard 11-07): "…to God in prayer again. But let me mention a few things"
+     * starts 4.2 s before the section's end, under a line that opens 15 s early over the singing.
+     * The tail's overlapping decodes agree on the speech, which the classifier hears without music.
+     */
+    #[Test]
+    public function a_song_ends_before_speech_its_tail_decodes_agree_on(): void
+    {
+        $sung = ['start' => 975.0, 'end' => 983.0, 'text' => 'Lord Lord Lord Lord Lord Lord'];
+        $speech = ['start' => 985.0, 'end' => 1003.0, 'text' => 'to God in prayer again. But let me mention a few things'];
+        $section = $this->song(800.0, 1000.0, [$sung, $speech], [[800, 1010, self::LOUD]],
+            timeline: [[800, 990, 0.75, 0.01], [990, 1010, 0.01, 0.8]]);
+        $heard = [...$this->sungWords(975.0, 8), ...$this->spokenWords(995.8, ['to', 'God', 'in', 'prayer', 'again.', 'But', 'let', 'me', 'mention'])];
+        $this->bank($section, 1000.0, $heard);
+        $this->bank($section, 985.0, $heard);
+        $this->bankTail($section, 1000.0, $heard);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta(995.8 - 1.5, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame(SongTailSpeechOnset::REASON, $this->endEdge($plan)['reason']);
+        $this->assertEqualsWithDelta(1.5, $plan['audio_fade_out'], 0.001);
+    }
+
+    /** Without its decodes banked, the tail rule leaves the song's end to the rules before it. */
+    #[Test]
+    public function a_song_whose_tail_decodes_are_not_banked_keeps_its_end(): void
+    {
+        $sung = ['start' => 975.0, 'end' => 983.0, 'text' => 'Lord Lord Lord Lord Lord Lord'];
+        $speech = ['start' => 985.0, 'end' => 1003.0, 'text' => 'to God in prayer again. But let me mention a few things'];
+        $section = $this->song(800.0, 1000.0, [$sung, $speech], [[800, 1010, self::LOUD]],
+            timeline: [[800, 990, 0.75, 0.01], [990, 1010, 0.01, 0.8]]);
+        $heard = [...$this->sungWords(975.0, 8), ...$this->spokenWords(995.8, ['to', 'God', 'in', 'prayer', 'again.', 'But', 'let', 'me', 'mention'])];
+        $this->bank($section, 1000.0, $heard);
+        $this->bank($section, 985.0, $heard);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertNotSame(SongTailSpeechOnset::REASON, $this->endEdge($plan)['reason'] ?? null);
+    }
+
+    /** @param list<array{start: float, end: float, word: string}> $words */
+    private function bankTail(ServiceSection $section, float $end, array $words): void
+    {
+        $log = $section->processingLog->fresh();
+        $evidence = app(OutputEdgeWordTimings::class);
+        foreach (app(SongTailSpeechOnset::class)->windows($end, $log->duration) as $window) {
+            $inside = array_values(array_filter($words, static fn (array $word): bool => $word['start'] >= $window['start'] && $word['end'] <= $window['end']));
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
+                'identity' => $evidence->identity($log, $window), 'words' => $inside, 'compute_seconds' => 1.0,
+            ]);
+        }
+        $section->unsetRelation('processingLog');
+    }
+
+    /**
+     * @param  list<string>  $text
+     * @return list<array{start: float, end: float, word: string}>
+     */
+    private function spokenWords(float $from, array $text): array
+    {
+        return array_map(static fn (int $index, string $word): array => ['start' => round($from + $index * 0.35, 3), 'end' => round($from + $index * 0.35 + 0.25, 3), 'word' => " {$word}"],
+            array_keys($text), $text);
+    }
+
+    /** @return list<array{start: float, end: float, word: string}> */
+    private function sungWords(float $from, int $count): array
+    {
+        return array_map(static fn (int $index): array => ['start' => $from + $index * 1.0, 'end' => $from + $index * 1.0 + 0.6, 'word' => ' Lord'], range(0, $count - 1));
     }
 
     /** @param array{cue_edge_widening: list<array<string, mixed>>} $plan

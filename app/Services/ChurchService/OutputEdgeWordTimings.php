@@ -166,6 +166,9 @@ class OutputEdgeWordTimings
                     $words[] = ['start' => (float) $word['start'], 'end' => (float) $word['end'], 'word' => $word['word']];
                 }
                 usort($words, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
+                // The decoder's own tokens, unjoined: joining a punctuation token stretches the word
+                // before it to the punctuation's end ({@see SongTailSpeechOnset} counts word lengths).
+                $payload['tokens'] = $words;
                 // whisper.cpp tokens start a word with a space and continue one without it
                 // (" B", "ibles"): a gap between them is inside a word. Providers returning
                 // whole words never lead with a space, so only punctuation joins there.

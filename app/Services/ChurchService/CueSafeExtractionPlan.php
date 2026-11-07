@@ -2499,6 +2499,30 @@ class CueSafeExtractionPlan
      */
     private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline): ?array
     {
+        $decision = $this->songEndByCues($log, $cues, $window, $end, $levels, $timeline);
+        $tail = app(SongTailSpeechOnset::class)->cut($log, $end, $decision['time'] ?? $end, $timeline);
+
+        if ($tail === null) {
+            return $decision;
+        }
+
+        return ['time' => $tail, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
+            'reason' => SongTailSpeechOnset::REASON, 'speech_cue' => $decision['speech_cue'] ?? null,
+            'replaced' => $decision === null ? null : ['time' => $decision['time'], 'reason' => $decision['reason']],
+            'fade_out' => self::SONG_END_FADE_MIN];
+    }
+
+    /**
+     * The song's end from its transcript lines, levels and classifier, before the tail's
+     * overlapping decodes are asked where speech starts ({@see SongTailSpeechOnset}).
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}|null  $window
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
+     * @return array<string, mixed>|null
+     */
+    private function songEndByCues(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline): ?array
+    {
         $decision = $this->songEndBySoundOrSpeech($log, $cues, $window, $end, $levels, $timeline);
         $line = $decision !== null ? $this->speechOverMusic($cues, $end, $timeline) : null;
 
