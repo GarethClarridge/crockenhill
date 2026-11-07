@@ -149,7 +149,7 @@ changed hashes invalidate dependent checks.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
-| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Programme authority; media worklists reconciled 11-06. November round closed, later fixes/acceptance still pending; weekly remains paused. | Video §4.1a–c: pending K19 trial, K20 introduction miss, measured routes and current-output verification; audit §7 before production convergence and signed release. |
+| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Programme authority; media worklists reconciled 11-06. November round closed, later fixes/acceptance still pending; weekly remains paused. | Video §4.1a–d: apply K19 (built 11-06), K20 introduction miss, review-automation RA1–RA6, measured routes and current-output verification; audit §7 before production convergence and signed release. |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |

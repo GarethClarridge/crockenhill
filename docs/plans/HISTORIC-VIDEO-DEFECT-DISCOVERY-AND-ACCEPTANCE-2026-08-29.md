@@ -50,8 +50,8 @@ the amended decisions; §4.1c below owns their implementation follow-up.
   follow-up. Unrelated sermon enrichment should not gate song preparation.
 
 **Status:** decisions and planned work only. No processing code, outputs, holds or release status
-were changed by this write-up. The existing §4.1b K19 reach-back trial and its pending listening
-answers remain separate work; do not treat this review as answering that page. Preserve specific
+were changed by this write-up. The §4.1b K19 reach-back was separate work, answered and built
+11-06 on its own listening page; this review did not answer it. Preserve specific
 rulings under Q13 and test measured changes before adoption. The architecture work retains its
 existing sequencing; this review does not make a broad refactor a new prerequisite for the round.
 
@@ -76,8 +76,9 @@ and its linked September/October logs. The rulings register owns decisions; the 
 
 Recount eligible runs, open/unassessable rulings and changed output generations on final code.
 The 11-05 local inventory and 11-06 samples are dated evidence, not final release membership.
-The last recorded ruled-endings result is 659/659 after the committed start fixes; the uncommitted
-K19 trial has six fixture-fidelity failures and no broken ruling. Keep those distinct.
+The last recorded ruled-endings result is 659/659 after the K19 reach-back was built and its six
+moved captures rebaselined on their own evidence (§4.1b). Those captures still need recapture after
+the change is applied to outputs.
 
 Discovery stopped at 45 services after two clean batches. The supplemental Luna review inspected
 100 services / 1,116 section contexts without a new confirmed boundary class; the operator stopped
@@ -140,7 +141,7 @@ Reconciled through the 11-06 record; older interpretations and exact evidence ar
 | **K19 reach-back — built 11-06** | `openedOnStraddledInvitation()`; operator answered “Opening Invitations” (record below). Changed starts 1244/1247/1250 join/1308/1339 need recapture after application. 954 span 1's invitation is still dropped by the dead-feed move (unassessed). |
 | **1301 introduction — known miss** | K18's current passage-name mechanism misses it; K20/§4.1c own the content-based correction. No-passage stretches on 1044/1258/960/1163 need evidence-based disposition, not automatic inclusion. |
 | **Opening thanks / 1233 — no rule** | Operator 11-06 “Opening Thanks”: either on 941/1128/1230/1117, A (keep the thanks) on 1258, so no opening-thanks rule; rulings `operator-20261106:*` in `gather.py`. 1233's preferred start about 1651.0 remains an open-defect fixture (needs a wider decode window). |
-| **Quiet spoken openings — built, apply/verify** | `transcribedSpeechSounds()` protects 1308 and 928's internal reading start. 1308's remaining announcement reach-back belongs to the K19 trial. 1136 is now an accepted source limitation (keep 15.06); 1354 drops only an optional invitation under K19. |
+| **Quiet spoken openings — built, apply/verify** | `transcribedSpeechSounds()` protects 1308 and 928's internal reading start. 1308's announcement reach-back is now K19's (built 11-06, 1513.54 → 1509.34). 1136 is now an accepted source limitation (keep 15.06); 1354 drops only an optional invitation under K19. |
 | **K18/K19 captures — evidence refresh** | Changed starts need current edge/K16 evidence and recapture after application. K18 starts at 0.0 on 1027/1053/1072 currently lack decoded edge evidence. Preserve 1040's either and 1154's preferred exclusion; apply Q13/E27 to conflicts. |
 | **Split songs — built, application pending** | 1294 is ruled one continuous song, one clip; do not ask again. Recompose applies the blind-window/music snap fix (also affects 1073/1106 and other measured spans). Verify actual clips, identity holds and continuity. Evidence: `storage/scratch/split-song-snap-20261105/`. |
 | **Ten stale main-output generations — repair built, data verification pending** | 1025/1055/1133/1199/1214/1286/1299/1305/1325/1349 retain old quarantine generations. Preserve staged bytes; the recorded recovery route is the next full extraction/promotion chain. Under G8, any narrower recovery must be explicitly evidenced. Verify video/audio/transcript together with `historic-import:verify-output-generations --hash`. |
@@ -236,8 +237,13 @@ service-only, merge and stopped-run obligations separately; distinguish excluded
 from unresolved work. The 13 non-excluded stopped runs in the earlier census need explicit routes,
 including 945's structure failure and 1143's multiple speech blocks; do not revive excluded 1145.
 
-Assign each reason to **already resolved by current evidence**, **automatic repair/evidence work**,
-**human decision reserved by ruling**, or **unassessable with a named missing input**. Report unique
+Take the inventory against §4.1a step 2's read-only replay of final code, not only today's
+stored outputs: built-but-unapplied work (split-song/music-window snap, K18/K19 starts, the ten
+stale main generations, Scripture refreshes) may already remove some reasons, and RA3–RA5 must not
+be built against defects that application will clear. Assign each reason to **already resolved by
+current evidence**, **resolved by pending application of built work** (named fix, verified after
+the round), **automatic repair/evidence work**, **human decision reserved by ruling**, or
+**unassessable with a named missing input**. Report unique
 sections/questions removable only when *all* reasons clear, plus stages to reuse/repeat. Compare all
 eligible runs under G8. Reuse current manifests/replay artifacts in `storage/scratch/`; any new
 one-shot reporting command needs the project's deletion trigger. Avoid the full dashboard's
@@ -345,7 +351,8 @@ content holds, sermon absence, unresolved interruption questions and release acc
 
 #### Verification, sequencing and stopping
 
-Ship RA1 first, then RA2 and the already-built repairs/RA3 boundary path. RA4 and RA5 expand only
+Ship RA1 first (on the final-code replay), then RA2 and the already-built repairs/RA3 boundary
+path; RA3 classifies only reasons the replay shows survive application. RA4 and RA5 expand only
 where the census and real-evidence trials show worthwhile reductions; RA6 supports these stages
 and prepares the residual human queue. Finish §4.1a's existing start work before freezing the
 combined code. This is a sequence of bounded changes, not a requirement to solve every review
@@ -460,7 +467,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Recorded status / next evidence |
 |---|---|
-| Processing | November round and named repairs closed. K19 trial remains uncommitted/unadopted; later built fixes need the measured routes and output checks above. No new dispatch authority. |
+| Processing | November round and named repairs closed. K19 reach-back built and ruled 11-06, not yet applied; it and the other later built fixes need the measured routes and output checks above. No new dispatch authority. |
 | Content acceptance | Incomplete. Ten stale main generations require verified recovery; other coverage, content and editorial obligations are in the audit ledger. The old 21-container-path incident is resolved, not an outstanding loss. |
 | Production convergence and delivery | Fresh programme census, rehearsal and destination verification still required. |
 | Public release | No batch authorised; programme §8 owns the separate act. |
