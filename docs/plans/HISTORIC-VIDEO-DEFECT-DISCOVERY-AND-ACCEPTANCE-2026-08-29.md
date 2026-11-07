@@ -111,10 +111,32 @@ refactor a new prerequisite. Preserve accepted limitations and specific operator
    rollback does not undo file deletion. Reconcile section identities and latest rulings, with
    explicit reuse/reprocess/unassessable dispositions under G8. Use real banked evidence; missing
    edge/K16 evidence is a prerequisite to gather, not a pass or an invented stand-in.
+   **First replay RUN 11-07** on `f80bf4fdf` (`storage/scratch/final-replay-20261107/STATUS.md`): 452 runs, 44 min.
+   No moved edge breaks its latest ruling; 0 review-flag changes. Changed: 5 full sermon plans, 17 sermon starts,
+   12 K18 part additions, 13 songs (945 never cut, 1295 held), 2 talks, 10 structures (split-song/music snap).
+   **430 sermon ends are unassessable** (K16/edge words under signature v16 are missing), so the next round's edge
+   step is the prerequisite for a complete comparison. The first pass leaked 4 writes after a deadlock (983/1042
+   `introduction: null` + `updated_at`, before-images kept, not restored); the guarded pass committed nothing.
+   **Edge step on the 42 changed runs, 11-07** (`historic-import:prepare-output-edges`, 15 min, 0 failures;
+   945/1019 left out as stopped runs; `storage/scratch/edge-step-20261107/`). Their word decodes were already
+   banked under v16 (45 s of Whisper in all); the missing evidence was the K16 answers and sentence checks.
+   Replayed after it (`final-replay-20261107-after-edge/`): all 42 are assessable. No moved edge breaks its
+   latest ruling (16 met, 12 have no ruling). 0 review-flag changes. 30 sermons change:
+   K18 adds a first part on 990/1040/1074/1169/1172/1224/1313/1315/18434 and leaves the existing edges alone;
+   962 now ends at 3798.94, the cut its 10-29 ruling preferred; 893's last end moves −27.3 s (met).
+   **Open: 1337.** K18 starts the sermon at 1770.33, 3.6 s inside held song 4276 (1478.49–1773.94, wrong-song
+   hold), so the plan is refused (`sermon_span_crosses_held_section`): safe, but it would park the sermon.
+   K18 should stop at the song's end, or that song's end is late; settle it before the freeze.
 3. **Record the required routes.** 942/974/1363 retain X7's hand-edited structures (`reExtract`, no
    recompose). 1295 remains held under S10. Split-song fixes need recompose; 1120's lyric extension
    cannot be reached by extraction alone. K18's extraction-plan fix reaches 942 without structural
    edits. Derive every other route from current dependencies rather than copying the old round.
+   **Routes derived 11-07** from the replay (`historic-import:review-inventory`, `routes.json` in
+   `storage/scratch/review-inventory-20261107/`): 435 runs. Edge step only: 391. Re-extract sermon: 27 + 5 without
+   the edge step. Recompose: 10 (1020/1073/1106/1138/1220/1261/1294/1308/18422; 945 is a stopped run and is routed
+   through its own failure first). Section re-cuts: 945 and 1295 (1295's four songs stay held under S10). X7's
+   942/974/1363 need no recompose (their structures replay unchanged). The edge step was run on the 42 changed
+   runs (step 2); the rest is the round's first stage (runbook §4.2, "Edge evidence for the rest of the corpus").
 4. **Verify changed and unresolved outcomes.** Keep internal-join coverage (1208/1235/1250 and the
    split-sermon joins), all applicable heard-edge guards, and explicit open-defect fixtures. Recount
    old unassessable/miss cohorts rather than treating 17/87/98 as current counts. Use E23 dispositions;
@@ -249,6 +271,19 @@ eligible runs under G8. Reuse current manifests/replay artifacts in `storage/scr
 one-shot reporting command needs the project's deletion trigger. Avoid the full dashboard's
 blob-heavy sorted load, which failed with MySQL sort-memory exhaustion during this assessment;
 use bounded reads and test exact count equivalence.
+
+**RA1 BUILT 11-07 (`9105d4dc4`):** `ServiceReviewInventoryQuery` + `ReviewReasonRouter` + `PendingApplication`,
+reported by the one-shot `historic-import:review-inventory` (read-only; fails unless its section count equals
+the dashboard's). Live, against the 11-07 replay: 1,062 sections / 2,268 records; **898 processing-review
+sections** (= the 11-06 baseline): 27 clear without human work (pending application and/or current evidence; the
+only flagless booleans are 1594/1829, matching the recompute dry run), 457 need only automatic stages or pending work, 375 keep a
+human decision (talk type 335, speaker 302 and non-recheckable holds are reserved), 39 are blocked on missing
+edge evidence. Records by stage: RA3 353, RA5 331, RA4 173, RA2 56, sound treatment 22, hold recheck 3. 37
+cross-type inversions and 25 missing-reading flags with a known passage are resolved under the current policy.
+Found while building: the candidate predicate's legacy song clause has no `reviewReasons()` entry; it is
+inventoried as `song_without_catalogue_item`. Also listed: 456 services flagged for review and 455 pending
+merges (all but one are the same services: convergence obligations, not review automation), and 74 stopped
+runs, of which 16 are historic-era (≥ 880): 15 unresolved plus excluded 1145.
 
 **RA2 — Complete evidence refresh before escalating stale text (early).** Reuse
 `CreateSermonTranscriptFromService`, `FlagSermonTextPredatesEvidence`, transcript recovery and

@@ -247,6 +247,23 @@ Every dispatch is a dry run without `--execute` and is bounded by `--max`.
   `sections:recut <processing-id>` dispatches candidate preparation. It does not re-cut the
   sermon; use the full route when sermon media or composition also changes. Bind this exception
   to the round's reviewed membership and verify the resulting clip hash and hold state.
+- **Edge evidence for the rest of the corpus is the round's first stage (decided 11-07).** The 11-07 final-code
+  replay could not assess 430 sermon ends: their K16 answers and sentence checks were never asked under the
+  current processing signature (version 16), though most of their word decodes were already banked. Only the 42 runs whose cuts the replay changed were prepared before
+  the freeze (`storage/scratch/edge-step-20261107/`). After the freeze, before any recompose or cut, run
+  `historic-import:prepare-output-edges {runs}` on the remaining members: the routes in
+  `storage/scratch/review-inventory-20261107/routes.json` marked "edge step first", minus those 42. Recount
+  first: evidence is keyed by window, model and signature, so it carries into the round only while those hold,
+  and pre-freeze work that moves an edge (RA3, K20, K21, E27) needs that window decoded again. It decodes on
+  host Whisper and asks the structure model (K16 and the sentence check). It never changes a run's status or
+  cuts, so a run that fails it stays as it was. Measured 11-07 on the 42: about 21 s a run, almost all of
+  it the K16 and sentence-check model calls (the v16 decodes were mostly banked already). Runs are independent,
+  so 3–4 processes over disjoint run lists are worthwhile; the host Whisper server decodes one window at a
+  time, so more processes than that gain nothing on runs that need decodes. Pass run IDs as separate
+  arguments: in zsh an unquoted `$RUNS` is one argument and the command prepares only the first run.
+  Then rerun the replay and the inventory on the frozen
+  revision, so the round starts from a complete end comparison. Stopped runs (945, 1019 and the rest of
+  the inventory's stopped list) are routed through their own failure first.
 - **Weekly runs cannot enter a round snapshot.** They retry through `UnifiedMediaProcessor::retry`
   (the admin Retry path).
 
@@ -256,6 +273,10 @@ Every dispatch is a dry run without `--execute` and is bounded by `--max`.
   hashes the encoder. Pin both: version 8 runs with `libx264`, version 9 with `.env`'s VideoToolbox.
 - A resolver missing its evidence returns `edge_word_timings_error` in the plan's metadata **without
   throwing**, leaving an empty audit. Count errors explicitly.
+- **A database rollback is not enough on its own** (11-07): a deadlock ends InnoDB's transaction underneath
+  Laravel, and later statements autocommit. Four rows on two runs leaked that way from parallel replay shards. Guard each
+  replay with `SET SESSION autocommit = 0`, a savepoint checked at the end, read-only disk wrappers and a
+  binlog check afterwards (`storage/scratch/final-replay-20261107/replay.php`).
 - The pre-flight compares sections by position: one dropped section reads as every later section
   re-typed. Compare by title and position.
 
