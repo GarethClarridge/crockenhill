@@ -517,6 +517,29 @@ open). Scratch: `storage/scratch/ra2-20261107/trailing_*`, `tail_signal*`, `tail
     fixes 2303, but the v3a fallback then fires on stacked words in 3796 (ruled planned) and 3546
     (sung-labelled). It is a wash and is not kept. Stacked word groups are right in 136468/2187
     and wrong in 3796/3546; no signal here tells which.
+- **v5 BUILT (11-07, operator: "build it").** `SongTailSpeechOnset` holds the rule (windows,
+  agreement, pure-speech gate, wide fallback, never later than planned through speech alone).
+  `CueSafeExtractionPlan::songEnd()` asks it after the existing rules (now `songEndByCues()`), and
+  its cut replaces theirs with reason `song_end_tail_speech_onset` (the replaced decision is kept
+  under `replaced`, with a 1.5 s fade). `PrepareOutputEdgeEvidence` banks the eight tail windows
+  (`window_rule` `song-tail-slide-12-step-3-v1`) for every song before the song cuts are planned.
+  - The rule reads the decoder's **unjoined tokens** (`OutputEdgeWordTimings::read()['tokens']`,
+    new), because joining a punctuation token stretches the word before it. With joined words,
+    669 and 3795 lost their fixes ("together." ran over 1 s).
+  - Re-scored as built, on the scratch decodes (`php_rule.php`): it matches v5 on every tail
+    except 136468. There the window between the cuts reads music 0.4989 (rounded to 0.50 in the
+    scratch analysis), so the planned −5.25 stands, within the ruled −4.1's 2 s. 0 of 74 sung
+    tails move.
+  - **Evidence is optional.** Without the tail windows banked, the earlier decision stands, so no
+    run's plan fails. The windows are decoded by the edge step, so they arrive with the rest of
+    the edge step (runbook §4.2, the round's first stage), not before.
+  - **Not measured: song ends outside the 130 trailing tails.** It applies to every song end once
+    its windows are banked. The round's redraw listing must show the `song_end_tail_speech_onset`
+    moves on non-trailing songs before they are trusted.
+  - **Not changed: the next item's start.** `afterSongSound()` only moves a start later, and this
+    reason is not in its list, so speech the song no longer keeps does not reach the next item's
+    clip either, where that item starts at the stored boundary. This is unchanged from before
+    and stays open.
   - **Remaining misses and what they would need:** 1521 and 2303 start speech over an instrumental
     outro, in mixed 5 s windows (finer classifier windows). 3447's "please sit down" is 5 s
     before the next speech, over music (a merge across music). 669 loses 2.0 s of outro (at the
