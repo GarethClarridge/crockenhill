@@ -429,6 +429,98 @@ open). Scratch: `storage/scratch/ra2-20261107/trailing_*`, `tail_signal*`, `tail
   - Next: a word-timing decode of [stored end − 12 s, stored end + 8 s] on the 41 SP/speech tails
     and the 5 song-continues sections (local whisper; needs a go). Then the onset rule
     test-first, judged against these 27 rulings.
+- **Word-timing decode (11-07, read-only, `storage/scratch/tail-words-20261107/`).** Covered 55
+  sections: the 41 SP/speech tails, the 5 song-continues sections and all 27 ruled. 2174 (run
+  1145) has no audio.
+  - **A window over 30 s is unusable at the edge.** Whisper joins its two chunks 30 s in. Words
+    before the join were dropped (3430 lost all its speech), and the first word after it snapped
+    to the join (+6.1 s in 9 sections). Even single-chunk windows stack words at their own edges,
+    so any word within 0.25 s of a window edge is ignored. The windows used are
+    [end − 22, end + 6] (`words2.jsonl`) and [end − 12, end + 6] (`words3.jsonl`). The 18 s window
+    did worse: it missed 2904 and 669.
+  - **Over music, words smear.** Whisper stretches words back across the singing ("moment"
+    2.5 s; 3447's "number of you" 15 s), and decoded pace does not separate singing from speech.
+    Sung lines decode at 2.7–3.8 words a second, speech at 3.1–5.7.
+  - **Candidate rule (`rule.py`).** Take the last run of 3+ words, each ≤1 s, with gaps ≤1 s,
+    starting before the stored end. The classifier's 5 s window at its start, or the next, must
+    read speech ≥0.5. Join an earlier qualifying run within 3 s, then cut 0.5 s before the start.
+    On the 27 rulings: 669 (+2.2 → −4.0), 1435 (−5.0 → −0.5) and 2904 (−16.3 → −4.0) are fixed.
+    136468, 176320, 2187 and 3182 stay within a second of the ruled onset. 3430 and 3447 are
+    missed (Whisper lost the speech in both decodes; the planned cut stands). No all-sung tail
+    moves (336237 fires at +0.4, after its end). The parameters were chosen on these same 27
+    rulings.
+  - **Unruled:** the rule fires on 24 of the 31 decodable tails and moves the cut ≥0.5 s on 21.
+    That includes 3795 by −13.1 s (a doxology after the song, classifier speech 0.88: spoken or
+    sung?). The 14 moves of ≥1 s are on a listening page,
+    https://claude.ai/artifact/FwEwZTpnr4MhBe2NBcB2kH (`storage/scratch/tail-onset-listening-20261107/`,
+    `answers-map.json` maps earlier/later to planned/rule). The page has no answers yet.
+  - The 5 song-continues sections are not addressed. Their decodes show a wordless outro after
+    the last lyric, then speech, and the song end needs extending, not shortening. That is a
+    separate fix.
+  - Next: the operator's answers. If the rule holds, build it test-first in
+    `songEndBySoundOrSpeech` with a durable decode window kind in `OutputEdgeWordTimings`.
+- **Endings answered (11-07, 14 rulings; `tail-onset-listening-20261107/answers/`).** Rule
+  right 3 (1073, 1521, 2303), planned right 2 (1089, 3796), either 7, neither 2 (3795: the
+  earlier ending still has a spoken "Amen"; 1897: even the earlier one has "Well let's…").
+  - Three times the rule ended too late: a word before the run is real speech, decoded as a
+    smeared word (1089 "this" −5.7, 1897 "to" −4.5) or as a lone word (3795 "Amen" −13.7, 1.4 s
+    before the run). Extending back through every non-music window fixes 1089 and 3795, but it
+    cuts 11 s of 2904's quiet singing, which also reads as neither music nor speech (E25). The
+    same applies to a "move later than planned only across music" guard: it fixes 1089 and
+    breaks 2904. No signal here separates 1089 from 2904.
+  - **Rule v3a (`rule3.py`, `onset3`):** v1, extended back only through words whose classifier
+    window reads speech ≥0.5 (gap ≤3 s). Only 3795 changes, to −14.2. Across all 41 rulings it
+    moves 20 cuts. Rule right where planned was wrong: 7 (669, 1435, 2904, 1073, 1521, 2303,
+    3795). Planned right where the rule is wrong: 2. 1089 keeps about 5.5 s of speech ("…this
+    year to the Lord"), and 3796 ends about 2 s before the planned cut, losing the end of the
+    singing (its stacked "Do you please sit down" is timed early). 1897 is wrong both ways, the
+    rule less so. Either is fine on 7, and 4 are within a second of the ruled onset. Unchanged
+    misses: 3430, 3447, 1986, 2164. No all-sung tail moves.
+- **Kept looking (11-07, operator: "keep looking").**
+  - The timeline's `singing` score does not separate 2904 from 1089: both read about 0.02 speech,
+    about 0.04 music and 0.000 singing before the speech.
+  - **Cross-window agreement (`words4.jsonl`, `consensus.py`):** seven 12 s windows 3 s apart over
+    [end − 22, end + 8]. A word counts when two windows agree on it (same text, starts within
+    0.4 s, ≥1 s from both edges, ≤1 s long). This removes the edge stacking and the smearing.
+    3430 is found for the first time (−3.9 against ruled −4.2), and 2904 lands at −3.7 (−4.4),
+    176320 at −2.3 (−2.2). The first word or two of an utterance usually drops out (136468 by
+    1.4 s, 2187 by 0.8 s), and 3796 and 669 have no agreed words.
+  - **Rule v5 (`rule5.py`, gate from `score_all.py pure`):** an agreed-word run (≥3 words, gaps
+    ≤1.5 s) starting before the end. In at least one classifier window over its first 2 s, speech
+    is ≥0.5 and music <0.5. The cut is the run start − 1.5 s. When no agreed run passes, fall back
+    to v3a (with the same pure gate), then to the planned cut. A cut is never moved later than
+    planned through windows that are all pure speech (1986).
+  - **The pure gate matters.** With speech-only, both v3a and v5 move 3 of the 74 decodable
+    sung-labelled tails earlier. In 2819 the sung "O Church of Christ rejoice" sits in a window
+    reading speech 0.54 with music 0.55; 3811 is "your Holy Name"; 3546's words are stacked.
+    With the pure gate, **0 of 74**.
+  - **v5 (pure) on the 41 rulings: 5 bad**, against 10 for the planned cut (1780 excluded from
+    both: song continues, separate fix). It fixes 176320, 3182, 2904, 3430, 1435 and 1073, and
+    669 goes from keeping 4.2 s of speech to losing 2.0 s of outro (at the limit). 3796 now
+    stays planned (right). It makes one cut worse than planned: 1089, where the onset falls
+    between the rule's −3.8 and the planned −6.2. Still wrong: 2303 (no pure run; the planned cut
+    stands, the old rule's −3.1 was right), 1521 (−6.5; the margin overshoots the ruled −5.5),
+    and 3447 (keeps 5.1 s).
+- **Kept looking once more (11-07, `rule6.py`, toggles via env).** Nothing beats v5 (pure gate).
+  - **1089 is probably right under v5, not a miss.** Each window that starts mid-music pins an
+    utterance's first word to its own start, but the window starting at −4 places "I want to
+    dedicate" at −3.3, so v5's −3.8 cut leaves the speech out. The ruling only says −6.2 beats
+    −0.8, and −3.8 lies between. It counts as untested, not wrong.
+  - **Lead-in words from windows that do not pin them** (onset = their median, cut − 0.5): this
+    moves 3430 back onto sung words (cuts 3.4 s). It is not kept.
+  - **The 28 s decodes as extra voters:** their stacked words agree by chance with pinned words
+    elsewhere (336237 cuts sung, 3182 cuts 2.4 s, 216616 a new sung false move). Not kept.
+  - **Gate over 3 s instead of 2:** no change. 2303 never forms an agreed run (only one sliding
+    window decodes it cleanly).
+  - **Singing-aware gate** (also pass speech ≥0.6 with singing <0.01: speech over an
+    instrumental outro reads singing 0.000, while 2819/3811's sung lines read 0.039–0.048): this
+    fixes 2303, but the v3a fallback then fires on stacked words in 3796 (ruled planned) and 3546
+    (sung-labelled). It is a wash and is not kept. Stacked word groups are right in 136468/2187
+    and wrong in 3796/3546; no signal here tells which.
+  - **Remaining misses and what they would need:** 1521 and 2303 start speech over an instrumental
+    outro, in mixed 5 s windows (finer classifier windows). 3447's "please sit down" is 5 s
+    before the next speech, over music (a merge across music). 669 loses 2.0 s of outro (at the
+    limit).
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates
