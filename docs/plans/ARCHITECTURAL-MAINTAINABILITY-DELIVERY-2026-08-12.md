@@ -89,6 +89,10 @@ Every implementation PR must state which invariant it makes true.
    explicitly excluded.
 9. **Temporary means removable:** every historic-only hook, worker, command, compatibility reader,
    writer and schema field names the G9/WP10 evidence that permits its removal.
+10. **Outputs have independent production dependencies (G12, agreed 2026-11-06):** each talk or
+    song is independently renderable from shared source/detection evidence. Unrelated sermon
+    enrichment must not gate song preparation. Per-output acceptance/publication requirements,
+    provenance and custody remain explicit. AM8 owns the pending orchestration work.
 
 ## Maintainer decisions
 
@@ -567,6 +571,16 @@ improvement:** a retryable error never appears terminal; an exhausted run produc
 state transition, cleanup decision, dedup release, notification and optional report event.
 
 ### Delivery 1 — characterise current semantics
+
+**Outcome-review follow-up (G12, 2026-11-06; not implemented):** the current livestream chain
+prepares section clips after sermon extraction, speaker identification, transcript analysis,
+video assessment and thumbnail generation. Characterise which failures unnecessarily prevent
+otherwise renderable song/talk outputs. Propose the smallest separation of output preparation
+from unrelated enrichment, preserving genuinely shared prerequisites. Carry the result into
+Delivery 2's failure ownership, retry, cancellation and cleanup design; verify that one failed
+output/enrichment step cannot erase or misreport another accepted output. This is a design
+concern, not a reproduced production failure. Keep AM8's existing gate; it is not a new blanket
+prerequisite for the historic round or permission to resume weekly processing.
 
 1. Enumerate every job catch that calls `markAsFailed`, every `failed()` callback and every chain
    catch. Classify each responsibility as step context, job-specific compensation or run-terminal

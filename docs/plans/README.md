@@ -9,7 +9,8 @@ executable active plans only; completed or superseded decision records live in
 
 The OoS email-parser redesign is archived and the shared semantic parser is the sole weekly/
 historic implementation. The historic programme and video plan are current worklists; their completed execution
-journals are archived evidence, not backlog.
+journals are archived evidence, not backlog. **Media-plan cleanup, 2026-11-06:** current work and
+acceptance were reconciled from recorded evidence; no fresh corpus or production census was run.
 
 ## Deploy-time actions
 
@@ -19,7 +20,7 @@ touched `.env` or production data. It is a running list, not a complete audit.
 
 ## How to use this index
 
-**Historic work (consolidated 2026-10-29):** start with the
+**Historic work (reconciled 2026-11-06):** start with the
 [video worklist](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md) for the next local
 round, or the [programme §0.4](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md#04-getting-production-complete-the-map-2026-10-16)
 for production convergence. The six documents have distinct responsibilities:
@@ -123,26 +124,38 @@ None of these lanes blocks the public product sequence except where a plan expli
 
 **Historic video:** the [focused video plan](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md)
 owns execution and acceptance; the [rulings register](HISTORIC-IMPORT-DECISIONS-2026-09-03.md) holds
-every ruling in force; the [round runbook](HISTORIC-ROUND-RUNBOOK.md) is the procedure. The
-[ensemble plan](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md), [music and silence](MUSIC-AND-SILENCE-DETECTION-2026-09-25.md),
-[song acceptance](HISTORIC-SONG-ACCEPTANCE-MEASUREMENT-2026-10-11.md) and
-[talks](TALKS-AND-SHORT-TALK-DETECTION-2026-09-18.md) plans are design references. Nothing here
-authorises a dispatch, a provider call or a release.
+every ruling in force; the [round runbook](HISTORIC-ROUND-RUNBOOK.md) is the procedure.
+The [ensemble follow-up](HISTORIC-VIDEO-ENSEMBLE-DETECTION-2026-09-28.md) carries evaluation ownership;
+[talks](TALKS-AND-SHORT-TALK-DETECTION-2026-09-18.md) retains unverified visual/production work.
+[Music and silence](MUSIC-AND-SILENCE-DETECTION-2026-09-25.md) remains a design reference;
+[song acceptance](HISTORIC-SONG-ACCEPTANCE-MEASUREMENT-2026-10-11.md) owns its measurement protocol.
+Nothing here authorises a dispatch, a provider call or a release.
+
+**Outcome review, agreed 2026-11-06:** [Claude handoff and implementation follow-up](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md#11-outcome-review--handoff-for-claude-operator-agreed-2026-11-06).
+Weekly stays paused until historic completion. Minimise manual review; judge complete talk/song
+outputs, generalisation and operator effort. The register records supersession; the existing
+video, audit, round and architecture plans own the remaining work.
+
+**Pre-round review automation (planned 2026-11-06):** [video §4.1d](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md#41d-pre-round-review-automation-build-plan-2026-11-06)
+owns the measured queue baseline and RA1–RA6 build sequence: evidence routing, stale-text refresh,
+song boundaries/identity, repetition recovery, consequential structure checks and reusable answers.
+Talk-type confirmation and other reserved decisions remain explicit; no round or data apply is started.
 
 The [post-round audit work package](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md)
-has 94 completed discovery reviews and 26 unfinished members in its current batch as of 10-24.
-Its aggregate findings require the 10-24 source-evidence correction and packet-hash refresh after
-subsequent re-cuts. It feeds acceptance; it does not authorise release.
+records discovery stopped at 45 services on 11-05, supplemental review stopped after 100 services
+on 11-06, and a completed 2,127-file decode. Old October and November unfinished review batches
+are not resume instructions. Current-output acceptance, semantic audio and delivery remain open;
+changed hashes invalidate dependent checks.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
-| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | **Programme authority; video handoff reconciled 2026-10-29.** The 10-21/22 round is closed; later rule changes have not reached the full corpus. Content acceptance and release remain NO-GO. | Complete video §4.1a: internal-join coverage, 1288 test reconciliation, combined corpus measurement and residual dispositions; then freeze and preflight the next round. Complete current-output audit and editorial QA before production convergence and signed era release. Weekly processing follows historic completion. |
+| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Programme authority; media worklists reconciled 11-06. November round closed, later fixes/acceptance still pending; weekly remains paused. | Video §4.1a–c: pending K19 trial, K20 introduction miss, measured routes and current-output verification; audit §7 before production convergence and signed release. |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |
 | M2 | [Simplification closeout](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md) | Only R13/R14/R15 remain; R8/R12 delegated | Start R13 measurement and fold the five flat suites in parallel |
 | P1 | [Google Analytics enhancement](GOOGLE-ANALYTICS-ENHANCEMENT-2026-06-19.md) | GA1-GA4 shipped; GA6 manual; GA5 optional | Register dimensions/key events in GA4; decide GA5 separately |
-| P1a | [Talks and `short_talk` detection](TALKS-AND-SHORT-TALK-DETECTION-2026-09-18.md) | Planned 2026-09-18; four decisions taken (keep `sermons` storage, types sermon/children's talk/partner update/testimony, one page at `/christ/talks` with a type switch replacing the sermon archive URL and Children's Corner, members-only by default). Split out of the historic video plan's BC-07; the 191 long `other` sections stay unpublished until its PR5 | PR1: `TalkType` replaces `SermonContentType` and `PUBLIC_TALK_TYPES` replaces `CHILDRENS_TALKS_PUBLIC`, behaviour unchanged; PR2 (talks page + URL move + podcast feed step) and PR3 (`short_talk` detection) then run in parallel |
+| P1a | [Talks acceptance and production follow-up](TALKS-AND-SHORT-TALK-DETECTION-2026-09-18.md) | PR1–PR4 recorded landed 09-23/24; separate PR3 evaluation/PR5 transferred to historic work. Implementation history archived 11-06. | Verify remaining visual baselines and production actions; reconcile current talk-type/identity candidates and historic detection acceptance. Do not rebuild the feature from its old plan. |
 | P2 | [Service workbench redesign](SERVICE-WORKBENCH-REDESIGN-2026-07-23.md) | A-D shipped; E coverage incomplete | Delete orphan partial and add Dusk behaviour coverage now; visual fixture after design refresh |
 | P3 | [Design system refresh](DESIGN-SYSTEM-REFRESH-2026-07-20.md) | Not started | Split correctness PR1 into ordinal and font slices; defer broad visual phases until current public feature work lands |
 | P4 | [Newcomer UX](NEWCOMER-UX-BACKLOG-2026-07-11.md) | Not started; O19 gate cleared | O16/O20/O21 operator fixes, then O17; none waits for the newcomer page |
@@ -172,6 +185,14 @@ subsequent re-cuts. It feeds acceptance; it does not authorise release.
 
 ## Recently archived or superseded
 
+- **Media-plan evidence cleanup, 2026-11-06:** full pre-cleanup snapshots preserve
+  [video execution](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-11-06.md),
+  [audit discovery/checkpoints](../archived-plans/HISTORIC-POST-ROUND-AUDIT-EVIDENCE-2026-11-06.md),
+  [ensemble implementation](../archived-plans/HISTORIC-ENSEMBLE-IMPLEMENTATION-RECORD-2026-11-06.md),
+  [talks implementation](../archived-plans/TALKS-IMPLEMENTATION-RECORD-2026-11-06.md) and
+  [ruling narratives](../archived-plans/HISTORIC-RULINGS-REGISTER-SNAPSHOT-2026-11-06.md).
+  Current files retain the agreed decisions, unresolved work and evidence owners; archival does
+  not certify completion. The Claude handoff remains in video §1.1.
 - [OoS email parser redesign](../archived-plans/ORDER-OF-SERVICE-EMAIL-PARSER-REDESIGN-2026-08-19.md)
   — archived 2026-08-21 after Delivery 7 acceptance passed, the semantic parser became the sole
   weekly/historic path, the legacy whole-document path was deleted, and every remaining evaluation

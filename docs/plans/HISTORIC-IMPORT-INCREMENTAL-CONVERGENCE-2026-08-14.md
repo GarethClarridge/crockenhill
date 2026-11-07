@@ -1,13 +1,12 @@
 # Historic Import: Incremental Convergence Plan
 
-> **Programme handoff — 2026-10-29:** the 10-21/22 video round closed, but the later
-> shared-path changes need a new measured round and current-output acceptance. The focused
-> video plan's opening handoff, **§4.1a pre-freeze checklist** and §5 go/no-go supersede its
-> October 16 census. Follow its current pre-freeze sequence, measure the
-> combined corpus result and dispose of residual misses before freezing the next video round. Nothing
-> historic has been publicly released. G10–G11/§8.4 decided the audience and content policy;
-> production enforcement and each exact release batch remain to be verified separately.
-> Weekly processing resumes **only after the historic import is finished**, as R8 directs.
+> **Programme handoff — reconciled 2026-11-06:** the November video round and named repair
+> sessions are closed. Later fixes and the pending start trial remain in video §§4.1a–c;
+> current-output acceptance remains with the audit §7. Detailed execution history is archived.
+> Nothing historic has been publicly released. G10–G11/§8.4 decide the audience/content policy;
+> production enforcement and each exact release batch still require verification.
+> Weekly stays paused until historic completion (G5/R8, reaffirmed 11-06). Minimise manual
+> review under G7/Q15; reuse evidence and bound repeated work under G8.
 >
 > **Status (2026-08-14): plan of record for the whole historic-import programme.** This plan
 > supersedes the executable content of the three prior authorities, now archived:
@@ -43,14 +42,14 @@
 
 ## 0. Current execution brief — use this for new work
 
-### 0.1 Current execution sequence — reconciled 2026-10-29
+### 0.1 Current execution sequence — reconciled 2026-11-06
 
 | Order | Slice | Recorded status / next action |
 |---|---|---|
 | 1 | Email/OpenLP settlement | Completed 08-24 in rehearsal: 553 approved Email sources / 539 identities / 20 approved holds; 614 OpenLP includes. Both lanes reconciled with zero unexplained/unstaged membership. Residual cross-source proposals are not parser corpus defects. |
 | 2 | Round authority and corroboration provenance | Completed 08-25/26: exact manifest/plan/operation bindings, resume and notification containment; historic video grade carried end to end. Retain tests; no rebuild owed. |
 | 3 | Video calibration and source freeze | Completed; accepted model decisions and manifest revisions are preserved in the [evidence snapshot](../archived-plans/HISTORIC-PROGRAMME-EXECUTION-RECORD-THROUGH-2026-10-29.md). Do not restart six-service calibration from its old instructions. |
-| 4 | Video processing and acceptance | [Video worklist](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md) owns the next round and acceptance status; processing through 10-22 does not certify later changed outputs. |
+| 4 | Video processing and acceptance | [Video worklist](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md) owns the next round and acceptance status; closed November processing does not certify later changed outputs. |
 | 5 | Production census and current-era sources | §0.4 owns identity comparison; IC4 owns evidence back-fill on a fresh production count. |
 | 6 | Convergence and hymn lane | Re-census after accepted full-grade video, resolve proposal classes and catalogue dependencies, regenerate IC6's exact apply artifact. |
 | 7 | Apply, release and closeout | §§7–8 govern each production round and separately signed era release; IC8 follows closure and the repair-route decision. |
@@ -84,6 +83,8 @@ content the local graph has never seen: some 2014–2019 sermons exist only ther
 **What "done" means.** Production holds every lane's converged state, the eras are released by
 signed batches or explicitly held, and weekly processing has taken over. The operator ruled on
 2026-10-16 that weekly takes over "whenever historic import is done".
+**Reaffirmed 2026-11-06:** the operator rejected early weekly resumption. Weekly stays paused;
+the outcome review does not decouple it from historic completion.
 
 **Working definition of the historic import being done** (still to verify at closeout):
 - the last historic production round is applied;
@@ -123,9 +124,9 @@ owns quality/delivery checks and agent-first escalation; this programme owns pro
 Backfill the website from the historic content — emailed orders of service, OpenLP archives,
 livestream/sermon recordings, and the hymn workbook — so that production reaches the durable state
 each service would have if its sources had arrived through the current application at the time.
-Visitors gain a browsable public service history linking sermons, children's talks, songs and
-scripture back across the archive; song usage history extends to 2004; historic sermons gain the
-current pipeline's transcripts, sections and media.
+Members gain the authenticated service history linking talks, songs and Scripture under G10/G11;
+visitors retain access to eligible public sermons. Song usage history extends to 2004; historic
+sermons gain the current pipeline's transcripts, sections and media.
 
 Two standing requirements shape everything here:
 
@@ -133,6 +134,10 @@ Two standing requirements shape everything here:
    corroboration and automatic finalisation do the clearing; the operator handles genuine
    ambiguity, era release decisions and spot-checks. Repeated refinement rounds are expected and
    cheap; per-item human adjudication at corpus scale is a design failure.
+   **Strengthened 2026-11-06 (G7/Q15):** explicitly minimise manual review, measuring operator
+   questions/time alongside substantive omissions, contamination and usable talk/song outputs.
+   G8 now requires full corpus comparison with justified repeated stages and reuse of valid
+   evidence; refinement rounds are bounded by their purpose and the audit's stopping rule.
 2. **Bulk is the weekly path.** Historic processing runs the same code as weekly processing —
    `UnifiedMediaProcessor`, `OosEmailParserService`/`InboundEmailImportService`,
    `ImportChurchServiceFromOpenLp`, `ChurchServiceProjector`, the proposal/review inbox. Every

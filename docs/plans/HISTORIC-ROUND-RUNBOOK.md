@@ -365,6 +365,14 @@ sermon joins for affected paths, as well as the planned timestamps and pause/res
 For the representative canary's local acceptance journey and agent-first checking, follow the
 [post-round audit §0](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md#sequence-and-confidence-report).
 
+**G8 amended 2026-11-06:** full eligible-corpus comparison remains required. Before dispatch,
+record each member's reuse/reprocess/unassessable disposition, affected stages and the evidence
+reason. Reuse unchanged valid outputs and answers; repeated model work, rendering and listening
+must address changed dependencies, missing/invalid evidence or declared independent sampling.
+E11 still requires rendering a changed executed plan; E12 covers absent cut records; actual
+whole-job retries still follow D10. This is not permission to skip a required prerequisite or
+change frozen membership mid-pass. State the round's purpose and stopping condition using the
+[audit's existing rule](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md#stopping-rule).
 
 1. Freeze exact membership in the snapshot; settle transcript and structure dependencies before
    cutting; retain or exclude unresolved cases explicitly rather than widening the batch.

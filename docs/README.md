@@ -43,6 +43,6 @@ Rules for using this folder, written for AI agents as much as humans:
   Point-in-time review/audit reports should be deleted once their findings are folded into
   `issues/README.md` or a plan.
 - The plans index was last comprehensively reconciled against the codebase **2026-08-24**;
-  the historic document responsibilities and recorded outstanding work were consolidated **2026-10-29**
-  (no fresh production/corpus census). The broader docs cleanup
+  the media worklists and recorded outstanding work were reconciled **2026-11-06**, with completed
+  execution/implementation narratives archived (no fresh production/corpus census). The broader docs cleanup
   was last performed **2026-07-05** (it removed ~50 stale files; use git history for older material).
