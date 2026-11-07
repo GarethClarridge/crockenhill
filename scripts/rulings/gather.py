@@ -908,6 +908,47 @@ records.append({'id': 'operator-20261106:1136-sermon-start', 'source': 'operator
                 'note': 'Operator 11-06: the first words are lost in the source (dead feed 1.7–15.3 s), not by the cut. '
                         'Supersedes the 10-18 "late".'})
 
+# "Opening Invitations" (k19-reach-listening-20261106; A the start as committed in 07449dc50, B the K19 reach-back trial's:
+# detection cut inside an invitation or the reading's announcement, and B starts on that sentence). 1308 "Can't tell"
+# (the announcement is inaudible on its near-dead feed): no ruling; its 10-18 "late" still stands, and B meets it.
+def operator_k19(run, heard, expect, note, points=None, part=None, minute='00'):
+    record = {'id': f'operator-20261106:{run}-sermon-start' + (f'-part-{part}' if part else ''), 'source': 'operator-20261106',
+              'ruled_on': '2026-11-06', 'ruled_at': f'2026-11-06T22:{minute}:00Z', 'run': run, 'output': 'sermon',
+              'section_id': None, 'section_type': 'sermon', 'title': None, 'edge': 'start', 'heard': heard, 'answer': None,
+              'expect': expect, 'ruled_time': None, 'note': note}
+    if points:
+        record['points'] = points
+    if part:
+        record['part'] = {'section_id': part}
+    return record
+
+
+records.extend([
+    operator_k19(1250, 2179.72, 'keep', 'Operator 11-06 (K19 reach-back), "B is better": the preacher\'s whole handover, "We\'re going '
+                 'to have one more chapter read to us, and Lisa is going to do that.", not A\'s mid-sentence 2182.57.', part=4910),
+    operator_k19(1339, 1803.21, 'keep', 'Operator 11-06 (K19 reach-back), "B is better": the reader\'s announcement "Genesis chapter '
+                 '37 verses 1 to 11." kept (A 1809.85 opened on "Jacob lived").'),
+    operator_k19(1247, 959.91, 'either', 'Operator 11-06 (K19 reach-back), "Either is fine": the whole "Well, let\'s turn to God\'s '
+                 'word then, shall we?" (B) or detection\'s cut inside it (A).', points=[962.011, 959.91]),
+    operator_k19(1244, 992.32, 'keep', 'Operator 11-06 (K19 reach-back), "B is better": "Well, we\'re going to turn to our Bible '
+                 'reading for this morning." kept (A 997.04 opened after it).'),
+])
+
+# "Opening Thanks" (thanks-listening-20261106; A the current start on the preacher's thanks to someone by name, B just
+# after it). Either on four, A on 1258's thanks naming the reading: no opening-thanks rule (cf. 1292 and 1233's B).
+records.extend([
+    operator_k19(941, 1689.92, 'either', 'Operator 11-06 (Opening Thanks), "Either is fine": with or without "Thank you, Andrew."',
+                 points=[1689.92, 1692.65], minute='01'),
+    operator_k19(1128, 171.43, 'either', 'Operator 11-06 (Opening Thanks), "Either is fine": with or without "Thank you, Richard." to '
+                 'the reader.', points=[171.43, 179.23], part=2049, minute='01'),
+    operator_k19(1230, 372.09, 'either', 'Operator 11-06 (Opening Thanks), "Either is fine": with or without "Thank you, Laurie."',
+                 points=[372.09, 374.11], minute='01'),
+    operator_k19(1117, 2157.01, 'either', 'Operator 11-06 (Opening Thanks), "Either is fine": with or without "Well, thank you, '
+                 'Laurie, for leading the first part of our service this morning."', points=[2157.01, 2166.43], part=1967, minute='01'),
+    operator_k19(1258, 2041.18, 'keep', 'Operator 11-06 (Opening Thanks), "A is better": keeps "Thank you to Laurie for reading from '
+                 'Philippians chapter 2." (B 2044.95).', minute='01'),
+])
+
 # A section ruling the page recorded without a section id is on the run's section of its type whose edge is nearest
 # the cut heard, as RuledEndingsTestCase::latestRulings() and the round's analyze.py read it. Without that binding the
 # newest id-less ruling on a run replaced every other on the same edge, whatever its section (1304's §3879 start by a

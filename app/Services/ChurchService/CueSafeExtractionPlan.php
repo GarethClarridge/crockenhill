@@ -119,6 +119,9 @@ class CueSafeExtractionPlan
     /** Seconds a spoken end may move outward before the classifier is asked whether it moved into music. */
     private const MUSIC_MOVE_SECONDS = 1.0;
 
+    /** Seconds of undecoded quiet at a window's opening that show a sentence began after it, not before. */
+    private const OPENING_MARGIN_PAUSE = 0.5;
+
     /**
      * The shortest and longest fade of a song's sound into the speech after it (operator,
      * 2026-10-07): the fade spans the gap from the last sung sound, within these bounds, and ends
@@ -1567,6 +1570,7 @@ class CueSafeExtractionPlan
         if ($edge === 'start') {
             // A song start drops the rest of a spoken sentence on purpose ({@see self::afterSongOpeningSentence()}).
             $decision = $songEnds ? $decision : $this->keptOpeningInvitation($words, $unclipped, $original, $decision);
+            $decision = $songEnds ? $decision : $this->openedOnStraddledInvitation($log, $words, $unclipped, $original, $decision);
             $decision = $this->keptAtHeardStart($log, $words, $original, $decision);
 
             return $songEnds ? $this->keptMusicalOpening($log, $original, $decision) : $decision;
@@ -3389,7 +3393,8 @@ class CueSafeExtractionPlan
      * A boundary is a pause between a decoded sentence end and a word. The window's opening is not one:
      * recordings that begin mid-speech opened at their first fragment, against starts ruled right
      * there. Dropping the tail of the sentence before the item stands: that tail is no sentence of its
-     * own (1214's "Lord."). A start is never carried earlier than detection put it.
+     * own (1214's "Lord."). A start is carried earlier than detection put it only back to an invitation detection cut
+     * inside ({@see self::openedOnStraddledInvitation()}).
      *
      * @param  list<array{start: float, end: float, word: string}>  $words
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
@@ -3436,6 +3441,66 @@ class CueSafeExtractionPlan
 
         return $kept === null ? $decision : ['time' => $placed($kept), 'chosen_pause' => ['start' => $kept['start'], 'end' => $kept['end']],
             'word_before' => $kept['word_before'], 'word_after' => $kept['word_after']];
+    }
+
+    /**
+     * A start detection cut inside an invitation or the reading's announcement opens on that sentence's start, earlier
+     * than detection, where it stayed at detection or moved only to that sentence's end: 1308 lost "Colossians chapter
+     * 4, starting to read at verse 2.", 1339 "Genesis chapter 37 verses 1 to 11.", and 1250's join opened inside the
+     * preacher's handover; each was heard better whole (operator, "Opening Invitations", 2026-11-06). The sentence
+     * begins at a sentence boundary or after the window's quiet opening, at least {@see self::OPENING_MARGIN_PAUSE} with
+     * no word decoded (1308's). A window clipped onto the line before it, as 1354's song cue, or opening with the
+     * recording has no such margin. Never across music: 1154's hard cut from a song into the middle of its reading's
+     * introduction was heard worse than dropping that part sentence (K18 page, 2026-11-06), and without a timeline
+     * nothing shows the stretch is not music.
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}  $window
+     * @param  array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}  $decision
+     * @return array{time: float, chosen_pause: array{start: float, end: float}, word_before: array{start: float, end: float, word: string}|null, word_after: array{start: float, end: float, word: string}|null, candidate_anchors?: list<array{start: float, end: float, word: string}>}
+     */
+    private function openedOnStraddledInvitation(MediaProcessingLog $log, array $words, array $window, float $original, array $decision): array
+    {
+        if (isset($decision['candidate_anchors'])) {
+            return $decision;
+        }
+
+        $placed = static fn (array $pause): float => max($pause['start'], min($original, $pause['end']));
+        $endsSentence = fn (array $pause): bool => $pause['word_before'] !== null && $this->endsSentence($pause['word_before']['word']);
+        $quietOpening = static fn (array $pause): bool => $pause['word_before'] === null && $pause['length'] >= self::OPENING_MARGIN_PAUSE && $window['start'] > 0.0;
+        $pauses = $this->pauses($words, $window);
+        $before = array_values(array_filter($pauses, static fn (array $pause): bool => $pause['word_after'] !== null
+            && $pause['word_after']['end'] - $pause['word_after']['start'] <= self::ANCHOR_REACH
+            && ($endsSentence($pause) || $quietOpening($pause)) && $placed($pause) < $original - 0.001));
+        $after = array_filter($pauses, static fn (array $pause): bool => $endsSentence($pause) && $placed($pause) >= $original - 0.001);
+
+        if ($before === []) {
+            return $decision;
+        }
+
+        usort($before, static fn (array $a, array $b): int => $placed($b) <=> $placed($a));
+        $from = $placed($before[0]);
+        $until = $after === [] ? INF : min(array_map($placed, $after));
+
+        if (abs($decision['time'] - $original) > self::CUE_BOUNDARY_TOLERANCE && abs($decision['time'] - $until) > self::CUE_BOUNDARY_TOLERANCE) {
+            return $decision;
+        }
+
+        $sentence = array_filter($words, static fn (array $word): bool => ($word['start'] + $word['end']) / 2 >= $from && ($word['start'] + $word['end']) / 2 < $until);
+
+        if (! array_any($sentence, static fn (array $word): bool => ($word['start'] + $word['end']) / 2 < $original)
+            || preg_match(self::OPENING_INVITATION, implode('', array_column($sentence, 'word'))) !== 1) {
+            return $decision;
+        }
+
+        $timeline = $this->timeline($log);
+
+        if ($timeline === null || $timeline->musicShare($from, $original) >= 0.5) {
+            return $decision;
+        }
+
+        return ['time' => $from, 'chosen_pause' => ['start' => $before[0]['start'], 'end' => $before[0]['end']],
+            'word_before' => $before[0]['word_before'], 'word_after' => $before[0]['word_after']];
     }
 
     private function endsSentence(string $text): bool

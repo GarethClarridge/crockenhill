@@ -714,6 +714,102 @@ class WordTimedOutputEdgesTest extends TestCase
     }
 
     /**
+     * Detection cut inside 1308's "Colossians chapter 4, starting to read at verse 2." and 1339's "Genesis chapter 37
+     * verses 1 to 11.", and the start went past them; 1250's join opened inside the preacher's handover. Each was heard
+     * better from the sentence's start (operator, "Opening Invitations", 2026-11-06). Across music it stays: 1154's hard
+     * cut from a song into its reading's introduction was heard worse (K18 page, 2026-11-06), and 1354's window opens
+     * on the song's last cue, so no pause there shows where its invitation began.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float}>  $timeline
+     */
+    #[Test]
+    #[DataProvider('startsDetectedInsideAnInvitation')]
+    public function a_start_detection_cut_inside_an_invitation_opens_on_that_sentence(array $cues, array $words, array $timeline, float $original, float $expected): void
+    {
+        $log = $this->logWithCues($cues);
+        $log->update(['audio_timeline_path' => 'service-transcripts/edge-test.classes.json']);
+        Storage::disk('local')->put('service-transcripts/edge-test.classes.json', AudioTimelineFixture::json($timeline, 5000.0));
+        $this->bankWindow($log, $original, $words);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSpans($log->fresh(), [['start_time' => $original, 'end_time' => 4000.0]]);
+
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['start_time'], 0.001);
+    }
+
+    public static function startsDetectedInsideAnInvitation(): array
+    {
+        $handoverCues = [
+            ['start' => 2179.52, 'end' => 2182.44, 'text' => "We're going to have one more chapter read to us."],
+            ['start' => 2182.58, 'end' => 2185.96, 'text' => 'And Lisa is going to do that.'],
+        ];
+        $handoverWords = [
+            ['start' => 2178.65, 'end' => 2178.67, 'word' => ' to'],
+            ['start' => 2178.67, 'end' => 2179.13, 'word' => ' change'],
+            ['start' => 2179.13, 'end' => 2179.5, 'word' => ' lives.'],
+            ['start' => 2179.72, 'end' => 2179.86, 'word' => " We're"],
+            ['start' => 2179.86, 'end' => 2180.2, 'word' => ' going'],
+            ['start' => 2180.2, 'end' => 2180.36, 'word' => ' to'],
+            ['start' => 2180.36, 'end' => 2181.04, 'word' => ' have'],
+            ['start' => 2181.04, 'end' => 2181.17, 'word' => ' one'],
+            ['start' => 2181.17, 'end' => 2181.35, 'word' => ' more'],
+            ['start' => 2181.35, 'end' => 2181.62, 'word' => ' chapter'],
+            ['start' => 2181.62, 'end' => 2182.02, 'word' => ' read'],
+            ['start' => 2182.02, 'end' => 2182.22, 'word' => ' to'],
+            ['start' => 2182.22, 'end' => 2182.5, 'word' => ' us'],
+            ['start' => 2182.58, 'end' => 2182.85, 'word' => ' and'],
+            ['start' => 2182.85, 'end' => 2183.4, 'word' => ' Lisa'],
+            ['start' => 2183.4, 'end' => 2183.74, 'word' => ' is'],
+            ['start' => 2183.74, 'end' => 2184.64, 'word' => ' going'],
+            ['start' => 2184.64, 'end' => 2184.98, 'word' => ' to'],
+            ['start' => 2184.98, 'end' => 2185.19, 'word' => ' do'],
+            ['start' => 2185.19, 'end' => 2185.9, 'word' => ' that.'],
+        ];
+        $speech = [[2100, 2300, 0.05, 0.9]];
+
+        return [
+            '1308 announcement after the window\'s quiet opening' => [[
+                ['start' => 1483.38, 'end' => 1485.38, 'text' => 'And we have our prayer to the Lord.'],
+                ['start' => 1509.38, 'end' => 1511.38, 'text' => 'God is prayer to the Lord.'],
+                ['start' => 1511.38, 'end' => 1513.52, 'text' => "I'm starting to read at verse 2."],
+            ], [
+                ['start' => 1509.34, 'end' => 1509.48, 'word' => ' Colossians'],
+                ['start' => 1509.48, 'end' => 1510.15, 'word' => ' chapter'],
+                ['start' => 1510.15, 'end' => 1510.67, 'word' => ' 4,'],
+                ['start' => 1510.67, 'end' => 1511.51, 'word' => ' starting'],
+                ['start' => 1511.51, 'end' => 1511.72, 'word' => ' to'],
+                ['start' => 1511.72, 'end' => 1512.14, 'word' => ' read'],
+                ['start' => 1512.14, 'end' => 1512.35, 'word' => ' at'],
+                ['start' => 1512.35, 'end' => 1512.87, 'word' => ' verse'],
+                ['start' => 1512.87, 'end' => 1513.3, 'word' => ' 2.'],
+            ], [[1400, 1600, 0.05, 0.8]], 1511.38, 1509.34],
+            '1250 join opens on the preacher\'s whole handover' => [$handoverCues, $handoverWords, $speech, 2182.57, 2179.72],
+            'across music it stays where detection put it' => [$handoverCues, $handoverWords, [[2100, 2300, 0.9, 0.1]], 2182.57, 2182.57],
+            '1354 window opening on the song\'s last cue' => [[
+                ['start' => 1177.52, 'end' => 1189.65, 'text' => 'O Lord and my Redeemer, I am the Son of the Son of the Lord'],
+                ['start' => 1189.65, 'end' => 1190.52, 'text' => '.'],
+                ['start' => 1190.52, 'end' => 1194.64, 'text' => "Let's turn in our Bibles now to Philippians chapter 3."],
+                ['start' => 1195.40, 'end' => 1197.12, 'text' => 'Philippians chapter 3.'],
+            ], [
+                ['start' => 1188.78, 'end' => 1189.48, 'word' => " Let's"],
+                ['start' => 1189.48, 'end' => 1190.14, 'word' => ' turn'],
+                ['start' => 1190.14, 'end' => 1190.47, 'word' => ' in'],
+                ['start' => 1190.47, 'end' => 1190.97, 'word' => ' our'],
+                ['start' => 1190.97, 'end' => 1191.99, 'word' => ' Bibles'],
+                ['start' => 1191.99, 'end' => 1192.75, 'word' => ' now'],
+                ['start' => 1192.75, 'end' => 1193.13, 'word' => ' to'],
+                ['start' => 1193.13, 'end' => 1193.69, 'word' => ' Philippians'],
+                ['start' => 1193.69, 'end' => 1194.38, 'word' => ' chapter'],
+                ['start' => 1194.38, 'end' => 1194.5, 'word' => ' 3.'],
+                ['start' => 1195.4, 'end' => 1196.0, 'word' => ' Philippians'],
+                ['start' => 1196.0, 'end' => 1196.6, 'word' => ' chapter'],
+                ['start' => 1196.6, 'end' => 1197.1, 'word' => ' 3.'],
+            ], [[1100, 1190, 0.8, 0.1], [1190, 1300, 0.05, 0.8]], 1190.52, 1194.5],
+        ];
+    }
+
+    /**
      * A decode smeared over the edge says nothing about where the words were said: 932's "We" ran
      * 20 s across the sermon's start and its later words collapsed to one instant, and 1237's
      * "busy" ran 6 s across it. The start moved inward to the pause after them and dropped the
