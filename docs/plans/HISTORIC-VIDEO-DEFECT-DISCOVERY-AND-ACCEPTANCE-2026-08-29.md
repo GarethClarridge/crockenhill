@@ -388,11 +388,9 @@ open). Scratch: `storage/scratch/ra2-20261107/trailing_*`, `tail_signal*`, `tail
   opens before the line is said: "Thank you" reads speech 0.01), and fires on 3795's sung Amen.
   **Order: fix (b) first.** Extend `songEndBySoundOrSpeech`'s word-timed onset search to speech
   inside the section. Only then add (a) an exemption on what remains, re-measured on planned cuts.
-- **Listening page built, not published** (`storage/scratch/trailing-tails-listening-20261107/`,
-  17 questions: the 5 unclear, 3182, sung under 50 wpm, speech at ≥40). Artifact tools were
-  unavailable in this session. Publish with `publish_files`, then
-  `declare_capabilities {db:{},user:{}}`; answers go to the `rulings` collection with ids
-  `<run>-s<section>`.
+- **Listening page published and answered 11-07** (https://claude.ai/artifact/WRdeYyjsBhJvTQFFih9RNN,
+  27 questions; answers in `storage/scratch/trailing-tails-listening-20261107/answers/rulings/`,
+  ids `<run>-s<section>`).
 - **Fix (b) diagnosis (11-07, go given; nothing built).** In all 41 SP/speech tails, the planner
   bounds the song at a *later* speech cue (at or after the stored end) and cuts just before it.
   The spoken line inside the tail is kept as song, because `speechAfterSong()` takes an inside
@@ -404,6 +402,33 @@ open). Scratch: `storage/scratch/ra2-20261107/trailing_*`, `tail_signal*`, `tail
   classifier hears music. Those 10 are added to the listening page (now 27 questions). Next: the
   operator's answers, then a decode of a word-timing window from the last sung line to the
   stored end (local whisper; needs a go), then the rule test-first.
+- **Tail answers (11-07, 27 rulings).** Results: 11 sung, 2 all speech, 9 sung then speech,
+  5 other. Measured against the replay's stored and planned ends (`trailing_replay.jsonl`):
+  - **Speech starts close to the stored end, not 5–30 s inside.** Each sung-then-speech note gives
+    an onset 0.2–9.4 s before the stored end (669 2.0, 1435 0.8, 2187 1.7, 2904 4.4, 3182 0.2,
+    3430 4.2, 3447 9.4, 136468 4.1, 176320 2.2). The inside cue that carries the words opens
+    8–34 s earlier, over music (176320 "In just a moment…" opens 12 s early; 136468's
+    benediction opens 8 s early). So blocker (1) is smaller than diagnosed. A word-timing window
+    from about 12 s before the stored end covers every onset, so no window from the last sung
+    line is needed.
+  - **The 10 "Thank you." lines were real speech at the cue in 1 case.** That case is 1986, all
+    speech. 5 are decoding errors over singing (1435, 1477, 2991, 3297, 136390). In 2 the real
+    speech comes 21–34 s after the cue (3430, 3447). In 2 the song runs past the end (1780, 3427),
+    and in 1 the tail holds the start of the next song (2639, from 26:13). Blocker (2) is
+    confirmed: neither the cue text nor its start time is evidence of speech.
+  - **New defect: the song section ends while singing continues (5).** 1780, 1915 and 3103 sing
+    to at least the clip's end, 5–6 s past the stored end. 3427 and 961 continue beyond it. In
+    1780, 1915 and 3103 the stored end sits on the start of the next speech cue, which opens
+    early, the same mechanism as above. The planned cut ends 1.5–6 s short in these three.
+  - **The planned cut is acceptable on 9 tails and wrong on 6 known ones.** Acceptable: 2187,
+    3182, 3430, 136468, 176320, 1986, and 2639 (it ends 1.5 s before the next song). It keeps
+    speech on 669 (+4 s), 3447 (+5 s) and 2164 (+9 s, no risk raised). It drops singing on
+    2991 (22 s), 2904 (12 s) and 1435 (4 s), all on the `timed_transcript_wordless_gap_before_final_cue`
+    or inclusive bases. The planned check still flags 7 of the 11 all-sung tails (check
+    precision, defect 1).
+  - Next: a word-timing decode of [stored end − 12 s, stored end + 8 s] on the 41 SP/speech tails
+    and the 5 song-continues sections (local whisper; needs a go). Then the onset rule
+    test-first, judged against these 27 rulings.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates
