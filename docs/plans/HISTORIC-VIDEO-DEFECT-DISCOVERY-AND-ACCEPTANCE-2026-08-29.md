@@ -305,7 +305,7 @@ Recheck code-found holds only through their recorded checker; human-found holds 
 for the operator under D5. Integrate this ordering into normal processing so the same stale-text
 queue does not recur. Test partial failures, retries and a second idempotent pass.
 
-**RA2 BUILT 11-07 (not yet applied).** The 53 stale-text records were not stale text. In every
+**RA2 BUILT AND APPLIED 11-07 (`da9be3499`; `--execute` reconciled 30 runs, rewrote 0 texts; one `sermon_text_predates_evidence` flag remains, §2175 on excluded 1145; the 8 runs still owed are failed or have no sermon: 894, 930, 945, 978, 1095, 1144, 1145, 1380).** The 53 stale-text records were not stale text. In every
 completed owed run (33) the round re-sliced the sermon on 11-02/03 from the transcript the run
 holds (its derivation stamp equals a fresh hash of that transcript), but `TranscribeFullService`
 had replaced the September recovery transcript without updating `service_transcript_content`,
@@ -320,7 +320,7 @@ only after re-reading the held transcript and confirming it is still the one ins
 reconciles held-back (unsettled-span) runs whose text already is the slice, without rewriting
 anything for them. Dry run 11-07: **30 runs reconcile (25 settled + 5 held back), 0 texts
 rewritten.** Short-talk sections carry the run-level hold only (talks store no text), so they
-clear with their run. Still to do: `--execute` at application. Remaining after that:
+clear with their run. Remaining:
 - 2057/4090/73105: their cuts change on application; re-extraction re-slices through
   `CreateSermonTranscriptFromService`.
 - §4153 (1327) `sermon_evidence_incomplete`: 242 s at 1628–1870 s, where two banked
