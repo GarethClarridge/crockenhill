@@ -393,6 +393,17 @@ open). Scratch: `storage/scratch/ra2-20261107/trailing_*`, `tail_signal*`, `tail
   unavailable in this session. Publish with `publish_files`, then
   `declare_capabilities {db:{},user:{}}`; answers go to the `rulings` collection with ids
   `<run>-s<section>`.
+- **Fix (b) diagnosis (11-07, go given; nothing built).** In all 41 SP/speech tails, the planner
+  bounds the song at a *later* speech cue (at or after the stored end) and cuts just before it.
+  The spoken line inside the tail is kept as song, because `speechAfterSong()` takes an inside
+  cue only where the classifier hears speech at its start (11-06 guard, 1311 §4931), which it
+  almost never does here (`sp_diag.jsonl`). Two blockers stop a test-first build. (1) There is no
+  word-level evidence: `OutputEdgeWordTimings::timingWindow()` decodes only the cues touching the
+  edge ±1 s, and these lines are 5–30 s inside. (2) The text is doubtful: 10 of the tails' spoken
+  lines are a lone "Thank you.", Whisper's commonest hallucination over music, where the
+  classifier hears music. Those 10 are added to the listening page (now 27 questions). Next: the
+  operator's answers, then a decode of a word-timing window from the last sung line to the
+  stored end (local whisper; needs a go), then the rule test-first.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates
