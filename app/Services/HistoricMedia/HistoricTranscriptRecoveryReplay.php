@@ -128,7 +128,7 @@ class HistoricTranscriptRecoveryReplay
                         $entry->recovered->toArray(),
                     );
 
-                    $run->putServiceTranscriptPath($path, $entry->recovered->unobservableWindows);
+                    $run->installServiceTranscript($path, $entry->recovered);
                     $this->stamp($run, $entry, $previousPath, $previousWindows);
                 });
                 $replayed++;

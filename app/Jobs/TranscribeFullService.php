@@ -174,9 +174,9 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
                 $recoveredTranscript->toArray(),
             );
 
-            $this->processingLog->putServiceTranscriptPath(
+            $this->processingLog->installServiceTranscript(
                 $transcriptPath,
-                $recoveredTranscript->unobservableWindows,
+                $recoveredTranscript,
                 $this->screenedBlocks($recoveredTranscript, $repetitionScreen),
             );
 
@@ -274,9 +274,9 @@ class TranscribeFullService extends ProcessingJob implements ShouldQueue
         // for historic runs, one decoded before the screen existed — and would
         // otherwise carry the reused transcript forward with no record of what
         // it is worth.
-        $this->processingLog->putServiceTranscriptPath(
+        $this->processingLog->installServiceTranscript(
             $path,
-            $filtered->unobservableWindows,
+            $filtered,
             $this->screenedBlocks($filtered, $repetitionScreen),
         );
     }

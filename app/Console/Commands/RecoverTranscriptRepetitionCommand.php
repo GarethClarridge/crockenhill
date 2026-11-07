@@ -208,16 +208,14 @@ class RecoverTranscriptRepetitionCommand extends Command
 
         $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen($result->transcript);
 
-        $run->putServiceTranscriptPath(
+        // Stamped (in the same write) before the hold is revisited: the hold
+        // can be withdrawn here, and a withdrawal with no record of why would
+        // leave a repaired sermon indistinguishable from one that never looped.
+        $run->installServiceTranscript(
             $path,
-            $result->transcript->unobservableWindows,
+            $result->transcript,
             array_map(static fn (SuspectTranscriptBlock $block): array => $block->toArray(), $blocks),
         );
-
-        // Stamped before the hold is revisited: the hold can be withdrawn here,
-        // and a withdrawal with no record of why would leave a repaired sermon
-        // indistinguishable from one that never looped.
-        $run->recordServiceTranscriptContent(MediaProcessingLog::hashServiceTranscriptContent($result->transcript));
 
         $outcome = $hold($run, $blocks);
         $report['holds_withdrawn'] += $outcome['withdrawn'];

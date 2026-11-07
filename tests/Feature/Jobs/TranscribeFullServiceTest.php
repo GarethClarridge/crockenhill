@@ -428,6 +428,64 @@ class TranscribeFullServiceTest extends TestCase
         $this->assertSame(12, $blocks[0]['repeats']);
     }
 
+    /**
+     * The 11-02 round re-transcribed 33 runs whose recovery pass had stamped the
+     * transcript it installed in September. The job replaced that transcript
+     * and left the September stamp behind, so every re-sliced sermon read as
+     * owed against a transcript the run no longer held — and a re-transcription
+     * that was *not* followed by a re-slice would have read as current.
+     */
+    #[Test]
+    public function it_stamps_the_content_of_the_transcript_it_replaces_a_recovered_one_with(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+        $log->recordServiceTranscriptContent('hash-of-the-september-recovery');
+
+        $fresh = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 30.0, 'text' => 'The round re-transcription.'],
+        ], 100.0, ChurchServiceTranscript::SOURCE_MOCK);
+        MockServiceTranscriptionService::useTranscript($fresh);
+
+        $this->runJob($log->refresh());
+
+        $log->refresh();
+        $held = ChurchServiceTranscript::fromArray(
+            json_decode((string) Storage::disk('local')->get((string) $log->serviceTranscriptPath()), true)
+        );
+
+        $this->assertSame(
+            MediaProcessingLog::hashServiceTranscriptContent($held),
+            $log->processing_metadata?->toArray()['service_transcript_content']['hash'] ?? null,
+        );
+
+        $log->recordSermonDerivedFrom(MediaProcessingLog::hashServiceTranscriptContent($held));
+        $this->assertFalse($log->refresh()->sermonDerivationIsOwed());
+    }
+
+    /** The reuse branch rewrites the file through the prompt-echo filter, so it installs content too. */
+    #[Test]
+    public function it_stamps_the_content_of_a_reused_transcript(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->pending()->create();
+        Storage::disk('local')->put((string) $log->source_file_path, 'fake video bytes');
+
+        $transcriptPath = 'temp/service_transcript_'.$log->processing_id.'.json';
+        $reused = ChurchServiceTranscript::fromCues([
+            ['start' => 0.0, 'end' => 30.0, 'text' => 'Survived the outage.'],
+        ], 100.0, ChurchServiceTranscript::SOURCE_MOCK);
+        Storage::disk('local')->put($transcriptPath, (string) json_encode($reused->toArray()));
+        $log->putServiceTranscriptPath($transcriptPath);
+        $log->recordServiceTranscriptContent('hash-of-an-older-transcript');
+
+        $this->runJob($log->refresh(), resuming: true);
+
+        $this->assertSame(
+            MediaProcessingLog::hashServiceTranscriptContent($reused),
+            $log->refresh()->processing_metadata?->toArray()['service_transcript_content']['hash'] ?? null,
+        );
+    }
+
     private function runJob(
         MediaProcessingLog $log,
         ?ServiceTranscriptRecovery $recovery = null,

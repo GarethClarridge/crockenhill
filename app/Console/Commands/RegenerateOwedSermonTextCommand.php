@@ -63,7 +63,18 @@ class RegenerateOwedSermonTextCommand extends Command
              */
             $this->report($selection);
 
-            if ($selection['runs'] === []) {
+            /**
+             * A held-back run is held back from *writing* text to spans still in
+             * question. One whose saved text already is a fresh slice writes
+             * nothing; its span doubt stays on its own flag, so only the
+             * stale-text claim (which is false) is reconciled.
+             */
+            $reconcilableHeld = array_values(array_filter(
+                $repair->inspect($selection['heldRuns'], requireConcatenatedPlan: false),
+                static fn (SermonTranscriptSpanRepairEntry $entry): bool => $entry->disposition === HistoricSermonTranscriptSpanRepair::DISPOSITION_ALREADY_REPAIRED,
+            ));
+
+            if ($selection['runs'] === [] && $reconcilableHeld === []) {
                 $this->warn($selection['held'] === []
                     ? 'No run is owed a settled sermon re-derivation.'
                     : 'Every owed run is held back for unsettled spans; none was regenerated.');
@@ -73,6 +84,12 @@ class RegenerateOwedSermonTextCommand extends Command
 
             $entries = $repair->inspect($selection['runs'], requireConcatenatedPlan: false);
             $this->reportEntries($entries);
+
+            if ($reconcilableHeld !== []) {
+                $this->line(sprintf('  %d held-back run(s) already hold the current derivation.', count($reconcilableHeld)));
+            }
+
+            $entries = [...$entries, ...$reconcilableHeld];
 
             $repairable = array_values(array_filter(
                 $entries,
@@ -126,7 +143,7 @@ class RegenerateOwedSermonTextCommand extends Command
     /**
      * The runs owed a re-derivation, split by whether their spans are settled.
      *
-     * @return array{runs: list<MediaProcessingLog>, held: list<array{0: string, 1: string}>}
+     * @return array{runs: list<MediaProcessingLog>, held: list<array{0: string, 1: string}>, heldRuns: list<MediaProcessingLog>}
      */
     private function select(): array
     {
@@ -144,6 +161,7 @@ class RegenerateOwedSermonTextCommand extends Command
 
         $runs = [];
         $held = [];
+        $heldRuns = [];
 
         foreach ($query->get() as $run) {
             if (! $run->sermonDerivationIsOwed()) {
@@ -152,6 +170,7 @@ class RegenerateOwedSermonTextCommand extends Command
 
             if (! $includeUnsettled && isset($unsettled[$run->id])) {
                 $held[] = [(string) $run->processing_id, $unsettled[$run->id]];
+                $heldRuns[] = $run;
 
                 continue;
             }
@@ -165,11 +184,11 @@ class RegenerateOwedSermonTextCommand extends Command
             $runs = array_slice($runs, 0, (int) $limit);
         }
 
-        return ['runs' => $runs, 'held' => $held];
+        return ['runs' => $runs, 'held' => $held, 'heldRuns' => $heldRuns];
     }
 
     /**
-     * @param  array{runs: list<MediaProcessingLog>, held: list<array{0: string, 1: string}>}  $selection
+     * @param  array{runs: list<MediaProcessingLog>, held: list<array{0: string, 1: string}>, heldRuns: list<MediaProcessingLog>}  $selection
      */
     private function report(array $selection): void
     {

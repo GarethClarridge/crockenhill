@@ -150,8 +150,7 @@ class UntranscribedSpeechRecovery
         $path = $this->artifacts->putJson($log->processing_id, self::ARTIFACT_KIND, $recovered->toArray());
         $blocks = app(ServiceTranscriptRepetitionScreen::class)->screen($recovered);
         $log->refresh();
-        $log->putServiceTranscriptPath($path, $recovered->unobservableWindows, array_map(static fn (SuspectTranscriptBlock $block): array => $block->toArray(), $blocks));
-        $log->recordServiceTranscriptContent(MediaProcessingLog::hashServiceTranscriptContent($recovered));
+        $log->installServiceTranscript($path, $recovered, array_map(static fn (SuspectTranscriptBlock $block): array => $block->toArray(), $blocks));
 
         return ['stretches' => count($stretches), 'recovered' => count(array_filter($attempts, static fn (array $attempt): bool => $attempt['cues'] > 0))];
     }

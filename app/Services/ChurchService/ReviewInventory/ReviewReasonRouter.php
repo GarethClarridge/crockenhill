@@ -31,6 +31,12 @@ final class ReviewReasonRouter
     ];
 
     /**
+     * Refreshed by RA2 only when the analysis that wrote the published reference is owed:
+     * re-running a current analysis settles nothing (963 and 1066, 11-07).
+     */
+    private const REFERENCE_CONTRADICTION = 'published_reference_contradicts_sermon';
+
+    /**
      * Review flags an existing automatic stage owns: [stage, next operation].
      *
      * @var array<string, array{0: string, 1: string}>
@@ -38,7 +44,6 @@ final class ReviewReasonRouter
     private const FLAG_ROUTES = [
         'sermon_text_predates_evidence' => ['RA2', 're-slice sermon text from the current transcript and executed spans'],
         'sermon_evidence_incomplete' => ['RA2', 'complete the sermon evidence, then re-slice'],
-        'published_reference_contradicts_sermon' => ['RA2', 'refresh the dependent Scripture/analysis'],
         'transcript_repetition_suspect' => ['RA4', 'characterise repetition; padded-window recovery decode'],
         'unmatched_song_section' => ['RA4', 'song identity from admitted catalogue/lyrics evidence'],
         'song_identity_single_source' => ['RA4', 'seek independent identity corroboration'],
@@ -136,6 +141,11 @@ final class ReviewReasonRouter
         }
         if (isset(self::HUMAN_FLAGS[$flag])) {
             return ['human', self::HUMAN_FLAGS[$flag]];
+        }
+        if ($flag === self::REFERENCE_CONTRADICTION) {
+            return $section->processingLog->analysisIsOwed()
+                ? ['RA2', 'refresh the dependent Scripture/analysis from the current text']
+                : ['human', 'published vs heard reference is editorial while the analysis is current (10-18 repairs were operator-approved through SaveSermonDetails)'];
         }
         $metadata = $section->metadata?->toArray() ?? [];
         $reference = is_string($metadata['sermon_reference'] ?? null) ? $metadata['sermon_reference'] : null;

@@ -333,9 +333,8 @@ class HistoricFailedTranscriptRepair
             $kind = 'normalized-h10b-repair-'.$key;
             $path = $this->artifacts->putJsonOnce($locked->processing_id, $kind, $payload, ['repair_sha256' => $key]);
             $locked->refresh();
-            $locked->putServiceTranscriptPath($path, $output->unobservableWindows,
+            $locked->installServiceTranscript($path, $output,
                 array_map(static fn ($block): array => $block->toArray(), $this->screen->screen($output)));
-            $locked->recordServiceTranscriptContent(MediaProcessingLog::hashServiceTranscriptContent($output));
             $locked->refresh();
             $installed = array_intersect_key($locked->processing_metadata?->toArray() ?? [], array_flip(self::SNAPSHOT_KEYS));
             $receipt = ['adoption_sha256' => $key, 'proposal_sha256' => $proposal['sha256'], 'operator' => $review['operator'],

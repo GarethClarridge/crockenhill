@@ -158,6 +158,31 @@ class ServiceReviewInventoryQueryTest extends TestCase
         $this->assertSame(['automatic_repair', 'RA4'], [$record['disposition'], $record['stage']]);
     }
 
+    /**
+     * 963 and 1066 (11-07): both analyses are current, and each contradiction is editorial
+     * (an all-age Christmas talk; a sermon expounding 2 Chronicles 1 *and* Colossians 2).
+     * Refreshing an analysis that is not stale settles nothing, so only an owed analysis
+     * makes the reference an automatic RA2 refresh.
+     */
+    #[Test]
+    public function a_contradicted_reference_is_refreshed_only_when_its_analysis_is_owed(): void
+    {
+        $flags = ['needs_manual_review' => true, 'metadata' => ['review_flags' => ['published_reference_contradicts_sermon']]];
+        $current = $this->section(MediaProcessingLog::factory()->livestream()->create(['processing_metadata' => [
+            'transcript_content' => ['hash' => 'a'], 'analysed_transcript' => ['hash' => 'a'],
+        ]]), ServiceSectionType::Sermon, $flags);
+        $owed = $this->section(MediaProcessingLog::factory()->livestream()->create(['processing_metadata' => [
+            'transcript_content' => ['hash' => 'b'], 'analysed_transcript' => ['hash' => 'a'],
+        ]]), ServiceSectionType::Sermon, $flags);
+
+        $currentRecord = $this->inventory->recordsFor($current, PendingApplication::none())[0];
+        $owedRecord = $this->inventory->recordsFor($owed, PendingApplication::none())[0];
+
+        $this->assertSame(['human_decision', 'RA6'], [$currentRecord['disposition'], $currentRecord['stage']]);
+        $this->assertStringContainsString('editorial', (string) $currentRecord['ruling']);
+        $this->assertSame(['automatic_repair', 'RA2'], [$owedRecord['disposition'], $owedRecord['stage']]);
+    }
+
     #[Test]
     public function an_unknown_flag_is_unassessable_until_it_has_a_route(): void
     {

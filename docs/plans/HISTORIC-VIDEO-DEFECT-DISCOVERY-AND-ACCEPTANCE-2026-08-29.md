@@ -305,6 +305,33 @@ Recheck code-found holds only through their recorded checker; human-found holds 
 for the operator under D5. Integrate this ordering into normal processing so the same stale-text
 queue does not recur. Test partial failures, retries and a second idempotent pass.
 
+**RA2 BUILT 11-07 (not yet applied).** The 53 stale-text records were not stale text. In every
+completed owed run (33) the round re-sliced the sermon on 11-02/03 from the transcript the run
+holds (its derivation stamp equals a fresh hash of that transcript), but `TranscribeFullService`
+had replaced the September recovery transcript without updating `service_transcript_content`,
+so the run compared a correct derivation against a stamp for a transcript it no longer held. The
+same gap would have hidden real staleness: a re-transcription with no re-slice read as current.
+Fix: `MediaProcessingLog::installServiceTranscript()` writes path, windows, screen and content
+stamp in one metadata write; every writer that installs new cues uses it (`TranscribeFullService`
+both branches, recovery replay, H10b repair, untranscribed-speech recovery, repetition recovery).
+`putServiceTranscriptPath()` stays for re-pointing the same content (migration, screen).
+`historic-import:regenerate-owed-sermon-text` now corrects the content stamp on reconcile, but
+only after re-reading the held transcript and confirming it is still the one inspected. It also
+reconciles held-back (unsettled-span) runs whose text already is the slice, without rewriting
+anything for them. Dry run 11-07: **30 runs reconcile (25 settled + 5 held back), 0 texts
+rewritten.** Short-talk sections carry the run-level hold only (talks store no text), so they
+clear with their run. Still to do: `--execute` at application. Remaining after that:
+- 2057/4090/73105: their cuts change on application; re-extraction re-slices through
+  `CreateSermonTranscriptFromService`.
+- §4153 (1327) `sermon_evidence_incomplete`: 242 s at 1628–1870 s, where two banked
+  untranscribed-speech recoveries both failed. A re-slice can't settle it; it needs new evidence (RA4's
+  escalation budget), not RA2.
+- `published_reference_contradicts_sermon` (963 §173549, 1066 §1689): both analyses are current
+  and both contradictions are editorial (963 is an all-age Christmas talk on 2 Cor 9:15 published
+  as the carol reading; 1066 expounds 2 Chronicles 1 *and* Colossians 2). Re-routed: RA2 only
+  when the analysis is owed, otherwise an operator decision (as on 10-18 via `SaveSermonDetails`).
+- Runs 894/930 (owed, no sermon) and 978/1144 (no recorded plan) carry no RA2 record.
+
 **RA3 — Song boundary repair plus post-cut verification (largest measured opportunity).** Start
 with the 130 trailing-content cases and classify the *actual rendered* defect: stale evidence,
 removable unrelated speech, genuine continuing singing, instrumental ending, overlap or missing
@@ -322,6 +349,33 @@ rules/rulings and continuity evidence, never title equality alone. Preserve doxo
 quiet introductions, repeated verses and speech/music overlap as counterexamples. Sound-treatment
 and loudness failures use their existing repair/measurement stages. Removing a boundary concern
 does not itself approve or publish the clip.
+
+**RA3 measured 11-07 (read-only; nothing built).** Of 362 RA3 records over 275 sections, 125 are
+`song_boundary_trailing_content`, from 130 sections (about 70 sections have only RA3 reasons
+open). Scratch: `storage/scratch/ra2-20261107/trailing_*`, `tail_signal*`, `tails.txt`.
+- **Evidence vs rendered clip.** The check judges the stored inclusive bounds: `asCut()` applies
+  operator edge answers but not the planner's edge rules. 74 of 123 extracted clips end elsewhere
+  (39 later, 34 partway into the tail). Re-judging against `CueSafeExtractionPlan::forSection()`
+  drops 32 reasons, but **none of the 128 planned clips stops before its tail**. All 32 drops are
+  the 5 s `CANDIDATE_END_TOLERANCE_SECONDS` cliff (147's end moved 0.14 s). Re-judging alone would
+  hide 33 real holds: **rejected**. Judging the planned cut is still right, but only with the cliff
+  replaced.
+- **What the tails are** (from the decoded words; only the first 230 characters were read, so
+  speech late in a tail can be missed): about 88 continuing singing (the wordless gap was an
+  instrumental break, e.g. 147 is the second half of *Great Is The Lord*, not a prayer), 18 speech
+  only ("Thank you. Please take your seats", a spoken benediction), 22 singing then speech, and
+  1 decoded garbage (3182). Labels in `labels.json`.
+- **Two defects, not one.** (a) Check precision: sung tails are held. (b) Planner recall: the
+  spoken tails sit up to 60 s inside the song section, but the song-end rules (E24
+  `speechOverMusic`, `songEndBySoundOrSpeech`) look only around the stored end
+  (`SONG_END_LEAD`/`REACH`), so speech the structure left inside the song is never cut.
+- **Signal not established.** The whole-tail classifier speech share separates sung (90th
+  percentile 0.05) from spoken (median 0.2), but dilution misses 9 of 18 spoken tails at 0.2. The
+  per-window peak flags 30 of 88 "sung" tails at 0.2, which is either label error (truncated
+  reading) or speech next to the tail. Next: label from the full tail using word timings plus
+  per-window classes, then a listening page for the cases that stay ambiguous. Only then propose
+  (a) a sung-tail exemption and (b) an inside-section song-end search, each with a replay and
+  counterexamples (doxologies, sung Amens: 1099, 2782).
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates

@@ -1541,20 +1541,64 @@ class MediaProcessingLog extends Model
      */
     public function putServiceTranscriptPath(string $path, array $unobservableWindows = [], ?array $suspectBlocks = null): void
     {
-        $this->writeProcessingMetadata(static function (array $metadata) use ($path, $unobservableWindows, $suspectBlocks): array {
-            $metadata['service_transcript_path'] = $path;
-            $metadata['service_transcript_unobservable_windows'] = $unobservableWindows;
+        $this->writeProcessingMetadata(static fn (array $metadata): array => self::withServiceTranscriptPath(
+            $metadata, $path, $unobservableWindows, $suspectBlocks,
+        ));
+    }
 
-            if ($suspectBlocks === null) {
-                unset($metadata['service_transcript_suspect_blocks']);
+    /**
+     * Install a transcript with new content: its path, both descriptions of
+     * what it is worth, and the stamp of what it says, in one write.
+     *
+     * {@see putServiceTranscriptPath()} re-points the row at content it already
+     * holds (a migrated file, a re-recorded screen). Every writer that puts
+     * *different* cues in front of the pipeline comes through here, because the
+     * content stamp is what {@see sermonDerivationIsOwed()} measures the sermon
+     * text against. Left to a separate call, the 11-02 round's re-transcription
+     * replaced 33 recovered transcripts and kept their September stamps: every
+     * correctly re-sliced sermon then read as stale, and a re-transcription
+     * without a re-slice would have read as current.
+     *
+     * @param  list<SuspectTranscriptBlockShape>|null  $suspectBlocks
+     */
+    public function installServiceTranscript(string $path, ChurchServiceTranscript $transcript, ?array $suspectBlocks = null): void
+    {
+        $contentHash = self::hashServiceTranscriptContent($transcript);
 
-                return $metadata;
+        $this->writeProcessingMetadata(static function (array $metadata) use ($path, $transcript, $suspectBlocks, $contentHash): array {
+            $metadata = self::withServiceTranscriptPath($metadata, $path, $transcript->unobservableWindows, $suspectBlocks);
+
+            if (data_get($metadata, 'service_transcript_content.hash') !== $contentHash) {
+                $metadata['service_transcript_content'] = [
+                    'hash' => $contentHash,
+                    'changed_at' => now()->toIso8601String(),
+                ];
             }
-
-            $metadata['service_transcript_suspect_blocks'] = $suspectBlocks;
 
             return $metadata;
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     * @param  list<array{start: float, end: float, reason: string}>  $unobservableWindows
+     * @param  list<SuspectTranscriptBlockShape>|null  $suspectBlocks
+     * @return array<string, mixed>
+     */
+    private static function withServiceTranscriptPath(array $metadata, string $path, array $unobservableWindows, ?array $suspectBlocks): array
+    {
+        $metadata['service_transcript_path'] = $path;
+        $metadata['service_transcript_unobservable_windows'] = $unobservableWindows;
+
+        if ($suspectBlocks === null) {
+            unset($metadata['service_transcript_suspect_blocks']);
+
+            return $metadata;
+        }
+
+        $metadata['service_transcript_suspect_blocks'] = $suspectBlocks;
+
+        return $metadata;
     }
 
     /**

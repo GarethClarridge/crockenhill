@@ -180,6 +180,79 @@ class RegenerateOwedSermonTextCommandTest extends TestCase
         $this->assertSame(self::RecoveredText, $this->savedText($sermon));
     }
 
+    /**
+     * The 33 runs the 11-07 inventory routed to RA2: re-sliced by the round from
+     * the transcript they hold, but still carrying the content stamp of a
+     * transcript the round replaced. Re-stamping only the derivation (the old
+     * reconcile) left every one of them owed; the record that is wrong is the
+     * content stamp, and the held transcript is the evidence that corrects it.
+     */
+    #[Test]
+    public function it_corrects_a_content_stamp_that_describes_a_transcript_the_run_no_longer_holds(): void
+    {
+        [$log, $sermon, $section] = $this->owedRun();
+        Storage::disk('historic_quarantine')->put((string) $sermon->transcript_file_path, self::RecoveredText);
+
+        $held = $this->heldTranscriptHash($log);
+        $log->recordSermonDerivedFrom($held);
+        $log->recordServiceTranscriptContent('hash-of-the-september-recovery');
+        app(FlagSermonTextPredatesEvidence::class)($log->refresh());
+
+        $this->assertTrue($log->fresh()->sermonDerivationIsOwed());
+        $this->assertTrue($section->fresh()->needs_manual_review);
+
+        $this->artisan('historic-import:regenerate-owed-sermon-text', ['--execute' => true])
+            ->expectsOutputToContain('Reconciled 1 run(s)')
+            ->assertSuccessful();
+
+        $log = $log->fresh();
+        $this->assertFalse($log->sermonDerivationIsOwed());
+        $this->assertSame($held, $log->processing_metadata?->toArray()['service_transcript_content']['hash'] ?? null);
+        $this->assertFalse($section->fresh()->needs_manual_review);
+        $this->assertSame(self::RecoveredText, $this->savedText($sermon));
+
+        $this->artisan('historic-import:regenerate-owed-sermon-text', ['--execute' => true])
+            ->expectsOutputToContain('No run is owed a settled sermon re-derivation.')
+            ->assertSuccessful();
+    }
+
+    /**
+     * Holding back a run with unsettled spans stops the pass *writing* text to
+     * them. A run whose text already is the slice writes nothing, and its span
+     * doubt stays on its own flag, so its stale-text reason is simply false.
+     */
+    #[Test]
+    public function it_reconciles_a_held_back_run_but_does_not_rewrite_one(): void
+    {
+        [$matching, $matchingSermon, $matchingSection] = $this->owedRun();
+        Storage::disk('historic_quarantine')->put((string) $matchingSermon->transcript_file_path, self::RecoveredText);
+
+        [$stale, $staleSermon] = $this->owedRun();
+
+        foreach ([$matching, $stale] as $run) {
+            ServiceSection::factory()->create([
+                'media_processing_log_id' => $run->id,
+                'section_type' => ServiceSectionType::Song,
+                'needs_manual_review' => true,
+                'metadata' => ['review_flags' => [ServiceStructureValidator::FLAG_MACRO_SECTION]],
+            ]);
+        }
+
+        $this->artisan('historic-import:regenerate-owed-sermon-text', ['--execute' => true])
+            ->expectsOutputToContain('0 run(s) selected; 2 held back')
+            ->expectsOutputToContain('Reconciled 1 run(s)')
+            ->assertSuccessful();
+
+        $this->assertFalse($matching->fresh()->sermonDerivationIsOwed());
+        $this->assertNotContains(
+            FlagSermonTextPredatesEvidence::FLAG,
+            $matchingSection->fresh()->metadata->reviewFlags ?? [],
+        );
+
+        $this->assertTrue($stale->fresh()->sermonDerivationIsOwed());
+        $this->assertSame(self::StaleText, $this->savedText($staleSermon));
+    }
+
     /** A failed run's spans were never settled by a completed pipeline. */
     #[Test]
     public function it_leaves_a_failed_run_alone(): void
@@ -249,6 +322,13 @@ class RegenerateOwedSermonTextCommandTest extends TestCase
         app(FlagSermonTextPredatesEvidence::class)($log->refresh());
 
         return [$log->refresh(), $sermon->fresh(), $section->fresh()];
+    }
+
+    private function heldTranscriptHash(MediaProcessingLog $log): string
+    {
+        return MediaProcessingLog::hashServiceTranscriptContent(ChurchServiceTranscript::fromArray(
+            json_decode((string) Storage::disk('local')->get((string) $log->serviceTranscriptPath()), true),
+        ));
     }
 
     private function savedText(Sermon $sermon): string

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\HistoricMedia;
 
 use App\Actions\FlagSermonTextPredatesEvidence;
+use App\Data\ChurchServiceTranscript;
 use App\Enums\ProcessingStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -150,6 +151,25 @@ class HistoricSermonTranscriptSpanRepair
 
         if (! $run instanceof MediaProcessingLog || ! $run->sermonDerivationIsOwed()) {
             return false;
+        }
+
+        /**
+         * The content stamp can be the wrong half. A writer that replaced the
+         * transcript without stamping it (the 11-02 round's re-transcription,
+         * before {@see MediaProcessingLog::installServiceTranscript()}) leaves
+         * the stamp describing a transcript the run no longer holds, and
+         * re-stamping only the derivation leaves the run owed forever. The held
+         * transcript is the fact both stamps describe, so it is re-read here
+         * and the stamp corrected only while it is still the one inspected.
+         */
+        $held = $this->withRunContext($run, fn (): ?ChurchServiceTranscript => $this->serviceTranscripts->tryRead($run));
+
+        if ($held === null || MediaProcessingLog::hashServiceTranscriptContent($held) !== $entry->serviceTranscriptHash) {
+            return false;
+        }
+
+        if (data_get($run->processing_metadata?->toArray() ?? [], 'service_transcript_content.hash') !== $entry->serviceTranscriptHash) {
+            $run->recordServiceTranscriptContent($entry->serviceTranscriptHash);
         }
 
         $this->stampDerivation($run, $entry);
