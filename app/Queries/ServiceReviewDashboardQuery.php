@@ -259,14 +259,23 @@ class ServiceReviewDashboardQuery
      */
     public function pendingMergeCount(): int
     {
+        return $this->pendingMergeServicesQuery()->count();
+    }
+
+    /**
+     * Services awaiting a merge decision (a legacy structure merge or pending evidence proposals).
+     *
+     * @return Builder<ChurchService>
+     */
+    public function pendingMergeServicesQuery(): Builder
+    {
         return ChurchService::query()
             ->where(fn (Builder $query): Builder => $query
                 ->whereNotNull('pending_structure_merge_source')
                 ->orWhereHas(
                     'mergeProposals',
                     fn (Builder $proposals): Builder => $proposals->where('status', ChurchServiceProposalStatus::Pending),
-                ))
-            ->count();
+                ));
     }
 
     /**
@@ -629,11 +638,13 @@ class ServiceReviewDashboardQuery
     }
 
     /**
-     * The base predicate for review-candidate sections (contract C1).
+     * The base predicate for review-candidate sections (contract C1). Shared with
+     * {@see \App\Queries\ServiceReviewInventoryQuery} so the inventory counts exactly
+     * the sections the dashboard does.
      *
      * @return Builder<ServiceSection>
      */
-    private function reviewCandidateSectionsBaseQuery(bool $includePublicationApprovals = true): Builder
+    public function reviewCandidateSectionsBaseQuery(bool $includePublicationApprovals = true): Builder
     {
         return ServiceSection::query()
             // Sections belonging to a superseded run (a duplicate/earlier
