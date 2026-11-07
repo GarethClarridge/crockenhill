@@ -376,6 +376,23 @@ open). Scratch: `storage/scratch/ra2-20261107/trailing_*`, `tail_signal*`, `tail
   per-window classes, then a listening page for the cases that stay ambiguous. Only then propose
   (a) a sung-tail exemption and (b) an inside-section song-end search, each with a replay and
   counterexamples (doxologies, sung Amens: 1099, 2782).
+- **Full-tail relabel (11-07, later):** reading the full decoded text changed 26 labels, so the
+  230-character reading was unreliable. Now 83 sung, 22 sung then speech (SP), 19 speech,
+  5 unclear, 1 garbage (`labels_full.json`). Words per minute (the `SungSpanInsideSermon` /
+  `MistypedSungSections` measure) works here *inverted*. Whisper decodes congregational hymns
+  densely (sung median 76 wpm), while spoken tails are a wordless outro plus a short "Thank you"
+  (median 9). At <40: 16 of 19 speech, 2 of 83 sung. But 3 speech tails decode at speech rate
+  (136468 benediction 60, 176320 46, 2164 43), and any whole-tail exemption (≥40 wpm and music
+  ≥0.9) **also releases 15–18 of the 22 SP tails**, publishing a final "Shall we pray together?".
+  The E24 cue-start classifier test finds 7 of 22 SP onsets and **0 of 19** speech tails (a cue
+  opens before the line is said: "Thank you" reads speech 0.01), and fires on 3795's sung Amen.
+  **Order: fix (b) first.** Extend `songEndBySoundOrSpeech`'s word-timed onset search to speech
+  inside the section. Only then add (a) an exemption on what remains, re-measured on planned cuts.
+- **Listening page built, not published** (`storage/scratch/trailing-tails-listening-20261107/`,
+  17 questions: the 5 unclear, 3182, sung under 50 wpm, speech at ≥40). Artifact tools were
+  unavailable in this session. Publish with `publish_files`, then
+  `declare_capabilities {db:{},user:{}}`; answers go to the `rulings` collection with ids
+  `<run>-s<section>`.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates
