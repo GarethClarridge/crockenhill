@@ -94,18 +94,29 @@ class PrepareOutputEdgeEvidence
         $cues = $evidence->cues($run);
         $dependent = app(DependentSongOpening::class);
         $windows = [];
+        $fadeCutWindows = [];
         foreach ($run->serviceSections()->where('section_type', ServiceSectionType::Song)->orderBy('start_time')->get() as $section) {
             $plan = $this->cutPlans->forSpans($run, [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]], songEnds: true);
             foreach ($plan['segments'] as $span) {
                 $window = $dependent->window($run, $cues, (float) $span['start_time']);
                 if ($window !== null) {
-                    $evidence = app(OutputEdgeWordTimings::class);
                     $windows[$evidence->kind($evidence->identity($run, $window))] = $window;
+                }
+            }
+            // A song faded into speech is decoded again on its cut (RA3, heard 11-07), so the speech's
+            // agreed first words can move the cut past the outro's last note.
+            foreach ($this->fadeCuts($plan['cue_edge_widening']) as $cut) {
+                foreach (app(SongEndSpeechOnset::class)->windows($cut, $run->duration) as $window) {
+                    $fadeCutWindows[$evidence->kind($evidence->identity($run, $window))] = $window;
                 }
             }
         }
         if ($windows !== []) {
             $summary['dependent_openings'] = $this->prepare->prepareWindows($run, $windows);
+            $run->refresh();
+        }
+        if ($fadeCutWindows !== []) {
+            $summary['song_fade_cuts'] = $this->prepare->prepareWindows($run, $fadeCutWindows);
             $run->refresh();
         }
         // Asked of the cuts the decoded words place, so only once they are decoded.
@@ -114,5 +125,29 @@ class PrepareOutputEdgeEvidence
         $this->resolver->compose($run);
 
         return $summary;
+    }
+
+    /**
+     * Where each song end fades into speech, as the rules before {@see SongEndSpeechOnset} place it:
+     * a cut it already moved is decoded at the cut it replaced, so its windows stay the same.
+     *
+     * @param  list<array<string, mixed>>  $audit
+     * @return list<float>
+     */
+    private function fadeCuts(array $audit): array
+    {
+        $cuts = [];
+
+        foreach ($audit as $entry) {
+            if ($entry['edge'] !== 'end') {
+                continue;
+            }
+            $decision = ($entry['reason'] ?? null) === SongEndSpeechOnset::REASON ? $entry['replaced'] : $entry;
+            if (in_array($decision['reason'] ?? null, ['song_end_speech', CueSafeExtractionPlan::SONG_END_FADE], true)) {
+                $cuts[] = (float) $decision['time'];
+            }
+        }
+
+        return $cuts;
     }
 }

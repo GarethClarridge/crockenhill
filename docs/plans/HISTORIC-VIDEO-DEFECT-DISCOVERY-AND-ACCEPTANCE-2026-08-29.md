@@ -544,6 +544,238 @@ open). Scratch: `storage/scratch/ra2-20261107/trailing_*`, `tail_signal*`, `tail
     outro, in mixed 5 s windows (finer classifier windows). 3447's "please sit down" is 5 s
     before the next speech, over music (a merge across music). 669 loses 2.0 s of outro (at the
     limit).
+- **Defect (a), check precision: a lyric-ended tail (11-07, read-only, nothing built;
+  `storage/scratch/tail-lyrics-20261107/`).** Each tail cue was matched against its own song's
+  `lyrics_plain` with the existing readers (`SongLyricsOutsideSection::wordPairs`, or ≥2
+  `SongLyricIdentityCheck::contentWords` with half or more in the lyrics). All 130 sections have a
+  song with lyrics.
+  - **Signal:** "the last content cue in the tail is the song's own lyric" holds for 67 of 83 sung
+    tails, 2 of 22 SP (3430, 3795), 0 of 19 speech and 4 of 5 unclear. The sung misses are sung
+    Amens (1099, 1680, 2782, 2304) and garbled last lines.
+  - **Guard: the last lyric cue must be ≤12 s long.** Whisper stretches its final cue to 30 s over
+    the outro, and speech hides in it: 2187 (ruled speech at 38:57), 3430 and 669. With the guard
+    the rule releases **53 of 83 sung tails and 0 of the 46 others**. Against the 27 tail rulings,
+    no ruled speech is released. Pairs alone (no word-share) release 39.
+  - **The same rule cannot see a song that carries on past the cut.** Of the 4 released sections
+    that have rulings, 3 are ruled "song continues" (961, 1915, 3103). Only 336237 is plainly
+    right. The singing after the cut has no decoded words, and the classifier's music share just
+    after the stored end does not mark it either (1915 reads 0.0, while 29 of the 49 unruled
+    released sections read ≥0.5). The trailing hold on these is coincidental (it fired on an
+    earlier instrumental break), but releasing it would leave a short clip with no hold. The
+    5 song-continues sections stay the separate fix noted above.
+  - **Listening page (11-07):** https://claude.ai/artifact/C5NUzCJsTdG9245ov3qkar
+    (`storage/scratch/song-end-listening-20261107/`, `rulings`, ids `<run>-s<section>`). A
+    stratified 16 of the 49 unruled released sections: 8 with music after the stored end, 8
+    without. It asks whether the planned cut ends right, is cut short, or keeps speech.
+  - **Answered 11-07 (16 rulings; the page was rebuilt as A = the clip's ending with the planned
+    fade applied, B = the 12 s after it).** No clip keeps speech (0 of 16). Every
+    `song_end_silence` end is right (6 of 6: 862, 1087, 2168, 3041, 4046, 4713). Every fade end is
+    cut short (10 of 10): 7 `song_end_speech`, 3 `song_end_fade`, and 147, which has no replayed
+    edge. In 9 the outro's last note rings into the first second after the cut. In 3282 it rings
+    for 6 s, and in 4623 the song's last word is after the cut (speech starts 3 s later).
+  - **Mechanism: a stretched first spoken word.** The banked edge decode stretches the first spoken
+    word back over the last note: "I" 1.84 s (1814), "Oh," 1.92 s (1572), "Let's" 1.75 s (4623),
+    "It's" 1.12 s (175597), "Oh," 5.9 s (2513), "Please" 0.84 s (796). `song_end_speech` cuts at
+    `cutInGap()`, 0.1 s before that word's start, so the fade (E7) takes the note. E24 places the
+    cut at the speech onset; the onset is what is wrong, not the fade.
+  - **Corpus (final replay, `smear_census.jsonl`):** the first word at a `song_end_speech` cut has a
+    median length of 0.56 s. It is ≥0.6 s at 154 of 329 cuts and ≥1 s at 82. At `song_end_fade`
+    cuts with a word there, 62 of 117 are ≥0.6 s. This is a weekly defect, not a historic one,
+    and nothing holds it. Length alone does not separate it: 2819's 0.59 s and 3886's
+    zero-length stacked "We" were also cut short.
+  - **For the exemption:** this defect is in exempt and unheld clips alike, so the exemption
+    neither causes nor hides it. The song-continues cases (961, 1915, 3103: seconds of singing
+    after the cut, an early-opening speech cue) remain separate.
+  - Next: fix the speech onset at fade cuts first (find where the spoken word really starts,
+    measured on these 10 plus the RA3 tail rulings), then the exemption on what remains.
+- **Fade-cut onset: level rules measured and rejected (11-07, read-only,
+  `song-end-listening-20261107/rise_rule.py`, `levels_census.jsonl`).** Scored on the 10 answers
+  and on the latest `edge-rulings.json` song-end ruling at each fade cut (97 sections).
+  - In the levels, speech shows as a sharp rise after the outro decays (+1.7 s 1814, +1.7 1572,
+    +1.5 147, about +1.5 2819, +0.8 3886, +1.3 175597, +1.2 796). Of the other 3, 3282's next item
+    is a song, 4623 is loud music throughout (speech at +2.9), and 2513 has no rise.
+  - **Plain rise rule** (≥8 dB over the 0.3 s low, ≤3 s ahead, cut at the low): moves 303 of 576
+    fade cuts (median 1.1 s) and breaks 30 ruled-right ends. Rejected.
+  - **Gated on a stretched first word** (≥0.6–1.0 s, rise inside it): fixes 2 of 10 (1814, 1572)
+    and breaks 3–5 ruled-right ends (canary-13 1221 §2719 and 1304 §4884, 1294 §166088, 1198
+    §2484). Rejected. 3886's and 2819's first words are not stretched (the decode stacked or
+    dropped them), and 796's and 175597's rise falls after the stretched word ends.
+  - 1814's older `keep` (queue sample 10-24, "song") answered whether the tail was song. It is not
+    an edge ruling and does not conflict with "cut short".
+  - Next candidate: v5's cross-window agreed words, used *after* the cut. The edge step already
+    banks the 8 tail windows over [end − 22, end + 8] for every song, so this needs no new
+    evidence in the round. Measuring it needs those windows decoded for the 10 answered sections
+    and the ruled fade-cut ends (local whisper).
+- **Agreed words after the cut: measured; the evidence cannot separate the two groups (11-07,
+  `song-end-listening-20261107/decode5.php`, `words5.jsonl`, `agreed_rule.py`).**
+  - **Windows:** four 12 s windows from cut − 9/−7/−5/−3 s (one Whisper chunk each, well under
+    28 s). Two-window agreement with a 1 s edge margin covers cut − 6 to cut + 6. 103 sections
+    (9 answered, 94 ruled), 0 errors.
+  - **Production coverage gap:** the banked tail windows sit at the stored end
+    ([end − 22, end + 8]), so they reach two-window agreement only to end + 5. 59 of 576 fade
+    cuts lie beyond that (up to +27.9 s), and a build would need windows on the cut.
+  - **Agreed speech starts about 1 s after the cut in both groups.** In the cut-short answers it
+    starts at +0.94 to +2.0 s; in the 57 ruled ends with a run, the median is +1.07 s
+    (quartiles +0.72 to +2.06). A rule moving the cut to onset − 0.3 s moves 5 of the 9 answered
+    ends and breaks 32–35 ruled-right ends (canary 13/15; the 10-20, 10-21 and 10-24 pages).
+  - So today's "cut short" and those earlier "right" rulings describe the same kind of ending. Per
+    "rulings are evidence", this is re-asked with clips: the A/B page
+    https://claude.ai/artifact/DPy8bRhbWWBa4Cvc8gxQBF (`storage/scratch/song-end-compare-20261107/`,
+    `answers-map.json` maps A/B to current/later). 13 pairs: 5 of today's and 8 ruled right,
+    each the last 12 s with the pipeline's fade. If the later ending wins generally, the earlier
+    rulings were acceptable, not best, and the rule is worth building. If not, today's answers
+    were stricter than the standard.
+  - **Answered 11-07 (13 pairs):** later 2 (2819; 3010, ruled `keep` before), current 2 (1508,
+    175130, both ruled right before), either 9. Operator: "Where either is fine I prefer the
+    longer cut." That gives later 11, current 2. So the earlier rulings at these cuts were
+    acceptable, not best.
+    **E21 is unchanged.** Operator 11-07: "Either means either. I don't want a blanket rule that
+    later of the either options is better. But here on song ends that is generally the case. The
+    aim is for everything up to the first spoken word to be in the song." That is E24's target
+    (speech belongs to the next item), not a tie-break.
+  - **The 2 where current wins already have speech at the cut.** The planner cut in the pause
+    between two spoken sentences ("…sit down" / "I'm going to leave"; "Let us pray together." /
+    "Let us just close with"). The agreed run is the *second* sentence. Raw decoded words cannot
+    guard this: 3010's "in prayer" at +0.2–1.3 s is not speech (operator: "I can't hear any
+    speech in the gap"), and it never agrees between windows.
+  - **Guard: music at the cut.** In the classifier window holding cut + 0.5 s, music reads 0.02
+    (1508) and 0.25 (175130); in every later/either pair it reads ≥0.48 (3010 0.56, 1814 0.48).
+    "Music < 0.3 means no move" blocks those 2 and 8 ruled ends where the music had already stopped
+    (0.01–0.02: 3304, 3598, 4876, 4858, 1895, 2694, 3524, 4648). After the guard, 27 ruled
+    `keep`/`either` ends still move later. In the A/B sample every guarded move on a ruled end
+    was later or either (2719, 4884, 2718, 3010, 3734, 4685), so they read as acceptable, not best.
+    Parameters were chosen on these 13 pairs. A build must replay all 576 fade cuts and put a
+    stratified sample of the moves on a listening page before it is trusted.
+- **Fade-cut onset BUILT (11-07, operator: "Yes, start"; uncommitted).** `SongEndSpeechOnset`
+  (rule `song-end-slide-12-step-2-v1`, reason `song_end_agreed_speech_onset`):
+  - **Windows:** four 12 s windows on the cut (cut − 9/−7/−5/−3 s).
+  - **Rule:** the first run of ≥2 agreed words from cut − 0.5 s, cut at its start − 0.3 s, only later.
+  - **Guard:** nothing moves where music < 0.3 in the classifier window at cut + 0.5 s.
+  - **Shared agreement:** v5's cross-window agreement moved to `AgreedEdgeWords`, which
+    `SongTailSpeechOnset` now uses unchanged (its 10 unit tests pass).
+  - **Planner:** `CueSafeExtractionPlan::songEnd()` asks it only when v5 does not fire and the
+    decision is `song_end_speech` or `song_end_fade`. The fade is recomputed from the decision's
+    new `last_sound` (E7), and the replaced decision is kept under `replaced`.
+  - **The next item still starts at the replaced cut** (`afterSongSound()`): agreement can miss the
+    speech's first word (796's "Would you"). The two outputs overlap by the moved second (E27).
+  - **Banking:** `PrepareOutputEdgeEvidence` banks the windows on each fade cut after the song plans
+    (at the replaced cut where the rule already moved it), before the sentence check. Without them,
+    the old decision stands.
+  - **Scored as built on the 103 decoded sections** (`php_rule.php`): it matches the scratch scorer
+    except 3131 (0.07 s; a window trimmed at the recording's end). All 13 A/B pairs behave as heard.
+    Of the ruled ends, 27 met `keep`/`either` rulings now move later (acceptable, not best; to be
+    heard), 2 unmet rulings become met, and 1 unmet ruling moves and stays unmet.
+  - **Ruled-endings fixtures are not re-captured.** They bank no cut windows, so the rule stays
+    inert there. Re-capturing would turn the 27 moves into fixture failures before they are heard.
+  - **Corpus replay (all 576 fade cuts decoded, 0 errors; `php_rule.jsonl`):** 246 move later.
+    The median move is 1.4 s, p90 3.5 s, max 5.4 s: under 0.5 s 29, 0.5–1 s 74, 1–2 s 61,
+    2–4 s 62, ≥4 s 20. That is wider than the A/B pairs (0.57–1.76 s), and the long moves are the
+    risk (the agreed run may be a later sentence).
+  - **Listening page:** https://claude.ai/artifact/FeRiRZuCdxy2DgaEKaz47R
+    (`storage/scratch/song-end-moves-20261107/`, `answers-map.json`). 20 unheard moves,
+    stratified by size (3/3/4/5/5), current versus the rule's ending, each the last 12 s with a
+    fade. The later fade is approximated as min(4, fade + move); it is exact unless the old fade
+    was raised to the 1.5 s minimum.
+  - Full suite green (11,100 tests), Dusk 63 green, PHPStan and Pint clean. Next: the answers. A
+    size cap or a stricter run would come from them.
+  - **Answers (11-08, 20 of 20; `answers/rulings/`):** later 2 (3131, 3695), either 10, current 4
+    (828 +5.2 s, 2312 +4.4 s, 3639 +4.2 s, 336053 +2.1 s), neither 4. By size: under 2 s, no
+    current; 2–4 s, 1 later, 2 either, 1 current, 1 neither; ≥4 s, 3 current, 1 either, 1
+    neither, never later. In the rejected long moves the speech's first phrase ("Please sit
+    down", "Let's pray") was decoded but not agreed (stacked or stretched timings), so the run
+    found was the next sentence.
+    - A words-only guard (text heard in two windows, at any timing, between the cut and the run)
+      was scored and rejected: it blocks 17 of 20, including both preferred moves. 336053
+      (current) and 3695 (later) have near-identical decodes ("Please sit down" then "and let's
+      …" at +2.2–2.4 s), so no word rule separates them.
+    - **Neither notes:** 1305 and 1354 want about halfway; 1353 says both fade the last sung word;
+      1305 and 1354 say the earlier ending fades the last sung word too. This is about how the fade
+      starts, not where the cut is. 1259: the speech comes straight after the last sung word, so
+      it is a hard cut or speech over the outro.
+  - **4 s limit BUILT (11-08):** `SongEndSpeechOnset::MOST`; a move of 4 s or more keeps the cut.
+    It cancels 20 of the 246 corpus moves, leaving 226. Unit test from 1168 §2312.
+  - **Fade start measured (11-08, `storage/scratch/song-end-fade-20261108/plans.jsonl`, all 576
+    fade cuts):** the planner's last sung sound is within 1.5 s of the cut in 371 (within 0.5 s in
+    287), so E7's 1.5 s minimum starts the fade before it. Often it is the cut itself: the decoded
+    sung word is stretched to the speech. Elsewhere it is too early, because the transcript missed
+    the last sung line (4461: −3.7 s, though "Glory to you, O Lord" is sung up to −0.8 s). Agreed
+    cut-window words find a sung word in only 156 of 576, so they cannot place the last note.
+    - The moves page approximated the later fade as min(4, fade + move). Where the old fade had
+      been raised to 1.5 s, that started the later fade up to 2 s earlier than the build would
+      (336053: −1.5 s played against +0.58 s built). 4451's "both fade the last word" is real
+      for the current ending.
+  - **Fade listening page:** https://claude.ai/artifact/3rvQUS5YRYBuCTAoE2ddLD
+    (`song-end-fade-20261108/`, `answers-map.json`). 11 short-gap endings (8 heard before, 3
+    new) at their built cuts, each with 1.5 s / 0.75 s / 0.3 s fades in random order, plus the
+    4 s after. A shorter minimum would amend E7.
+  - **Fade answers (11-08, 11 of 11): a shorter fade is rejected and E7 stands.** 8 answered:
+    all fine 5 (2 of them "longer better"), 1.5 s 3 (1 "longer better"); a shorter fade was never
+    preferred. The fade takes the last word only where the cut itself is too early:
+    - 828 needs about 1 s more and 3891 about 1.5 s more. Both are long moves that the 4 s limit
+      now leaves at the old cut; on the moves page, 3891 was "about halfway".
+    - 4451: the speech starts straight after the last sung word, so any fade before the cut takes
+      the word ("not sure what to do"), as 3234 on the moves page did.
+  - **4 s limit REMOVED (11-08, E28):** "Arbitrary time limits seem wrong." The rule moves cuts as
+    built (246 of 576). Next: identify the last sung word and the first spoken one; fades may run
+    over the speech; overlap is fine.
+  - **Evidence step 1, DTW word times (11-08, `storage/scratch/song-end-dtw-20261108/`):** a second
+    whisper-server with `--dtw large.v3.turbo --no-flash-attn` (flash attention silently disables
+    DTW). `t_dtw` marks a word's end (median 0.03 s from whisper's end on clear speech). The median
+    number of agreed words per section rises from 7.5 to 12. On the 23 heard sections decoded first,
+    the rule is right on 20 (17 with the current timings). The long moves now find the first phrase
+    (2312 +0.46, 3891 +2.00, 4461 +1.40, 3879 +0.52, 828 +1.67, against a heard +1). Misses:
+    3695 early, 336053 late.
+    - **Corpus decode done (576, 0 errors; `score.py 0.8`).** A DTW word starts at the previous
+      word's end, or 0.8 s before its own end after a pause. On all 31 heard sections the rule is
+      right on 28 with DTW, against 25 with the current timings (0.6 s gives 26).
+      - Misses: 3010 early (+0.06 against a heard +1.07; the operator heard no speech in the gap),
+        3695 early, 336053 late.
+      - Corpus moves: 238 (246 now), median 0.72 s (1.4), p90 3.1 s (3.5), ≥4 s 10 (20).
+      - Against the current timings, 168 sections end more than 0.5 s earlier, 58 more than 0.5 s
+        later, and 350 within 0.5 s.
+  - **Target logic (operator, 11-08):**
+    - At a clear silence after the music, the song ends at the silence.
+    - With an outro and then talking, the outro fades from the end of the last sung word to the
+      first spoken word.
+    - When the talking starts at once, the fade runs over the speech until the outro has finished,
+      not for a fixed time.
+    - Open: a long outro (fade all of it, or play on and fade at the end?); music under a prayer
+      (underscoring); the song continuing after speech.
+  - **Vocal separation (Demucs htdemucs, two stems, about 3 s of CPU per 24 s clip;
+    `song-end-separation-20261108/`):**
+    - The instrument track shows the outro ending under speech: 4451 by +1.9, 3891 by +5.4, 828 by
+      +1.9.
+    - The voice track shows a pause between singing and speech that the mix hides (3891: 0 to
+      +2.7).
+    - 3234 is singing, speech ("Let's remain standing, because"), then the next song ("All heaven
+      declares").
+    - The operator proposed taking the speech out of the voice track instead of fading. Page
+      https://claude.ai/artifact/XZ5CGHMdyGKtgJW6ETByf7 compares current / fade logic / speech
+      removed (4451, 3891; 828 has two versions).
+    - If removal is adopted, it removes only speech positively identified as speech; the lyrics
+      protect sung words.
+    - **Answers (11-08, "seems promising"):**
+      - 3891: all fine ("C [removed] could do with a fade to tidy up").
+      - 4451: none; removal "is promising, but could probably do with a fade to deal with the
+        leftover sounds where the speech has been removed".
+      - 828: the fade logic (end at the silence).
+      - Round 2 on the same page: removed, against removed with the outro faded from the first
+        spoken word to the outro's end.
+      - Round 2 answer (operator): the fade is better than none, but starts too late: "if you start
+        a fade on the first spoken word, the first sound of the speech is still quite audible".
+        Start it on the last sung word, with a maximum length ("it doesn't make sense to fade out a
+        whole musical outro unnecessarily").
+      - **Fade rule (operator, 11-08), for speech over an outro:** fade from the end of the last sung
+        word to the end of the outro. If the last sung word is more than 4 s before the speech,
+        fade from 4 s before the speech instead. The 4 s caps how long before the speech the fade
+        may start, not the fade's length.
+      - Round 3 plays this rule against round 2's fade. For 3891 it is 0.1 to 5.4; for 4451, 0.1 to
+        1.9. A first draft with a 4 s maximum length was replaced before it was answered.
+      - **Round 3 answers:**
+        - 3891: the operator's rule is right, against the round 2 fade.
+        - 4451: can't tell. "I don't think the fade is going to rescue this one unfortunately.
+          We might have to accept it." Where the speech follows the singing at once, the ending is
+          an accepted imperfection, not a target.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates

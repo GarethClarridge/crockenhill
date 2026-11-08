@@ -1002,6 +1002,11 @@ class CueSafeExtractionPlan
             $songEnd = (float) $song->end_time;
             $window = app(OutputEdgeWordTimings::class)->timingWindow($cues, $songEnd, $log->duration);
             $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log));
+            // The song keeps its last note up to the agreed speech, but agreement can miss the
+            // speech's first word (796's "Would you"), so the next item still starts at the cut before it.
+            if (($decision['reason'] ?? null) === SongEndSpeechOnset::REASON) {
+                $decision = [...$decision, ...$decision['replaced']];
+            }
 
             if (! in_array($decision['reason'] ?? null, ['song_end_silence', 'song_end_speech', self::SONG_END_FADE, self::SONG_END_SPEECH_OVER_MUSIC], true)) {
                 continue;
@@ -2503,13 +2508,39 @@ class CueSafeExtractionPlan
         $tail = app(SongTailSpeechOnset::class)->cut($log, $end, $decision['time'] ?? $end, $timeline);
 
         if ($tail === null) {
-            return $decision;
+            return $this->beforeAgreedSpeech($log, $decision, $timeline);
         }
 
         return ['time' => $tail, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
             'reason' => SongTailSpeechOnset::REASON, 'speech_cue' => $decision['speech_cue'] ?? null,
             'replaced' => $decision === null ? null : ['time' => $decision['time'], 'reason' => $decision['reason']],
             'fade_out' => self::SONG_END_FADE_MIN];
+    }
+
+    /**
+     * A song faded into speech keeps everything up to the speech's first word (operator, 11-07):
+     * the edge decode stretches that word back over the outro's last note, so the cut before it
+     * fades the note out. Overlapping decodes on the cut place the speech ({@see SongEndSpeechOnset}),
+     * and the fade is still measured from the last sung sound (E7).
+     *
+     * @param  array<string, mixed>|null  $decision
+     * @return array<string, mixed>|null
+     */
+    private function beforeAgreedSpeech(MediaProcessingLog $log, ?array $decision, ?AudioTimeline $timeline): ?array
+    {
+        if (! in_array($decision['reason'] ?? null, ['song_end_speech', self::SONG_END_FADE], true) || ! isset($decision['last_sound'])) {
+            return $decision;
+        }
+
+        $later = app(SongEndSpeechOnset::class)->cut($log, $decision['time'], $timeline);
+
+        if ($later === null) {
+            return $decision;
+        }
+
+        return [...$decision, 'time' => $later, 'reason' => SongEndSpeechOnset::REASON,
+            'replaced' => ['time' => $decision['time'], 'reason' => $decision['reason']],
+            'fade_out' => $this->fadeOut($later, $decision['last_sound'])];
     }
 
     /**
@@ -2674,7 +2705,7 @@ class CueSafeExtractionPlan
 
                 return ['time' => $time, 'chosen_pause' => $pause,
                     'word_before' => $onset['word_before'], 'word_after' => $this->plain($onset['word']),
-                    'reason' => 'song_end_speech', 'speech_cue' => $speech, 'fade_out' => $this->fadeOut($time, $lastSound)];
+                    'reason' => 'song_end_speech', 'speech_cue' => $speech, 'fade_out' => $this->fadeOut($time, $lastSound), 'last_sound' => $lastSound];
             }
         }
 
@@ -2730,7 +2761,7 @@ class CueSafeExtractionPlan
 
         return ['time' => $time, 'chosen_pause' => $gap, 'word_before' => null, 'word_after' => null,
             'reason' => $unidentified ? self::SONG_END_UNRESOLVED : self::SONG_END_FADE, 'speech_cue' => $speech, 'onset_bound' => $until,
-            ...($unidentified ? [] : ['fade_out' => $this->fadeOut($time, $lastSound)])];
+            ...($unidentified ? [] : ['fade_out' => $this->fadeOut($time, $lastSound), 'last_sound' => $lastSound])];
     }
 
     /**

@@ -41,11 +41,6 @@ class SongTailSpeechOnset
 
     private const WIDE_TO = 6.0;
 
-    /** A word near a window's edge is placed by the edge, not the audio. */
-    private const AGREEMENT_EDGE = 1.0;
-
-    private const AGREEMENT_TOLERANCE = 0.4;
-
     /** Longer than this, a decoded word is smeared over sound it does not cover. */
     private const WORD_SECONDS = 1.0;
 
@@ -74,6 +69,8 @@ class SongTailSpeechOnset
 
     /** A run must start before the song's recorded end; after it, the end rules place the cut. */
     private const BEFORE_END = 0.5;
+
+    public function __construct(private AgreedEdgeWords $agreement = new AgreedEdgeWords) {}
 
     /** @return array<string, array{start: float, end: float, window_rule: string}> */
     public function windows(float $end, ?float $duration): array
@@ -149,59 +146,9 @@ class SongTailSpeechOnset
      */
     private function agreedOnset(array $words, array $windows, float $end, AudioTimeline $timeline): ?float
     {
-        $found = [];
+        $slides = array_filter($windows, static fn (string $name): bool => str_starts_with($name, 'slide'), ARRAY_FILTER_USE_KEY);
 
-        foreach ($windows as $name => $window) {
-            if (! str_starts_with($name, 'slide')) {
-                continue;
-            }
-            foreach ($words[$name] ?? [] as $word) {
-                $text = $this->normalised($word['word']);
-                if ($text !== '' && $word['end'] - $word['start'] <= self::WORD_SECONDS
-                    && $word['start'] >= $window['start'] + self::AGREEMENT_EDGE && $word['start'] <= $window['end'] - self::AGREEMENT_EDGE) {
-                    $found[] = ['start' => $word['start'], 'end' => $word['end'], 'text' => $text, 'window' => $name];
-                }
-            }
-        }
-        usort($found, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
-
-        $agreed = [];
-        $used = [];
-
-        foreach ($found as $index => $word) {
-            if (isset($used[$index])) {
-                continue;
-            }
-            $group = [$word];
-            $used[$index] = true;
-
-            for ($next = $index + 1; $next < count($found) && $found[$next]['start'] - $word['start'] <= self::AGREEMENT_TOLERANCE; $next++) {
-                if (! isset($used[$next]) && $found[$next]['text'] === $word['text'] && ! in_array($found[$next]['window'], array_column($group, 'window'), true)) {
-                    $group[] = $found[$next];
-                    $used[$next] = true;
-                }
-            }
-
-            if (count($group) >= 2) {
-                $agreed[] = ['start' => $this->median(array_column($group, 'start')), 'end' => $this->median(array_column($group, 'end'))];
-            }
-        }
-
-        $runs = [];
-        $run = [];
-
-        foreach ($agreed as $word) {
-            if ($run !== [] && $word['start'] - $run[array_key_last($run)]['end'] <= self::AGREED_RUN_GAP) {
-                $run[] = $word;
-
-                continue;
-            }
-            $runs[] = $run;
-            $run = [$word];
-        }
-        $runs[] = $run;
-
-        return $this->speechRunStart($runs, $end, $timeline);
+        return $this->speechRunStart($this->agreement->runs($this->agreement->agreed($words, $slides), self::AGREED_RUN_GAP), $end, $timeline);
     }
 
     /**
@@ -213,7 +160,7 @@ class SongTailSpeechOnset
      */
     private function wideOnset(array $words, array $window, float $end, AudioTimeline $timeline): ?float
     {
-        $words = array_values(array_filter($words, fn (array $word): bool => $this->normalised($word['word']) !== ''));
+        $words = array_values(array_filter($words, fn (array $word): bool => $this->agreement->normalised($word['word']) !== ''));
         usort($words, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
         $runs = [];
         $run = [];
@@ -290,19 +237,5 @@ class SongTailSpeechOnset
     private function isSpeechAlone(array $window): bool
     {
         return $window['speech'] >= self::SPEECH && $window['music'] < self::MUSIC;
-    }
-
-    private function normalised(string $word): string
-    {
-        return (string) preg_replace("/[^a-z0-9']/", '', mb_strtolower($word));
-    }
-
-    /** @param list<float> $values */
-    private function median(array $values): float
-    {
-        sort($values);
-        $middle = intdiv(count($values), 2);
-
-        return count($values) % 2 === 1 ? $values[$middle] : ($values[$middle - 1] + $values[$middle]) / 2;
     }
 }

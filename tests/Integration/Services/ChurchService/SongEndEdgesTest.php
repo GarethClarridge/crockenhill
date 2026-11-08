@@ -10,6 +10,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
+use App\Services\ChurchService\SongEndSpeechOnset;
 use App\Services\ChurchService\SongTailSpeechOnset;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -917,6 +918,92 @@ class SongEndEdgesTest extends TestCase
         $plan = app(CueSafeExtractionPlan::class)->forSection($section);
 
         $this->assertNotSame(SongTailSpeechOnset::REASON, $this->endEdge($plan)['reason'] ?? null);
+    }
+
+    /**
+     * Heard 11-07 (RA3, song-end listening and A/B pages): the edge decode stretches the prayer's
+     * first word back over the outro's last note, so the cut before it faded the note out. The
+     * decodes on the cut agree on the speech 1.3 s later, and the song keeps its outro up to it,
+     * still fading from the last sung sound.
+     */
+    #[Test]
+    public function a_song_faded_into_speech_keeps_its_outro_up_to_the_speech_its_decodes_agree_on(): void
+    {
+        $section = $this->outroIntoPrayer();
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankCut($section, $cut, [['start' => $cut + 0.06, 'end' => $cut + 1.3, 'word' => ' Lord'],
+            ...$this->spokenWords($cut + 1.3, ['God,', 'we', 'thank', 'you', 'for', 'fellowship'])]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta($cut + 1.0, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame(SongEndSpeechOnset::REASON, $this->endEdge($plan)['reason']);
+        $this->assertSame('song_end_speech', $this->endEdge($plan)['replaced']['reason']);
+        $this->assertEqualsWithDelta(4.0, $plan['audio_fade_out'], 0.001);
+    }
+
+    /**
+     * Agreement can miss the speech's first word (796's "Would you"), so the prayer still starts
+     * at the cut before it; the two outputs overlap by the moved second (E27).
+     */
+    #[Test]
+    public function the_next_item_still_starts_at_the_cut_before_the_agreed_speech(): void
+    {
+        $section = $this->outroIntoPrayer();
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankCut($section, $cut, [['start' => $cut + 0.06, 'end' => $cut + 1.3, 'word' => ' Lord'],
+            ...$this->spokenWords($cut + 1.3, ['God,', 'we', 'thank', 'you', 'for', 'fellowship'])]);
+        $prayer = ServiceSection::factory()->create(['media_processing_log_id' => $section->media_processing_log_id,
+            'section_type' => ServiceSectionType::Prayer, 'start_time' => 4475.48, 'end_time' => 4600.0]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($prayer->fresh());
+
+        $this->assertEqualsWithDelta($cut, $plan['segments'][0]['start_time'], 0.001);
+        $start = collect($plan['cue_edge_widening'])->first(static fn (array $entry): bool => $entry['edge'] === 'start');
+        $this->assertSame('song_end_speech', $start['after_song_sound']['reason']);
+    }
+
+    /** Without its decodes banked, the song's end stays where the rules before it put it. */
+    #[Test]
+    public function a_song_whose_cut_decodes_are_not_banked_keeps_its_cut(): void
+    {
+        $plan = app(CueSafeExtractionPlan::class)->forSection($this->outroIntoPrayer());
+
+        $this->assertSame('song_end_speech', $this->endEdge($plan)['reason']);
+    }
+
+    /** 1250 §4911's outro into the prayer (as in a_song_runs_on_through_its_outro_until_someone_starts_talking). */
+    private function outroIntoPrayer(): ServiceSection
+    {
+        $last = ['start' => 4469.04, 'end' => 4475.48, 'text' => 'Glory to you, there is no greater thing'];
+        $prayer = ['start' => 4475.48, 'end' => 4498.26, 'text' => 'Lord God, we thank you for fellowship with one another.'];
+        $section = $this->song(4300.0, 4475.48, [$last, $prayer], [[4300, 4495.9, self::LOUD], [4495.9, 4510, -25.0]],
+            timeline: [[4300, 4495, 0.8, 0.01], [4495, 4500, 0.55, 0.82], [4500, 4510, 0.01, 0.88]]);
+        $this->bank($section, 4475.48, [
+            ['start' => 4473.75, 'end' => 4475.18, 'word' => ' greater'],
+            ['start' => 4475.18, 'end' => 4476.26, 'word' => ' thing.'],
+            ['start' => 4476.74, 'end' => 4481.70, 'word' => " You're my joy, my righteousness,"],
+            ['start' => 4482.46, 'end' => 4487.53, 'word' => ' and I love you all, love you'],
+            ['start' => 4487.53, 'end' => 4489.10, 'word' => ' all.'],
+            ['start' => 4495.96, 'end' => 4496.08, 'word' => ' Lord'],
+            ['start' => 4496.10, 'end' => 4496.50, 'word' => ' God,'],
+        ]);
+
+        return $section;
+    }
+
+    /** @param list<array{start: float, end: float, word: string}> $words */
+    private function bankCut(ServiceSection $section, float $cut, array $words): void
+    {
+        $log = $section->processingLog->fresh();
+        $evidence = app(OutputEdgeWordTimings::class);
+        foreach (app(SongEndSpeechOnset::class)->windows($cut, $log->duration) as $window) {
+            $inside = array_values(array_filter($words, static fn (array $word): bool => $word['start'] >= $window['start'] && $word['end'] <= $window['end']));
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
+                'identity' => $evidence->identity($log, $window), 'words' => $inside, 'compute_seconds' => 1.0,
+            ]);
+        }
+        $section->unsetRelation('processingLog');
     }
 
     /** @param list<array{start: float, end: float, word: string}> $words */

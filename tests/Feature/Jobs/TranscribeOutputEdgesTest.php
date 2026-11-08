@@ -13,6 +13,7 @@ use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
+use App\Services\ChurchService\SongEndSpeechOnset;
 use App\Services\ChurchService\SongTailSpeechOnset;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -50,7 +51,7 @@ class TranscribeOutputEdgesTest extends TestCase
         ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Song, 'start_time' => 1200.0, 'end_time' => 1322.40]);
 
         $this->partialMock(CueSafeExtractionPlan::class, function (MockInterface $mock): void {
-            $mock->shouldReceive('forSpans')->once()->andReturn(['segments' => [['start_time' => 1200.0, 'end_time' => 1322.4]]]);
+            $mock->shouldReceive('forSpans')->once()->andReturn(['segments' => [['start_time' => 1200.0, 'end_time' => 1322.4]], 'cue_edge_widening' => []]);
         });
 
         $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock): void {
@@ -83,7 +84,7 @@ class TranscribeOutputEdgesTest extends TestCase
             $mock->shouldReceive('forSpans')->once()->andReturnUsing(function () use (&$order): array {
                 $order[] = 'plan';
 
-                return ['segments' => [['start_time' => 90.0, 'end_time' => 200.0]]];
+                return ['segments' => [['start_time' => 90.0, 'end_time' => 200.0]], 'cue_edge_widening' => []];
             });
         });
         $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock) use (&$order): void {
@@ -104,6 +105,41 @@ class TranscribeOutputEdgesTest extends TestCase
         $this->assertSame(['tail', 'plan'], $order);
     }
 
+    /**
+     * RA3, heard 11-07: a song faded into speech is decoded again on its cut
+     * ({@see SongEndSpeechOnset}), banked after the plan places the cut and before the sentence check.
+     */
+    #[Test]
+    public function it_decodes_a_song_faded_into_speech_on_its_cut(): void
+    {
+        Storage::fake('local');
+        config(['media-processing.storage.service_artifact_disk' => 'local']);
+        $log = MediaProcessingLog::factory()->livestream()->processing()->create(['duration' => 5000]);
+        $log->putServiceTranscriptPath('temp/edges.json');
+        Storage::disk('local')->put('temp/edges.json', json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 100.0, 'end' => 110.0, 'text' => 'Words.'],
+        ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Song, 'start_time' => 90.0, 'end_time' => 200.0]);
+        $this->partialMock(CueSafeExtractionPlan::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('songEndSpeechEdges')->andReturn([]);
+            $mock->shouldReceive('forSpans')->once()->andReturn(['segments' => [['start_time' => 90.0, 'end_time' => 203.4]],
+                'cue_edge_widening' => [['span_index' => 0, 'edge' => 'end', 'time' => 203.4, 'reason' => 'song_end_speech']]]);
+        });
+        $banked = [];
+        $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock) use (&$banked): void {
+            $mock->shouldReceive('prepare')->once()->andReturn(['windows' => 0, 'decoded' => 0, 'compute_seconds' => 0.0]);
+            $mock->shouldReceive('prepareWindows')->twice()->andReturnUsing(function (MediaProcessingLog $run, array $windows) use (&$banked): array {
+                $banked[] = array_values($windows);
+
+                return ['windows' => count($windows), 'decoded' => count($windows), 'compute_seconds' => 0.0];
+            });
+        });
+
+        app()->call([new TranscribeOutputEdges($log), 'handle']);
+
+        $this->assertEquals(array_values(app(SongEndSpeechOnset::class)->windows(203.4, 5000.0)), $banked[1]);
+    }
+
     #[Test]
     public function it_banks_follow_on_words_at_the_current_song_cut_before_sentence_checks(): void
     {
@@ -117,7 +153,7 @@ class TranscribeOutputEdgesTest extends TestCase
         ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Song, 'start_time' => 90.0, 'end_time' => 200.0]);
         $this->partialMock(CueSafeExtractionPlan::class, function (MockInterface $mock): void {
             $mock->shouldReceive('songEndSpeechEdges')->andReturn([]);
-            $mock->shouldReceive('forSpans')->once()->andReturn(['segments' => [['start_time' => 100.0, 'end_time' => 200.0]]]);
+            $mock->shouldReceive('forSpans')->once()->andReturn(['segments' => [['start_time' => 100.0, 'end_time' => 200.0]], 'cue_edge_widening' => []]);
         });
         $order = [];
         $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock) use (&$order): void {
