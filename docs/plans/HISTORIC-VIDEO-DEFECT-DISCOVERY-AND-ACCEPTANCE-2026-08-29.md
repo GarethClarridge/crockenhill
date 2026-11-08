@@ -948,6 +948,22 @@ tests green.
        - **Quiet-frame page (11-08):** https://claude.ai/artifact/AYzx4H7TqF1DHspQG1H5eN
          (`song-end-quietframe-20261108/`). Current against end-frame-quiet; 8 heard, 6 unheard;
          blind order in `versions.json`.
+       - **Quiet-frame answers (11-08):** either 10, neither 4 (2331, 3627, 3811 "speech too
+         noticeable in both", 3926). "Doesn't matter much either way": the current rule stays.
+       - **Audible talking (11-08):**
+         - Measure: the 90th percentile, over V..E, of the voice level plus the fade's gain.
+         - All 6 heard bad: −41 to −29 dB.
+         - Heard fine: ≤ −43 dB, except 1966 (−36).
+         - Built on the working copy only (`endBeforeTheTalkingShows`, −42 dB, uncommitted): the
+           latest end ≤ E at which that percentile stays at or under −42.
+         - Moves 21 of 125 endings with talking over the outro (median 1.1 s sooner, max 3.2 s).
+           Only 1966 among the heard fine.
+         - The 95th percentile or the maximum also cut endings ruled right (216672 → +1.9, 4407 →
+           +2.1). Rejected.
+         - 2922 still ends at +10.1.
+         - Page: https://claude.ai/artifact/YLC7BLkRnpNovuwm6KeUNF
+           (`song-end-talking-20261108/`): 7 heard, 6 unheard it moves, 4 unheard just under the
+           threshold (single version).
        - Open:
          - The spike rule is measured, not built.
          - 3234, underscoring, and the lyric protection check.
