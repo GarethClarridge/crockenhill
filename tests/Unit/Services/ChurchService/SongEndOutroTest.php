@@ -64,7 +64,11 @@ class SongEndOutroTest extends TestCase
         $this->assertArrayNotHasKey('voice_removal', $ending);
     }
 
-    /** 1353 §4451: the talking follows the singing with no pause; the last sung word is taken to be its start. */
+    /**
+     * 1353 §4451: the talking follows the singing with no pause; the last sung word is taken to be its
+     * start. The talking is as loud as the singing, so any outro after it would carry the trace the
+     * separation leaves: the song ends where the talking starts.
+     */
     #[Test]
     public function singing_that_runs_straight_into_talking_is_taken_out_from_the_talkings_start(): void
     {
@@ -78,8 +82,9 @@ class SongEndOutroTest extends TestCase
         $this->assertNotNull($ending);
         $this->assertSame(SongEndOutro::UNDER_SPEECH, $ending['song_end_outro']);
         $this->assertEqualsWithDelta(self::CUT + 0.3, $ending['last_sung'], 0.001);
-        $this->assertEqualsWithDelta(self::CUT + 1.4, $ending['time'], 0.001);
-        $this->assertEqualsWithDelta(1.1, $ending['fade_out'], 0.001);
+        $this->assertEqualsWithDelta(self::CUT + 1.4, $ending['outro_end'], 0.001);
+        $this->assertEqualsWithDelta(self::CUT + 0.3, $ending['time'], 0.001);
+        $this->assertEqualsWithDelta(0.1, $ending['fade_out'], 0.001);
     }
 
     /**
@@ -200,6 +205,42 @@ class SongEndOutroTest extends TestCase
         $this->assertNotNull($ending);
         $this->assertSame(SongEndOutro::RECORDING_CUT, $ending['song_end_outro']);
         $this->assertEqualsWithDelta(self::CUT + 0.3, $ending['time'], 0.001);
+    }
+
+    /**
+     * 1309 §3926 (11-08): loud talking over a long outro. The separation leaves a trace of the talking,
+     * so the song ends once that trace would be heard through the fade, before the outro has gone.
+     */
+    #[Test]
+    public function loud_talking_over_a_long_outro_ends_the_song_before_the_talking_shows(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, 0, -24.0], [0, 1.0, -70.0], [1.0, 16, -24.0]],
+            instruments: [[-8, 6.0, -20.0], [6.0, 16, -62.0]],
+        );
+
+        $ending = (new SongEndOutro)->ending($stems, self::CUT + 1.0, self::CUT);
+
+        $this->assertNotNull($ending);
+        $this->assertEqualsWithDelta(self::CUT + 5.5, $ending['outro_end'], 0.001);
+        $this->assertEqualsWithDelta(self::CUT + 1.2, $ending['time'], 0.001);
+        $this->assertEqualsWithDelta(1.2, $ending['fade_out'], 0.001);
+        $this->assertNotNull($ending['voice_removal'] ?? null);
+    }
+
+    /** 4407 (11-08, right at +6.1): quiet talking stays hidden through the fade, so the outro plays out. */
+    #[Test]
+    public function quiet_talking_over_a_long_outro_lets_the_outro_play_out(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, 0, -24.0], [0, 1.0, -70.0], [1.0, 16, -40.0]],
+            instruments: [[-8, 6.0, -20.0], [6.0, 16, -62.0]],
+        );
+
+        $ending = (new SongEndOutro)->ending($stems, self::CUT + 1.0, self::CUT);
+
+        $this->assertNotNull($ending);
+        $this->assertEqualsWithDelta($ending['outro_end'], $ending['time'], 0.001);
     }
 
     /** Music under a prayer never dies away in the separated stretch: there is no ending to find. */

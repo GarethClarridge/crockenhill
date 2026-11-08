@@ -970,7 +970,8 @@ class SongEndEdgesTest extends TestCase
      * E29 (heard 11-08, 3891): with the cut's voice and instruments separated, a song whose outro
      * runs under the talking plays on until the outro dies away, with the talking taken out from
      * the last sung word and the sound faded from it. Under the talking, the outro is gone where half
-     * the next second is quiet (1966, 11-08). The next item still starts at the old cut.
+     * the next second is quiet (1966, 11-08). The talking here is quiet enough to stay hidden through
+     * the fade. The next item still starts at the old cut.
      */
     #[Test]
     public function a_song_whose_outro_runs_under_the_talking_ends_when_the_outro_dies_with_the_talking_taken_out(): void
@@ -979,7 +980,7 @@ class SongEndEdgesTest extends TestCase
         $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
         $this->bankCut($section, $cut, [['start' => $cut + 0.06, 'end' => $cut + 1.3, 'word' => ' Lord', 'aligned_end' => $cut - 0.2],
             ...$this->spokenWords($cut + 1.85, ['God,', 'we', 'thank', 'you', 'for', 'fellowship'])]);
-        $this->bankStems($section, $cut, voice: [[-8, 0.2, -24.0], [0.2, 1.4, -70.0], [1.4, 16, -30.0]],
+        $this->bankStems($section, $cut, voice: [[-8, 0.2, -24.0], [0.2, 1.4, -70.0], [1.4, 16, -40.0]],
             instruments: [[-8, 2.0, -20.0], [2.0, 4.5, -33.0], [4.5, 16, -62.0]]);
 
         $plan = app(CueSafeExtractionPlan::class)->forSection($section);

@@ -964,8 +964,34 @@ tests green.
          - Page: https://claude.ai/artifact/YLC7BLkRnpNovuwm6KeUNF
            (`song-end-talking-20261108/`): 7 heard, 6 unheard it moves, 4 unheard just under the
            threshold (single version).
+       - **Audible-talking answers (11-08, 17 of 17):**
+         - Heard 7: new better 3 (2331, 3811, 3926), either 1 (3627), neither 3.
+         - Unheard moved 6: new better 4, either 2.
+         - Kept 4: right 4.
+         - No ending preferred the current version. **Built and committed.**
+         - The "neither" endings are all about where the singing ends:
+           - 173622: "the last sung word isn't at 72:20, that's the first spoken sound (an intake
+             of breath). The last sung word is a few seconds earlier." A breath on the voice
+             track stopped the walk back.
+           - 2922: "should finish about 35:09" (= cut + 0.4). The accompaniment is almost
+             inaudible, all vocal, so the outro's level is meaningless.
+           - 1966: the new end "removes the 'has done' at the end of the lyrics". The singing
+             runs later than L (−5.3).
        - Open:
-         - The spike rule is measured, not built.
+         - The last sung word: breaths (173622), singing past the pause (1966). The lyric check
+           would place it.
+         - Inaudible accompaniment (2922). Measured: the accompaniment is ≥ 30 dB under the
+           singing in only 3 of 235 endings, and one is 2819, ruled right at +7.6. Not a class;
+           not built.
+         - Last sung word, measured:
+           - 39 of 234 ends put L at the edge of the 6 s window.
+           - The voice level is taken over onset − 6 to onset + 2, so loud talking sets it. Singing
+             more than 20 dB under the talking then reads as quiet (1966: singing −47 to −55 until
+             about −2.8, talking −23).
+           - A breath above the threshold that sets reads as voice (173622: −56 at −0.4 to +0.2,
+             singing ends near −3.5).
+           - Some edge cases are genuine long instrumentals (2312).
+         - The spike rule is measured, not built; audible talking now covers 3926.
          - 3234, underscoring, and the lyric protection check.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend

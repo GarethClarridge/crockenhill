@@ -18,6 +18,8 @@ namespace App\Services\ChurchService;
  *   it is taken to be the speech's start, an accepted imperfection (4451).
  * - Under the talking, the talking leaks into the instrument track as short spikes, so the outro
  *   is gone once half of a second is quiet (1966: heard +2.6 s, a strict second found +14.8 s).
+ * - Taking the talking out leaves a trace of it, louder the louder the talking. The song ends once
+ *   that trace would be heard through the fade, even if the outro plays on (3926, 3811, 2331).
  * - Where the recording itself cuts out of the music to digital silence, the song fades into the
  *   cut over up to 3 s, from no earlier than the end of the last sung word (1314, 637). A dropout the music comes back from is not the end (176320).
  * - Where the outro never dies away within the separated stretch (music under a prayer), there is
@@ -64,6 +66,9 @@ class SongEndOutro
      * past its audible end (11-08).
      */
     private const OUTRO_GONE_SHARE_UNDER_SPEECH = 0.5;
+
+    /** The talking taken out is heard above this, through the fade (11-08). */
+    private const TALKING_HEARD_DB = -42.0;
 
     /** The fade starts no earlier than this before the speech (operator, 11-08). */
     private const LEAD_IN = 4.0;
@@ -116,9 +121,43 @@ class SongEndOutro
             return ['time' => $outroEnd, 'fade_out' => self::CLICK, 'song_end_outro' => self::SILENCE, ...$found];
         }
         $fadeFrom = max($lastSung, $speech - self::LEAD_IN);
+        $end = $this->endBeforeTheTalkingShows($stems, $fadeFrom, $speech, $outroEnd);
 
-        return ['time' => $outroEnd, 'fade_out' => round($outroEnd - $fadeFrom, 3), 'song_end_outro' => self::UNDER_SPEECH, ...$found,
+        return ['time' => $end, 'fade_out' => round(max(self::CLICK, $end - $fadeFrom), 3), 'song_end_outro' => self::UNDER_SPEECH, ...$found,
             'voice_removal' => ['from' => $lastSung, 'instruments' => $stems['instruments'], 'instruments_start' => $stems['start']]];
+    }
+
+    /**
+     * The latest end, no later than the outro's, at which the talking taken out stays inaudible: the
+     * separation leaves a trace of the talking in the instrument track that scales with how loud the
+     * talking is, so the fade must have turned it down far enough. Measured as the 90th percentile,
+     * over the talking until the end, of the voice level plus the fade's gain (11-08: the six endings
+     * heard as bad were −41 to −29 dB, all but one heard as fine −43 dB or quieter).
+     *
+     * @param  array{start: float, frame_seconds: float, voice_db: list<float>}  $stems
+     */
+    private function endBeforeTheTalkingShows(array $stems, float $fadeFrom, float $speech, float $outroEnd): float
+    {
+        $step = $stems['frame_seconds'];
+        for ($end = $outroEnd; $end > $speech + 1e-6; $end = round($end - $step, 3)) {
+            $heard = [];
+            for ($time = $speech; $time < $end - 1e-6; $time = round($time + $step, 3)) {
+                $db = $stems['voice_db'][(int) floor(($time - $stems['start']) / $step + 1e-6)] ?? null;
+                if ($db !== null) {
+                    $gain = max(1e-4, 1 - ($time - $fadeFrom) / max(1e-3, $end - $fadeFrom));
+                    $heard[] = $db + 20 * log10($gain);
+                }
+            }
+            if ($heard === []) {
+                return $end;
+            }
+            sort($heard);
+            if ($heard[(int) floor(0.9 * (count($heard) - 1))] <= self::TALKING_HEARD_DB) {
+                return $end;
+            }
+        }
+
+        return max($speech, $fadeFrom);
     }
 
     /**
