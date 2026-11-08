@@ -31,6 +31,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Models\SpeakerProfile;
+use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
@@ -54,6 +55,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
+use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\Concerns\CreatesHistoricImportOperations;
@@ -209,6 +211,58 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertSame([$talk->id], $section->metadata->raw['publication_candidate_extraction_blocked']['crossed_held_section_ids']);
         Bus::assertNotDispatched(AutoPublishServiceSection::class, fn ($job): bool => $job->serviceSectionId === $section->id);
         $this->assertNotNull($other->fresh()->extracted_video_path);
+    }
+
+    /**
+     * E29: a song whose outro runs under talking is cut with its separated instrument track from the
+     * last sung word, read from where the run banked it.
+     */
+    #[Test]
+    public function a_song_ending_under_talking_is_cut_with_its_instruments_from_the_last_sung_word(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        Bus::fake([AutoPublishServiceSection::class]);
+        config([
+            'media-processing.storage.temp_disk' => 'local',
+            'media-processing.storage.sermon_disk' => 'public',
+            'media-processing.section_publishing.enabled' => true,
+            'media-processing.section_publishing.handlers' => ['song' => SongPublicationHandler::class],
+        ]);
+        $item = ChurchServiceItem::factory()->create(['song_id' => Song::factory()->create()->id]);
+        $processingLog = MediaProcessingLog::factory()->livestream()->processing()->create(['source_file_path' => 'livestreams/source.mp4']);
+        Storage::disk('local')->put('livestreams/source.mp4', 'source-video');
+        Storage::disk('local')->put('service-transcripts/stems.flac', 'flac');
+        ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id, 'church_service_item_id' => $item->id,
+            'section_type' => ServiceSectionType::Song, 'status' => ServiceSectionStatus::Identified,
+            'start_time' => 100.0, 'end_time' => 300.0, 'needs_manual_review' => false,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+            'song_match_type' => ServiceSectionSongMatchType::Confirmed, 'metadata' => ['confidence_level' => 'high'],
+        ]);
+        $removal = ['from' => 300.2, 'instruments' => ['disk' => 'local', 'path' => 'service-transcripts/stems.flac'], 'instruments_start' => 292.0];
+        $this->partialMock(CueSafeExtractionPlan::class, function (MockInterface $mock) use ($removal): void {
+            $mock->shouldReceive('forSection')->andReturn(['segments' => [['start_time' => 100.0, 'end_time' => 304.5]], 'cue_edge_widening' => [],
+                'audio_fade_out' => 4.3, 'audio_voice_removal' => $removal]);
+        });
+        $passed = null;
+        $videoExtractor = $this->createMock(VideoExtractionService::class);
+        $videoExtractor->expects($this->once())->method('extractMedia')
+            ->willReturnCallback(function (string $input, array $segments, mixed $profile, mixed $name, ?float $fade, array $overrides, bool $public, ?array $voiceRemoval) use (&$passed): ExtractedMedia {
+                $passed = [$fade, $voiceRemoval];
+                Storage::disk('local')->put('temp/section-video.mp4', 'section-video');
+
+                return new ExtractedMedia('temp/section-video.mp4', null);
+            });
+
+        (new PrepareSectionPublicationCandidates($processingLog))->handle(
+            $videoExtractor,
+            app(StorageAdapterHelper::class),
+            app(SectionPublicationHandlerFactory::class),
+            app(ServiceSectionPublicationTransitionService::class)
+        );
+
+        $this->assertSame([4.3, ['from' => 300.2, 'instruments_path' => Storage::disk('local')->path('service-transcripts/stems.flac'), 'instruments_start' => 292.0]], $passed);
     }
 
     /** F03: a candidate whose opening cue is heard twice cannot be cut safely, so it is blocked. */

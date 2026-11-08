@@ -459,7 +459,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $planned = $cutPlans->forSection($section);
             $recordedFade = $section->metadata->raw['publication_candidate_extraction']['audio_fade_out'] ?? null;
             if ($this->sameCut($recorded, $planned['segments'])
-                && (is_numeric($recordedFade) ? (float) $recordedFade : null) === $planned['audio_fade_out']) {
+                && (is_numeric($recordedFade) ? (float) $recordedFade : null) === $planned['audio_fade_out']
+                && $this->sameVoiceRemoval($section->metadata->raw['publication_candidate_extraction']['audio_voice_removal'] ?? null, $planned['audio_voice_removal'] ?? null)) {
                 $this->refuseInvalidCut($section, $recorded, $planned['cue_edge_widening']);
 
                 return;
@@ -497,6 +498,11 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             $provenance = $outputs->provenance($this->processingLog->fresh() ?? $this->processingLog);
             $cutPlan = $cutPlans->forSection($section);
             $this->refuseInvalidCut($section, $cutPlan['segments'], $cutPlan['cue_edge_widening']);
+            $removal = $cutPlan['audio_voice_removal'] ?? null;
+            $instrumentsDownloaded = $removal !== null && $storageHelper->isS3CompatibleDisk(Storage::disk($removal['instruments']['disk']));
+            $instrumentsPath = $removal === null ? null : ($instrumentsDownloaded
+                ? $storageHelper->downloadToTemp($removal['instruments']['path'], $removal['instruments']['disk'], 'local', 'temp/song-end-stems')
+                : Storage::disk($removal['instruments']['disk'])->path($removal['instruments']['path']));
 
             // Candidates carry the sound that will publish (§6.3): listening hears it, and
             // publication promotes the file without treating it again.
@@ -508,6 +514,8 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 $cutPlan['audio_fade_out'],
                 AudioTreatmentSettings::overridesFor($this->processingLog, $handler->audioProfile()),
                 withPublicAudio: $handler->requiresAudioExtraction(),
+                voiceRemoval: $removal === null || $instrumentsPath === null ? null
+                    : ['from' => $removal['from'], 'instruments_path' => $instrumentsPath, 'instruments_start' => $removal['instruments_start']],
             );
             $tempVideoPath = $media->videoPath;
             $tempAudioPath = $media->audioPath;
@@ -570,7 +578,28 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
             if ($isS3TempDisk) {
                 $storageHelper->cleanupTempFile($localSourcePath);
             }
+            if (($instrumentsDownloaded ?? false) && isset($instrumentsPath)) {
+                $storageHelper->cleanupTempFile($instrumentsPath);
+            }
         }
+    }
+
+    /**
+     * Whether a candidate was cut with the voice removal the plan now asks for (E29). JSON round
+     * trips can move a float in its last digits, so times compare to the millisecond.
+     *
+     * @param  array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}|null  $planned
+     */
+    private function sameVoiceRemoval(mixed $recorded, ?array $planned): bool
+    {
+        if ($planned === null || $recorded === null) {
+            return $planned === $recorded;
+        }
+
+        return is_array($recorded) && is_numeric($recorded['from'] ?? null) && is_numeric($recorded['instruments_start'] ?? null)
+            && abs((float) $recorded['from'] - $planned['from']) < 0.001
+            && abs((float) $recorded['instruments_start'] - $planned['instruments_start']) < 0.001
+            && ($recorded['instruments'] ?? null) == $planned['instruments'];
     }
 
     /**

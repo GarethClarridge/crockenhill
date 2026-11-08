@@ -54,7 +54,7 @@ RUN apt-get update && apt-get upgrade -y \
     && pip3 install --no-cache-dir --break-system-packages \
         --index-url https://download.pytorch.org/whl/cpu \
         torch torchaudio \
-    && pip3 install --no-cache-dir --break-system-packages resemblyzer transformers==5.17.0 \
+    && pip3 install --no-cache-dir --break-system-packages resemblyzer transformers==5.17.0 demucs==4.0.1 \
     && apt-get -y autoremove \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
@@ -65,6 +65,11 @@ ENV HF_HOME=/opt/huggingface
 RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('MIT/ast-finetuned-audioset-10-10-0.4593', revision='f826b80d28226b62986cc218e5cec390b1096902', allow_patterns=['config.json', 'preprocessor_config.json', 'model.safetensors'])" \
     && chmod -R a+rX /opt/huggingface
 ENV HF_HUB_OFFLINE=1
+
+# Vocal separation weights (scripts/separate_song_end.py, htdemucs), baked so no run fetches them.
+ENV TORCH_HOME=/opt/torch
+RUN python3 -c "from demucs.pretrained import get_model; get_model('htdemucs')" \
+    && chmod -R a+rX /opt/torch
 
 RUN setcap "cap_net_bind_service=+ep" /usr/bin/php8.4
 

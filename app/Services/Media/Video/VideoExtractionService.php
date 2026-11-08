@@ -23,6 +23,9 @@ use Illuminate\Support\Str;
 
 class VideoExtractionService
 {
+    /** The recording gives way to the separated instruments over this long (rendered and heard 11-08). */
+    private const VOICE_REMOVAL_CROSSFADE = 0.15;
+
     use RequiresFfmpeg;
 
     private string $tempDisk;
@@ -92,6 +95,9 @@ class VideoExtractionService
      * @param  AudioProfile|null  $profile  null leaves the sound as recorded
      * @param  float|null  $audioFadeOut  Seconds over which the last span's sound fades out (a song ending at speech)
      * @param  array<string, mixed>  $treatmentOverrides  this run's overrides of the profile's settings
+     * @param  array{from: float, instruments_path: string, instruments_start: float}|null  $voiceRemoval  A song whose outro runs under talking (E29):
+     *                                                                                                     from `from` (source seconds) the last span's sound is the separated instrument track, a local
+     *                                                                                                     file starting at source second `instruments_start`, crossfaded in before treatment and fade
      *
      * @throws VideoProcessingException
      */
@@ -103,6 +109,7 @@ class VideoExtractionService
         ?float $audioFadeOut = null,
         array $treatmentOverrides = [],
         bool $withPublicAudio = false,
+        ?array $voiceRemoval = null,
     ): ExtractedMedia {
         $checker = $this->timingChecker;
         $checker->validateSpans($inputPath, $segments);
@@ -117,6 +124,7 @@ class VideoExtractionService
             : [];
         $filters = [];
         $inputs = [];
+        $instrumentInputs = [];
         $pairs = '';
 
         foreach ($segments as $index => $span) {
@@ -137,7 +145,13 @@ class VideoExtractionService
             $sound = $settings !== null
                 ? $this->audioTreatment->partFilter($duration, $settings, $parts[$index])
                 : 'atrim=duration='.$this->seconds($duration).',asetpts=PTS-STARTPTS';
-            $filters[] = "[{$index}:a:0]{$sound}{$fade}[a{$index}]";
+            $source = "[{$index}:a:0]";
+            $removeFrom = $voiceRemoval !== null && $index === array_key_last($segments) ? $voiceRemoval['from'] - $span['start_time'] : null;
+            if ($removeFrom !== null && $removeFrom < $duration) {
+                $source = $this->withoutVoice($index, count($segments), max(0.0, $removeFrom), $duration, $span['start_time'] - $voiceRemoval['instruments_start'], $filters);
+                array_push($instrumentInputs, '-i', $voiceRemoval['instruments_path']);
+            }
+            $filters[] = "{$source}{$sound}{$fade}[a{$index}]";
             $pairs .= "[v{$index}][a{$index}]";
         }
 
@@ -148,6 +162,7 @@ class VideoExtractionService
         try {
             $output = $this->runFfmpeg([
                 ...$inputs,
+                ...$instrumentInputs,
                 '-filter_complex', implode(';', $filters),
                 '-map', '[v]', '-map', '[a]',
                 ...$this->videoEncoderArguments(),
@@ -389,6 +404,29 @@ class VideoExtractionService
         }
 
         return implode("\n", $output);
+    }
+
+    /**
+     * A span's sound with its voice taken out from `$from` s into it (E29): the recording up to
+     * there, crossfaded over {@see self::VOICE_REMOVAL_CROSSFADE} s into the separated instrument
+     * track, which is input `$input` and starts `$offset` s before the span. Both are brought to
+     * one format first, since the track is 44.1 kHz stereo and the recording need not be.
+     *
+     * @param  list<string>  $filters
+     * @return string The label of the joined sound
+     */
+    private function withoutVoice(int $index, int $input, float $from, float $duration, float $offset, array &$filters): string
+    {
+        $format = 'aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo';
+        $out = "1-clip((t-{$this->seconds($from)})/".$this->seconds(self::VOICE_REMOVAL_CROSSFADE).',0,1)';
+        $in = 'clip((t-'.$this->seconds($from).')/'.$this->seconds(self::VOICE_REMOVAL_CROSSFADE).',0,1)';
+        $filters[] = "[{$index}:a:0]atrim=duration={$this->seconds($duration)},asetpts=PTS-STARTPTS,{$format},volume='{$out}':eval=frame[recorded{$index}]";
+        $filters[] = "[{$input}:a:0]atrim=start={$this->seconds(max(0.0, $offset))}:duration={$this->seconds($duration)},asetpts=PTS-STARTPTS,"
+            .($offset < 0 ? "adelay=delays={$this->seconds(-$offset * 1000)}:all=1," : '')
+            ."{$format},volume='{$in}':eval=frame[instruments{$index}]";
+        $filters[] = "[recorded{$index}][instruments{$index}]amix=inputs=2:duration=first:normalize=0[voiceless{$index}]";
+
+        return "[voiceless{$index}]";
     }
 
     /**

@@ -47,7 +47,7 @@ class SongEndSpeechOnset
     private const BEFORE_CUT = 0.5;
 
     /** The song ends this far before the agreed speech. */
-    private const LEAD = 0.3;
+    public const LEAD = 0.3;
 
     /** Where the window just after the cut is read. */
     private const MUSIC_AT = 0.5;

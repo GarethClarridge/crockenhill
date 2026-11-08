@@ -175,6 +175,29 @@ class SectionAudioTreatmentTest extends TestCase
     }
 
     /**
+     * E29: a song whose outro runs under talking plays its separated instrument track from the last
+     * sung word. Here the "instruments" are a 1 kHz tone, 44.1 kHz stereo FLAC from source second 24;
+     * the recording's own tones (220 and 330 Hz) must give way to it 12 s into the song, and only there.
+     */
+    #[Test]
+    public function a_song_gives_way_to_its_separated_instruments_from_the_last_sung_word(): void
+    {
+        $instruments = "{$this->sourceDirectory}/instruments-1k.flac";
+        (new Process(['/usr/bin/ffmpeg', '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=1000:sample_rate=44100:duration=16',
+            '-ac', '2', '-c:a', 'flac', $instruments]))->mustRun();
+
+        $media = $this->service->extractMedia($this->recording(), [['start_time' => 16.0, 'end_time' => 36.0]], AudioProfile::Music,
+            voiceRemoval: ['from' => 28.0, 'instruments_path' => $instruments, 'instruments_start' => 24.0]);
+        $video = Storage::disk('local')->path($media->videoPath);
+        $recorded = 'pan=mono|c0=c0,bandpass=f=220:width_type=h:w=40';
+        $separated = 'pan=mono|c0=c0,bandpass=f=1000:width_type=h:w=40';
+
+        $this->assertGreaterThan($this->rms($video, 4.0, 7.0, $separated) + 20.0, $this->rms($video, 4.0, 7.0, $recorded), 'Before the last sung word the recording plays.');
+        $this->assertGreaterThan($this->rms($video, 13.0, 6.0, $recorded) + 20.0, $this->rms($video, 13.0, 6.0, $separated), 'After it, the instruments do.');
+        $this->assertEqualsWithDelta(20.0, $this->duration($video), 0.1);
+    }
+
+    /**
      * 973's Matroska source lost 0.116 s of audio samples 0.4 s into a talk. Treatment rebuilt
      * the timestamps from the samples, closing the hole and pulling the rest of the talk 0.12 s
      * ahead of its picture: the timing check refused the cut. The hole is kept as silence.

@@ -95,6 +95,7 @@ class PrepareOutputEdgeEvidence
         $dependent = app(DependentSongOpening::class);
         $windows = [];
         $fadeCutWindows = [];
+        $fadeCuts = [];
         foreach ($run->serviceSections()->where('section_type', ServiceSectionType::Song)->orderBy('start_time')->get() as $section) {
             $plan = $this->cutPlans->forSpans($run, [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]], songEnds: true);
             foreach ($plan['segments'] as $span) {
@@ -106,6 +107,7 @@ class PrepareOutputEdgeEvidence
             // A song faded into speech is decoded again on its cut (RA3, heard 11-07), so the speech's
             // agreed first words can move the cut past the outro's last note.
             foreach ($this->fadeCuts($plan['cue_edge_widening']) as $cut) {
+                $fadeCuts[] = $cut;
                 foreach (app(SongEndSpeechOnset::class)->windows($cut, $run->duration) as $window) {
                     $fadeCutWindows[$evidence->kind($evidence->identity($run, $window))] = $window;
                 }
@@ -117,6 +119,11 @@ class PrepareOutputEdgeEvidence
         }
         if ($fadeCutWindows !== []) {
             $summary['song_fade_cuts'] = $this->prepare->prepareWindows($run, $fadeCutWindows);
+            $run->refresh();
+        }
+        // Each such cut's voice and instruments, separated: how the song's outro ends (E29).
+        if ($fadeCuts !== []) {
+            $summary['song_end_stems'] = app(SongEndStems::class)->prepare($run, $fadeCuts);
             $run->refresh();
         }
         // Asked of the cuts the decoded words place, so only once they are decoded.

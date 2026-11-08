@@ -10,7 +10,9 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeWordTimings;
+use App\Services\ChurchService\SongEndOutro;
 use App\Services\ChurchService\SongEndSpeechOnset;
+use App\Services\ChurchService\SongEndStems;
 use App\Services\ChurchService\SongTailSpeechOnset;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -964,6 +966,50 @@ class SongEndEdgesTest extends TestCase
         $this->assertSame('song_end_speech', $start['after_song_sound']['reason']);
     }
 
+    /**
+     * E29 (heard 11-08, 3891): with the cut's voice and instruments separated, a song whose outro
+     * runs under the talking plays on until the outro dies away, with the talking taken out from
+     * the last sung word and the sound faded from it. The next item still starts at the old cut.
+     */
+    #[Test]
+    public function a_song_whose_outro_runs_under_the_talking_ends_when_the_outro_dies_with_the_talking_taken_out(): void
+    {
+        $section = $this->outroIntoPrayer();
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankCut($section, $cut, [['start' => $cut + 0.06, 'end' => $cut + 1.3, 'word' => ' Lord', 'aligned_end' => $cut - 0.2],
+            ...$this->spokenWords($cut + 1.85, ['God,', 'we', 'thank', 'you', 'for', 'fellowship'])]);
+        $this->bankStems($section, $cut, voice: [[-8, 0.2, -24.0], [0.2, 1.4, -70.0], [1.4, 16, -30.0]],
+            instruments: [[-8, 2.0, -20.0], [2.0, 4.5, -33.0], [4.5, 16, -62.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta($cut + 4.5, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame(SongEndOutro::UNDER_SPEECH, $this->endEdge($plan)['song_end_outro']);
+        $this->assertEqualsWithDelta(4.3, $plan['audio_fade_out'], 0.001);
+        $this->assertNotNull($plan['audio_voice_removal'] ?? null);
+        $this->assertEqualsWithDelta($cut + 0.2, $plan['audio_voice_removal']['from'], 0.001);
+        $this->assertSame($cut - 8.0, $plan['audio_voice_removal']['instruments_start']);
+    }
+
+    /** E29 (828): an outro that dies away before the talking ends the song at the silence, nothing taken out. */
+    #[Test]
+    public function a_song_whose_outro_dies_before_the_talking_ends_at_the_silence(): void
+    {
+        $section = $this->outroIntoPrayer();
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankCut($section, $cut, [['start' => $cut + 0.06, 'end' => $cut + 1.3, 'word' => ' Lord', 'aligned_end' => $cut - 0.2],
+            ...$this->spokenWords($cut + 1.85, ['God,', 'we', 'thank', 'you', 'for', 'fellowship'])]);
+        $this->bankStems($section, $cut, voice: [[-8, 1.3, -98.0], [1.3, 16, -35.0]],
+            instruments: [[-8, 0.6, -33.0], [0.6, 16, -60.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta($cut + 0.6, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame(SongEndOutro::SILENCE, $this->endEdge($plan)['song_end_outro']);
+        $this->assertEqualsWithDelta(0.1, $plan['audio_fade_out'], 0.001);
+        $this->assertNull($plan['audio_voice_removal'] ?? null);
+    }
+
     /** Without its decodes banked, the song's end stays where the rules before it put it. */
     #[Test]
     public function a_song_whose_cut_decodes_are_not_banked_keeps_its_cut(): void
@@ -1006,6 +1052,35 @@ class SongEndEdgesTest extends TestCase
                 'identity' => $evidence->identity($log, $window), 'words' => $inside, 'compute_seconds' => 1.0,
             ]);
         }
+        $section->unsetRelation('processingLog');
+    }
+
+    /**
+     * The cut's separation as {@see SongEndStems} banks it: levels every 0.1 s from the cut − 8 s.
+     *
+     * @param  list<array{0: float|int, 1: float|int, 2: float}>  $voice
+     * @param  list<array{0: float|int, 1: float|int, 2: float}>  $instruments
+     */
+    private function bankStems(ServiceSection $section, float $cut, array $voice, array $instruments): void
+    {
+        $log = $section->processingLog->fresh();
+        $stems = app(SongEndStems::class);
+        $identity = $stems->identity($log, $cut);
+        $frames = static function (array $spans): array {
+            $levels = [];
+            for ($index = 0; $index < 240; $index++) {
+                $time = -8.0 + $index * 0.1 + 0.0001;
+                $levels[] = array_values(array_filter($spans, static fn (array $span): bool => $time >= $span[0] && $time < $span[1]))[0][2];
+            }
+
+            return $levels;
+        };
+        $track = tempnam(sys_get_temp_dir(), 'stems-');
+        file_put_contents($track, 'flac');
+        app(ServiceArtifactStorage::class)->putFile($log->processing_id, $stems->kind($identity).'-instruments', $track, 'flac');
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $stems->kind($identity), ['identity' => $identity,
+            'start' => $identity['start'], 'frame_seconds' => 0.1, 'voice_db' => $frames($voice), 'instruments_db' => $frames($instruments)]);
+        unlink($track);
         $section->unsetRelation('processingLog');
     }
 

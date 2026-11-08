@@ -14,6 +14,7 @@ use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
 use App\Services\ChurchService\SongEndSpeechOnset;
+use App\Services\ChurchService\SongEndStems;
 use App\Services\ChurchService\SongTailSpeechOnset;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
@@ -133,6 +134,11 @@ class TranscribeOutputEdgesTest extends TestCase
 
                 return ['windows' => count($windows), 'decoded' => count($windows), 'compute_seconds' => 0.0];
             });
+        });
+
+        $this->mock(SongEndStems::class, function (MockInterface $mock) use ($log): void {
+            $mock->shouldReceive('prepare')->once()->withArgs(static fn (MediaProcessingLog $run, array $cuts): bool => $run->is($log) && $cuts === [203.4])
+                ->andReturn(['cuts' => 1, 'separated' => 1, 'compute_seconds' => 0.0]);
         });
 
         app()->call([new TranscribeOutputEdges($log), 'handle']);

@@ -160,6 +160,34 @@ final class ServiceArtifactStorage
     }
 
     /**
+     * A derived file (not JSON) kept with the run's artifacts under its own kind, such as a song
+     * end's separated instrument track.
+     *
+     * @param  array<string, mixed>  $context
+     */
+    public function putFile(string $processingId, string $kind, string $sourcePath, string $extension, array $context = []): string
+    {
+        $path = $this->basePath($processingId).'.'.$this->slug($kind).'.'.$extension;
+        $stream = fopen($sourcePath, 'rb');
+
+        if (! is_resource($stream)) {
+            throw new RuntimeException("Unable to open the artifact to keep: {$sourcePath}");
+        }
+
+        try {
+            if (Storage::disk($this->artifactDisk())->put($path, $stream, ServiceArtifactDisk::WRITE_OPTIONS) === false) {
+                throw new RuntimeException("Unable to keep the artifact: {$path}");
+            }
+        } finally {
+            fclose($stream);
+        }
+
+        $this->record($processingId, $kind, $this->artifactDisk(), $path, $context);
+
+        return $path;
+    }
+
+    /**
      * Where {@see self::archiveAudio()} writes a run's service audio. The corpus backfill uses it
      * to find audio a run archived but lost the record of, so the two can never disagree.
      *

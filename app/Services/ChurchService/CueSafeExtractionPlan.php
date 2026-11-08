@@ -309,7 +309,7 @@ class CueSafeExtractionPlan
      * talk, so the two meet and play straight through, as a sermon's silent joins do. A talk's or song's
      * output takes the operator's start and end ({@see OutputEdgeAnswers}).
      *
-     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, dead_feed_excisions?: list<array<string, mixed>>, dead_feed_input_identity?: string}
+     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, audio_voice_removal?: array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}|null, dead_feed_excisions?: list<array<string, mixed>>, dead_feed_input_identity?: string}
      */
     public function forSection(ServiceSection $section, ?ChurchServiceTranscript $transcript = null): array
     {
@@ -369,7 +369,7 @@ class CueSafeExtractionPlan
      * @param  bool  $sermonEnd  The last span ends a sermon output: beside a song it ends where the banked introduction answer says (K16, {@see SermonSongIntroductionCheck})
      * @param  OutputEdgeAnswers|null  $edgeAnswers  The operator's start and end for this output, applied after every edge rule
      * @param  ChurchServiceTranscript|null  $transcript  Read-only candidate evidence; never installs a transcript on the run
-     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, ended_before: list<array{start_time: float, end_time: float}>} `ended_before`: the trailing parts a K16 end falls before, left out of the output
+     * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, audio_voice_removal?: array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}|null, ended_before: list<array{start_time: float, end_time: float}>} `ended_before`: the trailing parts a K16 end falls before, left out of the output; `audio_voice_removal`: where the song's voice gives way to its separated instruments (E29)
      */
     public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false, bool $sermonEnd = false, ?OutputEdgeAnswers $edgeAnswers = null, ?ChurchServiceTranscript $transcript = null): array
     {
@@ -583,10 +583,11 @@ class CueSafeExtractionPlan
             $merged[] = $span;
         }
 
-        $fade = array_values(array_filter($audit, static fn (array $entry): bool => ($entry['span_index'] ?? null) === $lastSpan
-            && $entry['edge'] === 'end' && isset($entry['fade_out'])))[0]['fade_out'] ?? null;
+        $ending = array_values(array_filter($audit, static fn (array $entry): bool => ($entry['span_index'] ?? null) === $lastSpan
+            && $entry['edge'] === 'end' && isset($entry['fade_out'])))[0] ?? [];
 
-        return ['segments' => $merged, 'cue_edge_widening' => $audit, 'audio_fade_out' => $songEnds ? $fade : null, 'ended_before' => $endedBefore];
+        return ['segments' => $merged, 'cue_edge_widening' => $audit, 'audio_fade_out' => $songEnds ? ($ending['fade_out'] ?? null) : null,
+            'audio_voice_removal' => $songEnds ? ($ending['voice_removal'] ?? null) : null, 'ended_before' => $endedBefore];
     }
 
     /**
@@ -2520,8 +2521,12 @@ class CueSafeExtractionPlan
     /**
      * A song faded into speech keeps everything up to the speech's first word (operator, 11-07):
      * the edge decode stretches that word back over the outro's last note, so the cut before it
-     * fades the note out. Overlapping decodes on the cut place the speech ({@see SongEndSpeechOnset}),
-     * and the fade is still measured from the last sung sound (E7).
+     * fades the note out. Overlapping aligned decodes on the cut place the speech ({@see SongEndSpeechOnset}).
+     *
+     * With the cut's separated voice and instruments banked, the song ends as its outro does
+     * ({@see SongEndOutro}, E29): at a silence before the talking, or, with talking over the outro,
+     * when the outro has died away, the talking taken out and the sound faded from the last sung word.
+     * Without them, the song ends just before the speech, fading from the last sung sound (E7).
      *
      * @param  array<string, mixed>|null  $decision
      * @return array<string, mixed>|null
@@ -2532,15 +2537,20 @@ class CueSafeExtractionPlan
             return $decision;
         }
 
-        $later = app(SongEndSpeechOnset::class)->cut($log, $decision['time'], $timeline);
+        $onset = app(SongEndSpeechOnset::class)->onset($log, $decision['time'], $timeline);
 
-        if ($later === null) {
+        if ($onset === null) {
             return $decision;
         }
+        $replaced = ['reason' => SongEndSpeechOnset::REASON, 'replaced' => ['time' => $decision['time'], 'reason' => $decision['reason']], 'speech_onset' => $onset];
+        $stems = app(SongEndStems::class)->read($log, $decision['time']);
+        $ending = $stems === null ? null : app(SongEndOutro::class)->ending($stems, $onset, $decision['time']);
+        if ($ending !== null) {
+            return [...$decision, ...$ending, ...$replaced];
+        }
+        $later = $onset - SongEndSpeechOnset::LEAD;
 
-        return [...$decision, 'time' => $later, 'reason' => SongEndSpeechOnset::REASON,
-            'replaced' => ['time' => $decision['time'], 'reason' => $decision['reason']],
-            'fade_out' => $this->fadeOut($later, $decision['last_sound'])];
+        return [...$decision, 'time' => $later, ...$replaced, 'fade_out' => $this->fadeOut($later, $decision['last_sound'])];
     }
 
     /**

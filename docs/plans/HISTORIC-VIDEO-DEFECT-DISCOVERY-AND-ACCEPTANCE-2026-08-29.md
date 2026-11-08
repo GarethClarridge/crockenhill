@@ -828,6 +828,45 @@ tests green.
      check that protects sung words from removal (removal starts only at L, which the voice track's
      quiet places, not at a non-lyric word).
 
+   **Built 11-08.**
+   - **Phase 1 committed (`0fc461f85`).** The production class matches the scorer on all 576 DTW
+     decodes (`song-end-dtw-20261108/php_rule.jsonl`), 28 of 31 heard right.
+   - **Launch agent not installed.** The session may not install launch agents. The plist is
+     `scripts/launchd/com.crockenhill.whisper-aligned-server.plist`; load it with
+     `cp scripts/launchd/com.crockenhill.whisper-aligned-server.plist ~/Library/LaunchAgents/ &&
+     launchctl load ~/Library/LaunchAgents/com.crockenhill.whisper-aligned-server.plist`. Until
+     then, aligned cut decodes refuse and those song ends keep their planned cut.
+   - **Phase 2.** demucs 4.1.0 needs `sphn`, which has no Linux wheel, so both images pin 4.0.1
+     (same htdemucs weights, `955717e8`). The running containers got it by pip, with weights in
+     `/opt/torch`. The container separates 24 s in 13 s.
+   - **Phase 3, as built.**
+     - The talking starts where the voice track comes back (at least 0.2 s of voice) within 1 s
+       of the agreed onset. 828's onset was 0.7 s early against its voice.
+     - The singing stopped where the quiet before it began, if that quiet lasts at least 0.3 s.
+       Voice blips under 0.2 s are skipped.
+     - The outro has ended when the instruments stay 20 dB below their level over the 3 s before
+       min(L, cut) for 1 s, or until the talking, if that comes sooner (talking leaks into the
+       instrument track). Plan step 3 said 25 dB; 828's outro fell only 20 dB before the talking.
+     - On the separated heard ends: 3891 under the speech (L 0, talking +2.8, end +4.3); 828
+       silence at +1.8 (heard about +1.9); 2312 under the speech, faded from 4 s before the
+       talking. 4451's aligned decodes find no onset after its cut, so it keeps its cut.
+     - The ending keeps reason `song_end_agreed_speech_onset` and adds `song_end_outro`
+       (`silence` / `under_speech`), `speech`, `last_sung` and `outro_end`.
+   - **Phase 4.** `extractMedia(voiceRemoval:)` crossfades the recording into the instrument track
+     over 0.15 s, before treatment and the fade. A real-ffmpeg test checks that the recording's
+     tones give way to the track's, by more than 20 dB both ways.
+   - **Corpus split (11-08, `song-end-outro-20261108/corpus_eval.jsonl`).** All 238 fade cuts whose
+     aligned decodes find an onset were separated on the host (mps, about 3 s each, 0 errors):
+     - **Under the speech: 126.** End median +3.1 s (p90 +6.3, max +14.8). Fade median 3.65 s
+       (p90 6.4, max 17.4). In 24 there is no pause before the talking.
+     - **Silence: 107.** End median +0.8 s (p90 +2.8). 19 end before the planned cut.
+     - **No ending (underscoring): 5.**
+     - Time the outro runs on after the talking starts: under 2 s 82, 2–4 s 29, 4–8 s 12, 8 s or
+       more 3. Those long ones are the open underscoring question; E28 rules out a time limit,
+       so they wait for the operator's ear.
+   - Full suite green (11,122 tests, the same 163 PHPUnit notices as before); PHPStan and Pint
+     clean.
+
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates
 missing resolution. Reuse admitted catalogue/lyrics and permissible independent service evidence;
