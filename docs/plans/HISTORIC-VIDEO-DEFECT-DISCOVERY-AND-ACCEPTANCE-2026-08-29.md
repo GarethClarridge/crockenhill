@@ -992,6 +992,18 @@ tests green.
              singing ends near −3.5).
            - Some edge cases are genuine long instrumentals (2312).
          - The spike rule is measured, not built; audible talking now covers 3926.
+       - **Last sung word, built on the working copy (11-08, uncommitted; `lastSung()`):**
+         - Voice is judged against the singing's own level: the 90th percentile over the whole
+           separated stretch before V.
+         - A sung phrase lasts ≥ 0.5 s and peaks within 10 dB of that level.
+         - Voice running into V is the talking's onset, unless no pause precedes it (4451).
+         - With no sung phrase, L is the edge of the stretch (2312).
+         - Results: 1966 −5.3 → −2.8; 173622 +0.2 → −3.8 (now a silence at +1.8); 3627 +2.6 →
+           −0.9 (E 4.6 → 6.3).
+         - L moves in 88 of 238 endings, audibly in 63. L at the window edge: 46, up from 39.
+           Mostly voice tracks with no singing (2081, 336237) or singing that stops early.
+         - Page: https://claude.ai/artifact/MrFLq8vz5eZbXRam64qduq
+           (`song-end-lastsung-20261108/`): 3 heard, 9 unheard; current vs new.
          - 3234, underscoring, and the lyric protection check.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
