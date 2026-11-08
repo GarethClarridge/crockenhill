@@ -831,7 +831,8 @@ tests green.
    **Built 11-08.**
    - **Phase 1 committed (`0fc461f85`).** The production class matches the scorer on all 576 DTW
      decodes (`song-end-dtw-20261108/php_rule.jsonl`), 28 of 31 heard right.
-   - **Launch agent not installed.** The session may not install launch agents. The plist is
+   - **Launch agent: loaded by the operator 11-08** (:2025, DTW on, reachable from Docker). The Sail
+     image was rebuilt with demucs 4.0.1. The session could not install launch agents. The plist is
      `scripts/launchd/com.crockenhill.whisper-aligned-server.plist`; load it with
      `cp scripts/launchd/com.crockenhill.whisper-aligned-server.plist ~/Library/LaunchAgents/ &&
      launchctl load ~/Library/LaunchAgents/com.crockenhill.whisper-aligned-server.plist`. Until
