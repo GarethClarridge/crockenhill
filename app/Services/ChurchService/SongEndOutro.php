@@ -51,6 +51,12 @@ class SongEndOutro
     /** Voice this long, not a click or a breath (828's 0.1 s blip before the talking). */
     private const VOICED_SECONDS = 0.2;
 
+    /** A sung phrase lasts at least this long... */
+    private const SUNG_PHRASE_SECONDS = 0.5;
+
+    /** ...and comes within this of the singing's level. */
+    private const SUNG_PHRASE_BELOW = 10.0;
+
     /** The outro's level is read over this long before the singing stops. */
     private const OUTRO_REFERENCE = 3.0;
 
@@ -195,16 +201,55 @@ class SongEndOutro
         if ($speech === null) {
             return ['speech' => $onset, 'last_sung' => $onset];
         }
-        // Walk back over the quiet, and over blips too short to be voice.
-        $sounding = static fn (int $index): bool => array_any(range(max(0, $index - $voiced + 1), $index),
-            static fn (int $first): bool => count(array_slice($voice, $first, $voiced)) === $voiced && array_all(array_slice($voice, $first, $voiced), $active));
-        $quiet = $speech;
-        while ($quiet > $at($onset - 6.0) && ! $sounding($quiet - 1)) {
-            $quiet--;
-        }
-        $pause = ($speech - $quiet) * $step >= self::PAUSE_SECONDS - 0.001;
 
-        return ['speech' => $time($speech), 'last_sung' => $time($pause ? $quiet : $speech)];
+        return ['speech' => $time($speech), 'last_sung' => $time($this->lastSung($voice, $at($onset - 6.0), $speech, $step))];
+    }
+
+    /**
+     * The frame after the last sung phrase before the talking at `$speech`. Voice is judged against the
+     * singing's own level, over the whole separated stretch before the talking: against the talking's, quiet singing read as silence
+     * (1966: singing at −50 dB under talking at −23). A sung phrase lasts {@see self::SUNG_PHRASE_SECONDS}
+     * s and comes within {@see self::SUNG_PHRASE_BELOW} dB of that level, so a breath before the talking
+     * is not one (173622). Voice running into the talking is the talking's start, unless no pause
+     * separates it from the singing at all (4451): then the singing is taken to run into the talking.
+     * With no sung phrase in the stretch, the singing stopped before it, at its start (2312).
+     *
+     * @param  list<float>  $voice
+     */
+    private function lastSung(array $voice, int $first, int $speech, float $step): int
+    {
+        $before = array_slice($voice, $first, max(0, $speech - $first));
+        if ($before === []) {
+            return $speech;
+        }
+        $sorted = array_slice($voice, 0, $speech);
+        sort($sorted);
+        $level = $sorted[(int) floor(0.9 * (count($sorted) - 1))];
+        $active = static fn (float $db): bool => $db > $level - self::VOICE_QUIET_BELOW && $db > self::VOICE_QUIET_DB;
+        $pause = (int) round(self::PAUSE_SECONDS / $step);
+        $runs = [];
+        foreach ($before as $offset => $db) {
+            if (! $active($db)) {
+                continue;
+            }
+            $index = $first + $offset;
+            if ($runs !== [] && $index - $runs[array_key_last($runs)]['end'] < $pause) {
+                $runs[array_key_last($runs)]['end'] = $index + 1;
+
+                continue;
+            }
+            $runs[] = ['start' => $index, 'end' => $index + 1];
+        }
+        if ($runs !== [] && $speech - $runs[array_key_last($runs)]['end'] < $pause) {
+            if (count($runs) === 1 && $runs[0]['start'] - $first < $pause) {
+                return $speech;
+            }
+            array_pop($runs);
+        }
+        $sung = array_filter($runs, fn (array $run): bool => ($run['end'] - $run['start']) * $step >= self::SUNG_PHRASE_SECONDS - 0.001
+            && array_reduce(array_slice($voice, $run['start'], $run['end'] - $run['start']), static fn (float $peak, float $db): float => max($peak, $db), -INF) >= $level - self::SUNG_PHRASE_BELOW);
+
+        return $sung === [] ? $first : $sung[array_key_last($sung)]['end'];
     }
 
     /**

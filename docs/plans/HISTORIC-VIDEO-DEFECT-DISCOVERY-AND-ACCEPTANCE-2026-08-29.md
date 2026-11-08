@@ -1004,6 +1004,14 @@ tests green.
            Mostly voice tracks with no singing (2081, 336237) or singing that stops early.
          - Page: https://claude.ai/artifact/MrFLq8vz5eZbXRam64qduq
            (`song-end-lastsung-20261108/`): 3 heard, 9 unheard; current vs new.
+         - **Answers (11-08):**
+           - New 1 (1966), current 1 (3627), either 8.
+           - Neither 2: 173622 "both still have the breathy sound"; 175597 "both end with
+             speech".
+           - Committed for 1966 (lyrics no longer taken out).
+           - Both neithers are silence endings with voice after L that nothing removes: 28 of
+             102 silence or recording-cut ends have voice above the singing threshold between L
+             and E.
          - 3234, underscoring, and the lyric protection check.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend

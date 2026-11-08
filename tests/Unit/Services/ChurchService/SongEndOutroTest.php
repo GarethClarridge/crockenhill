@@ -243,6 +243,44 @@ class SongEndOutroTest extends TestCase
         $this->assertEqualsWithDelta($ending['outro_end'], $ending['time'], 0.001);
     }
 
+    /**
+     * 1117 §1966 (11-08: the shorter ending "removes the 'has done'"): quiet singing under loud
+     * talking. Judged against the talking, the singing read as silence and the last sung word went
+     * back to the edge of the stretch; judged against the singing, it is where the singing stops.
+     * The voice rising into the talking is the talking's start, not singing.
+     */
+    #[Test]
+    public function quiet_singing_is_judged_against_the_singing_not_the_talking(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, -2.8, -50.0], [-2.8, 0.6, -85.0], [0.6, 1.4, -50.0], [1.4, 16, -23.0]],
+            instruments: [[-8, 2.0, -40.0], [2.0, 16, -70.0]],
+        );
+
+        $voice = (new SongEndOutro)->voice($stems, self::CUT + 0.74);
+
+        $this->assertEqualsWithDelta(self::CUT + 1.4, $voice['speech'], 0.001);
+        $this->assertEqualsWithDelta(self::CUT - 2.8, $voice['last_sung'], 0.001);
+    }
+
+    /**
+     * 969 §173622 (11-08: "that's the first spoken sound (an intake of breath). The last sung word is
+     * a few seconds earlier"): a breath well under the singing's level is not a sung phrase.
+     */
+    #[Test]
+    public function a_breath_before_the_talking_is_not_the_last_sung_word(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, -3.8, -42.0], [-3.8, -0.4, -80.0], [-0.4, 0.2, -55.0], [0.2, 2.1, -85.0], [2.1, 16, -40.0]],
+            instruments: [[-8, 2.0, -40.0], [2.0, 16, -70.0]],
+        );
+
+        $voice = (new SongEndOutro)->voice($stems, self::CUT + 1.4);
+
+        $this->assertEqualsWithDelta(self::CUT + 2.1, $voice['speech'], 0.001);
+        $this->assertEqualsWithDelta(self::CUT - 3.8, $voice['last_sung'], 0.001);
+    }
+
     /** Music under a prayer never dies away in the separated stretch: there is no ending to find. */
     #[Test]
     public function music_that_plays_on_under_the_talking_finds_no_ending(): void
