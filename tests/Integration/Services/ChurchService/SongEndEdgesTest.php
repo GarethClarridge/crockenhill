@@ -969,7 +969,8 @@ class SongEndEdgesTest extends TestCase
     /**
      * E29 (heard 11-08, 3891): with the cut's voice and instruments separated, a song whose outro
      * runs under the talking plays on until the outro dies away, with the talking taken out from
-     * the last sung word and the sound faded from it. The next item still starts at the old cut.
+     * the last sung word and the sound faded from it. Under the talking, the outro is gone where half
+     * the next second is quiet (1966, 11-08). The next item still starts at the old cut.
      */
     #[Test]
     public function a_song_whose_outro_runs_under_the_talking_ends_when_the_outro_dies_with_the_talking_taken_out(): void
@@ -983,9 +984,9 @@ class SongEndEdgesTest extends TestCase
 
         $plan = app(CueSafeExtractionPlan::class)->forSection($section);
 
-        $this->assertEqualsWithDelta($cut + 4.5, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertEqualsWithDelta($cut + 4.0, $plan['segments'][0]['end_time'], 0.001);
         $this->assertSame(SongEndOutro::UNDER_SPEECH, $this->endEdge($plan)['song_end_outro']);
-        $this->assertEqualsWithDelta(4.3, $plan['audio_fade_out'], 0.001);
+        $this->assertEqualsWithDelta(3.8, $plan['audio_fade_out'], 0.001);
         $this->assertNotNull($plan['audio_voice_removal'] ?? null);
         $this->assertEqualsWithDelta($cut + 0.2, $plan['audio_voice_removal']['from'], 0.001);
         $this->assertSame($cut - 8.0, $plan['audio_voice_removal']['instruments_start']);
@@ -1007,6 +1008,25 @@ class SongEndEdgesTest extends TestCase
         $this->assertEqualsWithDelta($cut + 0.6, $plan['segments'][0]['end_time'], 0.001);
         $this->assertSame(SongEndOutro::SILENCE, $this->endEdge($plan)['song_end_outro']);
         $this->assertEqualsWithDelta(0.1, $plan['audio_fade_out'], 0.001);
+        $this->assertNull($plan['audio_voice_removal'] ?? null);
+    }
+
+    /** 1314 (11-08): where the recording itself cuts out of the music, the song fades over 3 s into the cut. */
+    #[Test]
+    public function a_song_whose_recording_cuts_out_fades_into_the_cut(): void
+    {
+        $section = $this->outroIntoPrayer();
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankCut($section, $cut, [['start' => $cut + 0.06, 'end' => $cut + 1.3, 'word' => ' Lord', 'aligned_end' => $cut - 0.2],
+            ...$this->spokenWords($cut + 1.85, ['God,', 'we', 'thank', 'you', 'for', 'fellowship'])]);
+        $this->bankStems($section, $cut, voice: [[-8, 1.3, -98.0], [1.3, 16, -35.0]],
+            instruments: [[-8, 0.6, -33.0], [0.6, 1.3, -90.0], [1.3, 16, -60.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta($cut + 0.6, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame(SongEndOutro::RECORDING_CUT, $this->endEdge($plan)['song_end_outro']);
+        $this->assertEqualsWithDelta(3.0, $plan['audio_fade_out'], 0.001);
         $this->assertNull($plan['audio_voice_removal'] ?? null);
     }
 

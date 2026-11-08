@@ -16,17 +16,23 @@ namespace App\Services\ChurchService;
  *   {@see self::LEAD_IN} s before the speech, from {@see self::LEAD_IN} s before it (3891).
  * - Where the talking follows the singing at once there is no pause to place the last sung word:
  *   it is taken to be the speech's start, an accepted imperfection (4451).
+ * - Under the talking, the talking leaks into the instrument track as short spikes, so the outro
+ *   is gone once half of a second is quiet (1966: heard +2.6 s, a strict second found +14.8 s).
+ * - Where the recording itself cuts out of the music to digital silence, the song fades over 3 s
+ *   into the cut (1314, 637). A dropout the music comes back from is not the end (176320).
  * - Where the outro never dies away within the separated stretch (music under a prayer), there is
  *   no ending to find, and the cut before the speech stands.
  *
- * Boundaries were read on 4451, 3891 and 828 and heard on 11-08; the thresholds below reproduce
- * those readings.
+ * Boundaries were read on 4451, 3891 and 828 and heard on 11-08 (three rounds); the thresholds
+ * below reproduce those readings.
  */
 class SongEndOutro
 {
     public const SILENCE = 'silence';
 
     public const UNDER_SPEECH = 'under_speech';
+
+    public const RECORDING_CUT = 'recording_cut';
 
     /** A voice frame this far below the singing's level is quiet. */
     private const VOICE_QUIET_BELOW = 20.0;
@@ -52,11 +58,36 @@ class SongEndOutro
     /** ...for this long. */
     private const OUTRO_GONE_FOR = 1.0;
 
+    /**
+     * Once the talking has started, a second counts as quiet when this share of its frames are: the
+     * talking leaks into the instrument track as short spikes, which kept 1966's outro "playing" 12 s
+     * past its audible end (11-08).
+     */
+    private const OUTRO_GONE_SHARE_UNDER_SPEECH = 0.5;
+
     /** The fade starts no earlier than this before the speech (operator, 11-08). */
     private const LEAD_IN = 4.0;
 
     /** Enough fade to avoid a click at a silence. */
     private const CLICK = 0.1;
+
+    /** The recording is muted, not quiet, at or below this (a stream cut to digital silence). */
+    private const DIGITAL_SILENCE_DB = -75.0;
+
+    /** Music cut off, not dying away: within 0.3 s the sound falls this far below its level over the second before... */
+    private const RECORDING_CUT_DROP = 30.0;
+
+    /** ...to this (17 of 107 silences in the corpus; a natural decay is 10–20 dB in a second). */
+    private const RECORDING_CUT_REACHES_DB = -70.0;
+
+    /** ...and the cut is faded over this long, so the music does not stop dead (operator, 11-08: 1314, 637). */
+    private const RECORDING_CUT_FADE = 3.0;
+
+    /** A muted stretch that the music comes back from this abruptly was a dropout, not the end (176320, 175132)... */
+    private const DROPOUT_RETURN_RISE = 25.0;
+
+    /** ...when it comes back above this for half a second. */
+    private const DROPOUT_RETURN_DB = -60.0;
 
     /**
      * @param  array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>, instruments: array{disk: string, path: string}}  $stems
@@ -72,7 +103,10 @@ class SongEndOutro
             return null;
         }
         $found = ['speech' => $speech, 'last_sung' => $lastSung, 'outro_end' => $outroEnd];
-        if ($outroEnd <= $speech) {
+        if ($outroEnd < $speech && $this->recordingCutAt($stems, $outroEnd)) {
+            return ['time' => $outroEnd, 'fade_out' => self::RECORDING_CUT_FADE, 'song_end_outro' => self::RECORDING_CUT, ...$found];
+        }
+        if ($outroEnd < $speech) {
             return ['time' => $outroEnd, 'fade_out' => self::CLICK, 'song_end_outro' => self::SILENCE, ...$found];
         }
         $fadeFrom = max($lastSung, $speech - self::LEAD_IN);
@@ -138,24 +172,92 @@ class SongEndOutro
     public function outroEnd(array $stems, float $from, ?float $speech = null): ?float
     {
         $instruments = $stems['instruments_db'];
-        $at = fn (float $time): int => max(0, (int) floor(($time - $stems['start']) / $stems['frame_seconds']));
+        $at = fn (float $time): int => max(0, (int) floor(($time - $stems['start']) / $stems['frame_seconds'] + 1e-6));
         $before = array_slice($instruments, $at($from - self::OUTRO_REFERENCE), max(1, $at($from) - $at($from - self::OUTRO_REFERENCE)));
         if ($before === []) {
             return null;
         }
-        sort($before);
-        $level = $before[intdiv(count($before), 2)];
-        $frames = (int) round(self::OUTRO_GONE_FOR / $stems['frame_seconds']);
         $talking = $speech === null ? PHP_INT_MAX : $at($speech);
-        $pause = (int) round(self::PAUSE_SECONDS / $stems['frame_seconds']);
-        for ($index = $at($from); $index + min($frames, $pause) <= count($instruments); $index++) {
-            $length = $index < $talking && $talking - $index >= $pause ? min($frames, $talking - $index) : $frames;
+        $end = $this->quietFrom($instruments, $this->median($before), $at($from), $talking, $stems['frame_seconds']);
+        while ($end !== null && ($return = $this->dropoutReturn($instruments, $end, $talking, $stems['frame_seconds'])) !== null) {
+            $end = $this->quietFrom($instruments, $this->median(array_slice($instruments, $return, 5)), $return, $talking, $stems['frame_seconds']);
+        }
+
+        return $end === null ? null : round($stems['start'] + $end * $stems['frame_seconds'], 3);
+    }
+
+    /**
+     * The first frame from `$first` where the instruments have died away below `$level`.
+     *
+     * @param  list<float>  $instruments
+     */
+    private function quietFrom(array $instruments, float $level, int $first, int $talking, float $step): ?int
+    {
+        $frames = (int) round(self::OUTRO_GONE_FOR / $step);
+        $pause = (int) round(self::PAUSE_SECONDS / $step);
+        for ($index = $first; $index + min($frames, $pause) <= count($instruments); $index++) {
+            $beforeTalking = $index < $talking && $talking - $index >= $pause;
+            $length = $beforeTalking ? min($frames, $talking - $index) : $frames;
             $span = array_slice($instruments, $index, $length);
-            if (count($span) === $length && array_all($span, static fn (float $db): bool => $db <= $level - self::OUTRO_GONE_BELOW)) {
-                return round($stems['start'] + $index * $stems['frame_seconds'], 3);
+            $quiet = count(array_filter($span, static fn (float $db): bool => $db <= $level - self::OUTRO_GONE_BELOW));
+            $needed = $beforeTalking || $index < $talking ? $length : (int) ceil(self::OUTRO_GONE_SHARE_UNDER_SPEECH * $length - 1e-9);
+            if (count($span) === $length && $quiet >= $needed) {
+                return $index;
             }
         }
 
         return null;
+    }
+
+    /**
+     * Where the music comes back, before the talking, from a muted stretch starting at `$end`: the
+     * stream dropped out and the outro resumed (176320). Null when the quiet was the end.
+     *
+     * @param  list<float>  $instruments
+     */
+    private function dropoutReturn(array $instruments, int $end, int $talking, float $step): ?int
+    {
+        $held = (int) round(0.5 / $step);
+        if (($instruments[$end] ?? 0.0) > self::DIGITAL_SILENCE_DB) {
+            return null;
+        }
+        for ($index = $end + 1; $index + $held <= min($talking, count($instruments)); $index++) {
+            if ($instruments[$index - 1] <= self::DIGITAL_SILENCE_DB
+                && $instruments[$index] - $instruments[$index - 1] >= self::DROPOUT_RETURN_RISE
+                && array_all(array_slice($instruments, $index, $held), static fn (float $db): bool => $db > self::DROPOUT_RETURN_DB)) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Whether the recording itself cuts out at `$time`: within 0.3 s the
+     * sound, voice and instruments together, reaches {@see self::RECORDING_CUT_REACHES_DB} dB, at least
+     * {@see self::RECORDING_CUT_DROP} dB below its level over the second before.
+     *
+     * @param  array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>}  $stems
+     */
+    private function recordingCutAt(array $stems, float $time): bool
+    {
+        $index = (int) floor(($time - $stems['start']) / $stems['frame_seconds'] + 1e-6);
+        $sound = static fn (int $frame): ?float => isset($stems['voice_db'][$frame], $stems['instruments_db'][$frame])
+            ? 10 * log10(10 ** ($stems['voice_db'][$frame] / 10) + 10 ** ($stems['instruments_db'][$frame] / 10)) : null;
+        $before = array_filter(array_map($sound, range(max(0, $index - 10), $index - 1)), static fn (?float $db): bool => $db !== null);
+        $after = array_filter(array_map($sound, range($index, $index + 2)), static fn (?float $db): bool => $db !== null);
+        if ($before === [] || $after === []) {
+            return false;
+        }
+
+        return $this->median(array_values($before)) - min($after) >= self::RECORDING_CUT_DROP && min($after) <= self::RECORDING_CUT_REACHES_DB;
+    }
+
+    /** @param  list<float>  $levels */
+    private function median(array $levels): float
+    {
+        sort($levels);
+
+        return $levels[intdiv(count($levels), 2)];
     }
 }

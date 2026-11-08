@@ -98,7 +98,9 @@ then follow the round runbook for freeze, preflight, staged start and closure. D
 
 §4.1a is the pre-freeze sequence; §4.1b separates remaining repairs from post-round verification.
 The outcome-review follow-up in §4.1c informs that work without making a broad architecture
-refactor a new prerequisite. Preserve accepted limitations and specific operator rulings.
+refactor a new prerequisite. §4.1e proposes speaker-identification repair and a bounded proposal
+pass before the next run; execution and re-enabling remain undecided. Preserve accepted limitations
+and specific operator rulings.
 
 ### 4.1a Before the next round: regression coverage and combined verification (2026-10-29)
 
@@ -867,6 +869,57 @@ tests green.
        so they wait for the operator's ear.
    - Full suite green (11,122 tests, the same 163 PHPUnit notices as before); PHPStan and Pint
      clean.
+   - **Rendered-endings page (11-08):** https://claude.ai/artifact/RTt8A25Do85ydYyMaPUbhE
+     (`song-end-rendered-20261108/`). 18 unheard ends: 6 under the speech, 6 with the outro running
+     4 s or more under the talking (the 3 longest included), and 6 at a silence (2 before the
+     planned cut).
+     - Rendered as `extractMedia` would: the 0.15 s crossfade into the instrument track, the fade
+       from max(L, S − 4) to E, a 0.1 s fade at a silence.
+     - A = the ending as published, B = the 5 s after.
+     - **Answers (11-08, 18 of 18):**
+       - Under the speech 6/6 right; silence 6/6 right.
+       - Long 4/6 too long (1966, 2031, 173622, 3926; 1966 "outro ends about 69:39" = cut + 2.6
+         against E + 14.8); 3769 and 3627 right.
+       - Operator: the long ones leave removed speech over near-silence, which sounds bad.
+       - Operator: some silences are the recording itself cutting from music. Explore a fade.
+     - **Cause, long:** under talking, the instrument track carries short spikes of leaked speech, so
+       the strict 1 s all-quiet test only passed in pauses. Built (uncommitted): once the talking
+       starts, a second is quiet when half its frames are 20 dB down. Also fixed a float floor
+       that put the talking one frame early, and E = V is now `under_speech`, not silence.
+       - 1966 → +3.2, 2031 → +3.0, 173622 → +5.1, 3926 → +4.8.
+       - Under the speech, the median end − V falls from 1.4 to 0.53 s; ≥ 4 s from 15 to 5.
+       - Earlier heard (3891, 336053, 2312) move 0.3–0.7 s earlier; the rest are unchanged.
+     - **Hard recording cuts:** 17 of 107 silence ends drop ≥ 30 dB in one frame to ≤ −70 dB
+       (1314, 212330, 637 among them).
+     - **Round-two page (11-08):** https://claude.ai/artifact/Twxci7xCtYcsSVYfPCpnS5
+       (`song-end-round2-20261108/`, blind order in `versions.json`):
+       - 12 heard: before vs new.
+       - 6 unheard, still ≥ 3 s under the talking.
+       - 6 hard cuts at fades of 0.1 / 1.5 / 3 s.
+     - **Round-two answers (11-08, 24 of 24):**
+       - Heard 12: new better 6 (1966, 2031, 3627, 3769, 3926, 936), either 5, neither 1 (173622:
+         "shorter is better, but still too long").
+       - 3926: shorter is better but still too long. The operator suspects a spike from the OBS
+         switch from the song scene to the speech scene; ideally finish before it or hide it in the
+         fade.
+       - Unheard 6: right 5; 2922 too long (E + 13.3).
+       - Hard cuts: 3 s chosen for 1314 and 637, 1.5 s for 212330; 1236 "3 s or 1.5 s fine"; 4359
+         any. 0.1 s chosen nowhere.
+       - 176320: too short; ends about 3 s later. The stream drops out for 1.4 s at −2.4, the outro
+         comes back at about −50 dB, then the recording cuts out for good at +0.3.
+     - **Built 11-08 (round 3):**
+       - The half-quiet second under the talking is adopted.
+       - `recording_cut`: the sound falls ≥ 30 dB below the second before, to ≤ −70 dB, within
+         0.3 s. It fades over 3 s into the cut. That is 17 of 107 silences, all 6 heard among them.
+       - A muted stretch the music returns from (a ≥ 25 dB rise to above −60 dB, for 0.5 s, before
+         the talking) is a dropout. The search resumes there, against the returned level. Only
+         176320 (→ +0.3, recording cut) and 175132 (→ +0.6) are affected.
+       - Tried and rejected:
+         - Requiring the end frame itself to be quiet moved 105 ends 0.5 s later (1966 → +3.7).
+         - Requiring quiet all the way to the talking sent 4359 and 931 to no ending.
+       - Open:
+         - 173622, 3926 and 2922 still long; the OBS scene-switch spike idea is not measured yet.
+         - 3234, underscoring, and the lyric protection check.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates
@@ -915,7 +968,8 @@ predictions are still surfaced while historic identification is disabled; suppre
 prediction must not silently assign a speaker, change visibility or erase a real identity task.
 Keep honest unknown identities under P3. T2 currently requires talk-type confirmation and T1 makes
 it access-sensitive: implement proposal/batch-confirmation assistance with per-item evidence and
-exceptions, not automatic confirmation. Reuse the workbench; no general redesign. Any proposal to
+exceptions, not automatic confirmation. §4.1e owns the proposed speaker-identification repair and
+resumption sequence. Reuse the workbench; no general redesign. Any proposal to
 remove that human gate needs a separately recorded ruling and measured classification/access
 evidence, so it is not a prerequisite for this round. The same boundary applies to human-origin
 content holds, sermon absence, unresolved interruption questions and release acceptance.
@@ -967,6 +1021,99 @@ and remaining human decisions are explicit. Apply through the next authorised ro
 actual destination generations and rerun the affected checks before acceptance. Stop expanding a
 class when the bounded evidence work is exhausted: present the exact consequential residual
 question rather than opening another whole-corpus discovery or processing round.
+
+### 4.1e Speaker identification before the next run (proposed 2026-11-08)
+
+**Status: planning only.** The operator asked to consider fixing and resuming speaker identification
+before the next processing run, then to record the proposal here; implementation, dependency changes,
+re-enrolment, inference and re-enabling have not been authorised. P3 and the historic speaker-off
+preflight/watch remain in force. Weekly resumption still waits for historic completion under G5/R8.
+
+**Target:** useful ranked speaker proposals for confirmation before the next run, followed by
+automatic assignment only if measured accuracy supports a separately agreed adoption decision.
+Reduce repeated naming work without overwriting confirmed identities or clearing real identity,
+content, access or publication obligations. Do not simply turn the existing implementation back on.
+
+#### Evidence and current blockers
+
+The [September root-cause record](SPEAKER-IDENTIFICATION-ROOT-CAUSE-2026-09-03.md), §§10–12, owns
+the experiments and their limits. On the same 104 recordings, ECAPA-TDNN with five averaged windows
+improved rank-1 identification from 73.1% to 95.2% over the current Resemblyzer opening-window
+approach. On the larger evaluation, nearest-recording accuracy was 89.5%, falling to 76.6% when the
+three dominant speakers were excluded. These results justify evaluating the replacement, not
+unrestricted automatic naming. The application still binds only Resemblyzer or the null provider.
+
+Repository review on 11-08 found:
+
+- `TalkSpeakerService::detectAndStore()` auto-accepts a match without consulting the configured
+  `shadow`/`enforce` mode. Setting shadow globally therefore does not protect short-talk identities.
+- `IdentifySpeaker` preserves ID3 assignments but can overwrite a manual assignment on an enforced
+  match. Its shadow path also writes confidence and, on a decline, the review flag; it is not a
+  purely observational pass.
+- Detection-only livestream rounds stop before `IdentifySpeaker`; enabling the flag alone cannot
+  add proposals to that round. The historic watcher also stops on identification enabled or queued.
+- Local `.env` is disabled but retains `mode=enforce`. Defaults and dated production-action counts
+  are not evidence of the effective settings or current profile pool in any executing worker.
+
+This review checked repository code and saved evidence, not current production state. The old
+zero-profile and fabricated "Visiting Speaker" causes have code fixes; verify outstanding data
+cleanup rather than assuming either that it was applied or that it remains untouched.
+
+#### Proposed delivery sequence
+
+1. **Make proposal mode dependable.** Reproduce the sermon/short-talk mode and identity-protection
+   gaps with failing tests before fixing them. Define one consistent contract: proposals may update
+   their own evidence, but cannot become a reviewed identity, overwrite confirmed names, withdraw
+   existing identity questions or alter other holds, visibility or publication. Disabled, no-match,
+   ambiguous, missing-audio and provider-error cases remain distinguishable. Reject stale results
+   and make retries idempotent.
+2. **Integrate the evaluated encoder.** Subject to dependency approval, add ECAPA-TDNN using the
+   existing speaker-identification interface. Pin the model revision and compatible CPU runtime
+   dependencies, bake weights into the image and verify offline inference. Version the extraction
+   policy and keep ECAPA embeddings separate from Resemblyzer profiles: dimensions, scores and old
+   thresholds are not interchangeable. Start from the measured five-window approach; explicitly
+   evaluate shorter talks and insufficient-speech cases rather than assuming five distinct minutes
+   exist. Use the actual talk's audio, not a whole service containing several speakers.
+3. **Build a verified reference library.** Use confirmed manual/ID3 identities across recording
+   history, excluding placeholder names, catalogue codes, disputed labels and unverified model
+   assignments. Reconcile aliases. Reuse saved embeddings only when source identity and extraction
+   provenance can be verified; otherwise regenerate the affected evidence. Evaluate comparison with
+   multiple recordings per person rather than assuming one centroid captures their history.
+   Evaluate grouping recurring unknown voices so one confirmed name can reduce repeated questions;
+   group membership alone must not propagate an unreviewed name as fact.
+4. **Validate before adoption.** Hold out recordings across dates/eras, recent services, short talks,
+   infrequent speakers and speakers absent from the reference library. Exclude the same recording,
+   duplicate excerpts and shared-source copies from both reference and test sets. Report proposal
+   rank accuracy, false accepted identities, abstentions/coverage and results by speaker population,
+   with denominators and uncertainty. Derive any acceptance/margin rules from this encoder's evidence;
+   old Resemblyzer thresholds and aggregate accuracy do not establish safe automatic assignment.
+5. **Run a bounded proposal pass only after approval.** Reconcile the eligible current recordings
+   and existing confirmations. Reuse suitable retained clips without repeating transcription or
+   video processing; missing clips need explicit evidence acquisition, not an invented result.
+   Store ranked names, source/span identity, model/extraction/reference-library versions and scores.
+   Bind proposals to current evidence, preserve stale results as historical rather than current,
+   and reuse RA6's review/batch-confirmation workflow with per-item exceptions.
+
+#### Before freeze and any later automatic assignment
+
+Present the implementation, held-out results, remaining unknowns, runtime cost and expected operator
+work before deciding whether the next run can include proposals. Choose explicitly between a
+separate bounded speaker pass and a tested integration into the selected pipeline mode. Before any
+historic dispatch, record the permitted scope in P3's owning rulings register and reconcile the
+runbook/preflight/watch with it; do not bypass the existing speaker-off stop or silently enable the
+feature for every worker. Check effective cached configuration and worker versions, with a tested
+return to disabled mode. Switching off does not undo prior assignments, which is why proposals and
+confirmed identities must stay separate.
+
+Run focused regression tests, PHPStan, Pint and the full parallel suite for implementation; Dusk
+where review interactions change. Test provider failures and queue timing as well as successful
+matches. Mock tests prove application contracts; actual held-out audio proves model usefulness.
+
+Automatic assignment is a later decision requiring agreed precision/coverage criteria and evidence
+for the populations it would cover. Unknown or ambiguous identities retain honest wording and
+review; a high score is not confirmation. Planning this work grants no processing or release
+authority. If evidence is insufficient before the next run, keep identification disabled and
+record the residual identity work explicitly.
 
 ### 4.2 Regular uploads are the lasting outcome
 
