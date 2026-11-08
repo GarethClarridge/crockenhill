@@ -102,7 +102,7 @@ class OutputEdgeWordTimings
         return ['start' => max(0.0, $start - 1), 'end' => min($duration ?? INF, $end + 1), 'cues' => $touching];
     }
 
-    /** @param array{start: float, end: float, cues?: list<array{start: float, end: float, text: string}>, window_rule?: string} $window
+    /** @param array{start: float, end: float, cues?: list<array{start: float, end: float, text: string}>, window_rule?: string, word_timing?: string} $window
      * @return array<string, mixed>
      */
     public function identity(MediaProcessingLog $log, array $window): array
@@ -120,6 +120,10 @@ class OutputEdgeWordTimings
         if (isset($window['window_rule'])) {
             $identity['window_rule'] = $window['window_rule'];
         }
+        // Aligned decodes come from another server and carry another timing: never one for the other.
+        if (isset($window['word_timing'])) {
+            $identity['word_timing'] = $window['word_timing'];
+        }
 
         // Existing edge artifacts were exclusively local. Preserve those receipts;
         // every other provider gets its own namespace, even with the same model name.
@@ -132,7 +136,7 @@ class OutputEdgeWordTimings
         return 'edge-words-'.hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
     }
 
-    /** @param array{start: float, end: float, cues?: list<array{start: float, end: float, text: string}>, window_rule?: string} $window
+    /** @param array{start: float, end: float, cues?: list<array{start: float, end: float, text: string}>, window_rule?: string, word_timing?: string} $window
      * @return array<string, mixed>
      */
     public function read(MediaProcessingLog $log, array $window): array
@@ -155,6 +159,7 @@ class OutputEdgeWordTimings
                 && (float) ($payload['identity']['end'] ?? -1) === $window['end']
                 && ($payload['identity']['provider'] ?? 'local') === ($identity['provider'] ?? 'local')
                 && ($payload['identity']['window_rule'] ?? null) === ($identity['window_rule'] ?? null)
+                && ($payload['identity']['word_timing'] ?? null) === ($identity['word_timing'] ?? null)
                 && ($payload['identity']['model'] ?? null) === $identity['model'] && is_array($payload['words'] ?? null)) {
                 $words = [];
                 foreach ($payload['words'] as $word) {
@@ -163,7 +168,14 @@ class OutputEdgeWordTimings
                         || $word['end'] < $word['start'] || ! is_string($word['word'] ?? null)) {
                         throw new OutputEdgeTimingsMissing('edge_word_timings_missing: invalid cached words for '.$kind);
                     }
-                    $words[] = ['start' => (float) $word['start'], 'end' => (float) $word['end'], 'word' => $word['word']];
+                    $timed = ['start' => (float) $word['start'], 'end' => (float) $word['end'], 'word' => $word['word']];
+                    if (isset($identity['word_timing'])) {
+                        if (! is_numeric($word['aligned_end'] ?? null) || ! is_finite((float) $word['aligned_end'])) {
+                            throw new OutputEdgeTimingsMissing('edge_word_timings_missing: unaligned cached words for '.$kind);
+                        }
+                        $timed['aligned_end'] = (float) $word['aligned_end'];
+                    }
+                    $words[] = $timed;
                 }
                 usort($words, static fn (array $a, array $b): int => $a['start'] <=> $b['start']);
                 // The decoder's own tokens, unjoined: joining a punctuation token stretches the word

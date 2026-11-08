@@ -121,7 +121,7 @@ Nothing in main may:
   `section-publications/`;
 - retry, forget or flush `failed_jobs`. The watcher reads it, and an unidentifiable failure
   stops it;
-- restart the host services (ffmpeg :2024, whisper :2022, classifier :2023), or load them
+- restart the host services (ffmpeg :2024, whisper :2022, aligned whisper :2025, classifier :2023), or load them
   heavily, without pausing the round first.
 
 Allowed: code, commits, pushes, the PHPUnit suite and Dusk (after §2.3), and reads.

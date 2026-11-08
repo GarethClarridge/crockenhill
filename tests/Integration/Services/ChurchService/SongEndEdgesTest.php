@@ -923,16 +923,17 @@ class SongEndEdgesTest extends TestCase
     /**
      * Heard 11-07 (RA3, song-end listening and A/B pages): the edge decode stretches the prayer's
      * first word back over the outro's last note, so the cut before it faded the note out. The
-     * decodes on the cut agree on the speech 1.3 s later, and the song keeps its outro up to it,
-     * still fading from the last sung sound.
+     * aligned decodes on the cut end that word just before the cut and agree on the speech from
+     * 1.3 s (its first word ends at 2.1 s), and the song keeps its outro up to it, still fading from
+     * the last sung sound.
      */
     #[Test]
     public function a_song_faded_into_speech_keeps_its_outro_up_to_the_speech_its_decodes_agree_on(): void
     {
         $section = $this->outroIntoPrayer();
         $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
-        $this->bankCut($section, $cut, [['start' => $cut + 0.06, 'end' => $cut + 1.3, 'word' => ' Lord'],
-            ...$this->spokenWords($cut + 1.3, ['God,', 'we', 'thank', 'you', 'for', 'fellowship'])]);
+        $this->bankCut($section, $cut, [['start' => $cut + 0.06, 'end' => $cut + 1.3, 'word' => ' Lord', 'aligned_end' => $cut - 0.2],
+            ...$this->spokenWords($cut + 1.85, ['God,', 'we', 'thank', 'you', 'for', 'fellowship'])]);
 
         $plan = app(CueSafeExtractionPlan::class)->forSection($section);
 
@@ -999,6 +1000,8 @@ class SongEndEdgesTest extends TestCase
         $evidence = app(OutputEdgeWordTimings::class);
         foreach (app(SongEndSpeechOnset::class)->windows($cut, $log->duration) as $window) {
             $inside = array_values(array_filter($words, static fn (array $word): bool => $word['start'] >= $window['start'] && $word['end'] <= $window['end']));
+            // An aligned decode: a clearly spoken word's aligned end is its own end.
+            $inside = array_map(static fn (array $word): array => $word + ['aligned_end' => $word['end']], $inside);
             app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
                 'identity' => $evidence->identity($log, $window), 'words' => $inside, 'compute_seconds' => 1.0,
             ]);

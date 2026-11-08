@@ -37,8 +37,8 @@ class MockServiceTranscriptionService implements ServiceTranscriptionInterface
         self::$fixtureTranscript = $transcript;
     }
 
-    /** @return list<array{start: float, end: float, word: string}> */
-    public function transcribeEdgeWindow(string $audioPath): array
+    /** @return list<array{start: float, end: float, word: string, aligned_end?: float}> */
+    public function transcribeEdgeWindow(string $audioPath, bool $aligned = false): array
     {
         return [];
     }

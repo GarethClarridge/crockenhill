@@ -34,7 +34,7 @@ class PrepareOutputEdgeWordTimings
     }
 
     /**
-     * @param  array<string, array{start: float, end: float, window_rule?: string}>  $windows
+     * @param  array<string, array{start: float, end: float, window_rule?: string, word_timing?: string}>  $windows
      * @return array{windows: int, decoded: int, compute_seconds: float}
      */
     public function prepareWindows(MediaProcessingLog $log, array $windows): array
@@ -61,13 +61,18 @@ class PrepareOutputEdgeWordTimings
                 $started = microtime(true);
                 $clip = $this->extractor->extract($local, $window['start'], $window['end'], $log->processing_id);
                 try {
-                    $words = $this->transcription->transcribeEdgeWindow($clip);
+                    $words = isset($window['word_timing'])
+                        ? $this->transcription->transcribeEdgeWindow($clip, aligned: true)
+                        : $this->transcription->transcribeEdgeWindow($clip);
                 } finally {
                     $this->extractor->delete($clip);
                 }
                 foreach ($words as &$word) {
                     $word['start'] += $window['start'];
                     $word['end'] += $window['start'];
+                    if (isset($word['aligned_end'])) {
+                        $word['aligned_end'] += $window['start'];
+                    }
                 }
                 unset($word);
                 $compute = microtime(true) - $started;

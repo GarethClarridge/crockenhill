@@ -12,9 +12,14 @@ interface ServiceTranscriptionInterface
      * Decode an isolated output-edge window without changing full-service evidence.
      * Times are relative to the window. Empty means a successful decode found no words.
      *
-     * @return list<array{start: float, end: float, word: string}>
+     * Aligned, each word also carries `aligned_end`: where the decoder's cross-attention places the
+     * word's end (whisper.cpp DTW). The decoder's own times stretch a word back over music before
+     * it; the aligned end does not (RA3, video plan §4.1d, 11-08). A provider that cannot align
+     * refuses rather than returning unaligned words.
+     *
+     * @return list<array{start: float, end: float, word: string, aligned_end?: float}>
      */
-    public function transcribeEdgeWindow(string $audioPath): array;
+    public function transcribeEdgeWindow(string $audioPath, bool $aligned = false): array;
 
     /**
      * Produce a timestamped transcript of an entire service recording.

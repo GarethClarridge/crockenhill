@@ -6,6 +6,7 @@ namespace App\Services\Media\Audio;
 
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
+use App\Exceptions\NonRetryableTranscriptionException;
 use App\Exceptions\TranscriptionException;
 use App\Services\Processing\SermonProcessingLogger;
 use Exception;
@@ -97,11 +98,18 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
     /**
      * Edge-only decode: never bank a full-service raw response or change a transcript.
      *
-     * @return list<array{start: float, end: float, word: string}>
+     * Aligned, the request goes to the whisper-server started with `--dtw` (`local_whisper_aligned_url`):
+     * DTW needs flash attention off, which slows every decode, so it is a server of its own.
+     *
+     * @return list<array{start: float, end: float, word: string, aligned_end?: float}>
      */
-    public function transcribeEdgeWindow(string $audioPath): array
+    public function transcribeEdgeWindow(string $audioPath, bool $aligned = false): array
     {
-        $endpoint = rtrim((string) config('media-processing.transcription.local_whisper_url'), '/')
+        $server = $aligned ? config('media-processing.transcription.local_whisper_aligned_url') : config('media-processing.transcription.local_whisper_url');
+        if (! is_string($server) || $server === '') {
+            throw new NonRetryableTranscriptionException('No aligned whisper-server is configured (LOCAL_WHISPER_ALIGNED_URL)');
+        }
+        $endpoint = rtrim($server, '/')
             .'/'.ltrim((string) config('media-processing.transcription.local_whisper_transcription_path', '/v1/audio/transcriptions'), '/');
         $handle = fopen($audioPath, 'rb');
         if ($handle === false) {
@@ -134,7 +142,15 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
                 || ! is_string($word['word'] ?? null)) {
                 throw new TranscriptionException('Invalid edge window word timestamps');
             }
-            $words[] = ['start' => (float) $word['start'], 'end' => (float) $word['end'], 'word' => $word['word']];
+            $timed = ['start' => (float) $word['start'], 'end' => (float) $word['end'], 'word' => $word['word']];
+            if ($aligned) {
+                // whisper.cpp reports t_dtw in centiseconds, and -1 when the server does not align.
+                if (! is_numeric($word['t_dtw'] ?? null) || (float) $word['t_dtw'] < 0) {
+                    throw new NonRetryableTranscriptionException('The aligned whisper-server returned words without DTW times (is it running with --dtw and --no-flash-attn?)');
+                }
+                $timed['aligned_end'] = (float) $word['t_dtw'] / 100;
+            }
+            $words[] = $timed;
         }
 
         return EdgeWindowWords::refitted($words);

@@ -118,6 +118,40 @@ class SongEndSpeechOnsetTest extends TestCase
     }
 
     /**
+     * 1168 §2312, aligned decodes (11-08): each window stretched "Let's pray." differently (decoder
+     * starts 997.1–1001.0), so with the decoder's own times nothing agreed until "May God himself"
+     * at +4.6 s and the cut moved 4.4 s, over the prayer's first words (current preferred). The
+     * aligned ends agree: "Let's" ends at 1001.6 s, so the speech starts at 1000.8 s.
+     */
+    #[Test]
+    public function aligned_decodes_find_the_first_spoken_words_the_decoders_own_times_smear(): void
+    {
+        $timeline = $this->timeline([[990, 1000, 0.7, 0.1], [1000, 1010, 0.5, 0.6]]);
+        $words = [];
+        foreach (array_keys((new SongEndSpeechOnset)->windows(self::CUT, 5000.0)) as $index => $name) {
+            $smear = 997.1 + $index * 1.3;
+            $words[$name] = [
+                ['start' => $smear, 'end' => 1001.6, 'word' => " Let's", 'aligned_end' => 1001.6],
+                ['start' => 1001.6, 'end' => 1002.0, 'word' => ' pray', 'aligned_end' => 1002.0],
+                ['start' => 1002.0, 'end' => 1002.1, 'word' => '.', 'aligned_end' => 1002.1],
+                ...array_map(static fn (array $word): array => $word + ['aligned_end' => $word['end']], $this->spoken(1004.6, ['May', 'God', 'himself'])),
+            ];
+        }
+
+        $onset = new SongEndSpeechOnset;
+
+        $this->assertEqualsWithDelta(1000.8, $onset->onsetFrom($words, self::CUT, $timeline), 0.001);
+        $this->assertEqualsWithDelta(1000.5, $onset->cutFrom($words, self::CUT, $timeline), 0.001);
+    }
+
+    #[Test]
+    public function the_cut_windows_ask_for_aligned_word_timing(): void
+    {
+        $this->assertTrue(array_all((new SongEndSpeechOnset)->windows(self::CUT, 5000.0),
+            static fn (array $window): bool => $window['word_timing'] === SongEndSpeechOnset::WORD_TIMING));
+    }
+
+    /**
      * Every window's decode of the words it covers, as a decoder that hears them cleanly would give.
      *
      * @param  list<array{start: float, end: float, word: string}>  $heard

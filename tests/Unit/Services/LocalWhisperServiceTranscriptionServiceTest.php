@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Services;
 
 use App\Data\ChurchServiceTranscript;
+use App\Exceptions\NonRetryableTranscriptionException;
 use App\Exceptions\TranscriptionException;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\AudioChunkingService;
@@ -113,6 +114,55 @@ class LocalWhisperServiceTranscriptionServiceTest extends TestCase
         $path = $this->makeTempFile('audio');
         $this->assertSame([], $this->service->transcribeEdgeWindow($path));
         $this->assertSame([['start' => 0.0, 'end' => 1.0, 'word' => 'Hello']], $this->service->transcribeEdgeWindow($path));
+    }
+
+    /**
+     * RA3, 11-08: the decoder stretches a first spoken word back over the outro; the DTW server's
+     * t_dtw (centiseconds) marks where each word ends. 4451's "me" read −0.12–0.39 s from its own
+     * times and 0.99 s aligned, against the heard last note.
+     */
+    #[Test]
+    public function an_aligned_edge_decode_goes_to_the_dtw_server_and_keeps_each_words_aligned_end(): void
+    {
+        config(['media-processing.transcription.local_whisper_aligned_url' => 'http://aligned.test:2025']);
+        Http::fake(function ($request) {
+            $this->assertStringStartsWith('http://aligned.test:2025/', $request->url());
+
+            return Http::response(['segments' => [['words' => [
+                ['start' => 4.88, 'end' => 5.39, 'word' => ' me', 't_dtw' => 599],
+                ['start' => 6.3, 'end' => 6.33, 'word' => ' In', 't_dtw' => 639],
+            ]]]]);
+        });
+
+        $this->assertSame([
+            ['start' => 4.88, 'end' => 5.39, 'word' => ' me', 'aligned_end' => 5.99],
+            ['start' => 6.3, 'end' => 6.33, 'word' => ' In', 'aligned_end' => 6.39],
+        ], $this->service->transcribeEdgeWindow($this->makeTempFile('audio'), aligned: true));
+    }
+
+    /** whisper.cpp reports t_dtw −1 when DTW is off (flash attention silently disables it). */
+    #[Test]
+    public function an_aligned_edge_decode_refuses_words_the_server_did_not_align(): void
+    {
+        config(['media-processing.transcription.local_whisper_aligned_url' => 'http://aligned.test:2025']);
+        Http::fake(fn () => Http::response(['words' => [['start' => 1.0, 'end' => 1.4, 'word' => ' Amen', 't_dtw' => -1]]]));
+
+        $this->expectException(NonRetryableTranscriptionException::class);
+        $this->service->transcribeEdgeWindow($this->makeTempFile('audio'), aligned: true);
+    }
+
+    #[Test]
+    public function an_aligned_edge_decode_refuses_without_an_aligned_server(): void
+    {
+        config(['media-processing.transcription.local_whisper_aligned_url' => null]);
+        Http::fake();
+
+        $this->expectException(NonRetryableTranscriptionException::class);
+        try {
+            $this->service->transcribeEdgeWindow($this->makeTempFile('audio'), aligned: true);
+        } finally {
+            Http::assertNothingSent();
+        }
     }
 
     #[Test]

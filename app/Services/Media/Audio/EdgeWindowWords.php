@@ -13,8 +13,8 @@ namespace App\Services\Media\Audio;
 final class EdgeWindowWords
 {
     /**
-     * @param  list<array{start: float, end: float, word: string}>  $words  In decode order
-     * @return list<array{start: float, end: float, word: string}>
+     * @param  list<array{start: float, end: float, word: string, aligned_end?: float}>  $words  In decode order
+     * @return list<array{start: float, end: float, word: string, aligned_end?: float}>
      */
     public static function refitted(array $words): array
     {
@@ -29,7 +29,7 @@ final class EdgeWindowWords
             $from = $index > 0 ? $words[$index - 1]['end'] : 0.0;
             $next = array_values(array_filter(array_slice($words, $index + 1), static fn (array $later): bool => ! $isMalformed($later)))[0] ?? null;
             $to = max($from, $next['start'] ?? $from);
-            $words[$index] = ['start' => $from, 'end' => $to, 'word' => $word['word']];
+            $words[$index] = ['start' => $from, 'end' => $to, 'word' => $word['word'], ...array_intersect_key($word, ['aligned_end' => true])];
         }
 
         return $words;

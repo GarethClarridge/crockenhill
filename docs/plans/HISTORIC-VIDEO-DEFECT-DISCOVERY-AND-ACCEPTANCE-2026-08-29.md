@@ -777,6 +777,57 @@ open). Scratch: `storage/scratch/ra2-20261107/trailing_*`, `tail_signal*`, `tail
           We might have to accept it." Where the speech follows the singing at once, the ending is
           an accepted imperfection, not a target.
 
+**RA3e — Song ends that run into speech: build plan (11-08, operator: "plan and then implement it
+yourself and then commit to master").** Implements the target logic heard on 11-08 (§4.1d above;
+E28, and E29 below). Scope: song ends whose cut is `song_end_speech` / `song_end_fade` (576 in the
+corpus). The other song-end reasons are unchanged. Each phase is committed on its own, with its
+tests green.
+
+1. **DTW word times for the cut decodes.**
+   - Infra: a second whisper-server, `com.crockenhill.whisper-aligned-server`, on :2025, run with
+     `--dtw large.v3.turbo --no-flash-attn` (flash attention silently disables DTW). Config:
+     `media-processing.transcription.local_whisper_aligned_url`, env `LOCAL_WHISPER_ALIGNED_URL`.
+   - Data path: `transcribeEdgeWindow($path, aligned: true)` sends the request there and keeps each
+     word's `t_dtw` as `aligned_end`.
+   - Evidence: `SongEndSpeechOnset` windows carry `word_timing: dtw`. Identity and `read()` require
+     it, so DTW decodes never mix with plain ones. Tokens keep `aligned_end`.
+   - `AgreedEdgeWords` times a word from its aligned end: it starts at the previous word's end, or
+     0.8 s before its own end after a pause. `RULE` becomes `song-end-slide-12-step-2-dtw-v2`.
+   - Pass: the heard sections match the scratch scorer (28 of 31).
+2. **Vocal separation evidence.**
+   - Dependency: Demucs (htdemucs, two stems) in both Dockerfiles, with its weights baked in. The
+     local containers get it by pip until they are rebuilt.
+   - `scripts/separate_song_end.py <audio> <start> <end> <out-dir>` writes the instrument track
+     (FLAC) and JSON levels, voice and instruments in dB every 0.1 s, plus the model and revision.
+   - `SongEndStems` runs it on cut − 8 s … cut + 16 s and banks both as service artifacts.
+     `PrepareOutputEdgeEvidence` banks it for every fade cut, after the cut decodes.
+3. **The decision (`CueSafeExtractionPlan`).**
+   - Inputs: the first spoken word S = the agreed run's start (`SongEndSpeechOnset`); from the
+     separated tracks, the last sung word L and the outro end E.
+     - **L** = the end of the voice track's last activity before S, followed by a quiet of at
+       least 0.3 s. If there is no such quiet, L = S: the speech follows the singing at once.
+     - **E** = the first time after L when the instrument track falls 25 dB below its level over
+       the 3 s before L, and stays there for 1 s.
+   - **Silence** (E ≤ S): the song ends at E, with a 0.1 s fade. `song_end_outro_silence`.
+   - **Speech over the outro** (E > S): the song ends at E. From L the voice track is replaced by
+     the instrument track (0.15 s crossfade), and the sound fades from max(L, S − 4) to E.
+     `song_end_outro_under_speech`, with `voice_removed_from`.
+   - **No separation banked:** the agreed-speech cut as now.
+   - The next item still starts at the replaced cut (E28: overlap is fine).
+4. **Rendering.**
+   - `extractMedia()` takes the voice removal: the instrument file and the offset in the last span.
+     It builds that span's sound as the original up to L, crossfaded to the instruments, before the
+     loudness treatment and the fade.
+   - `forSection()` carries it as `audio_voice_removal`. A changed removal re-extracts the
+     candidate, as a changed fade already does.
+5. **Measure and record.**
+   - Replay on the heard sections: 3891, 4451 and 828 must reproduce the heard boundaries.
+   - Count the corpus split: silence / speech over the outro / no evidence.
+   - Register E29, then the full suite, Dusk, PHPStan and Pint, then commit.
+   - Still open: music under a prayer (underscoring); the song continuing after speech; the lyric
+     check that protects sung words from removal (removal starts only at L, which the voice track's
+     quiet places, not at a non-lyric word).
+
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates
 missing resolution. Reuse admitted catalogue/lyrics and permissible independent service evidence;

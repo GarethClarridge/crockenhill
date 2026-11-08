@@ -23,6 +23,9 @@ class AgreedEdgeWords
     /** Longer than this, a decoded word is smeared over sound it does not cover. */
     private const WORD_SECONDS = 1.0;
 
+    /** How long before its aligned end a word after a pause starts. */
+    private const AFTER_PAUSE = 0.8;
+
     /**
      * @param  array<string, list<array{start: float, end: float, word: string}>>  $words  Each window's decoder tokens, by window name
      * @param  array<string, array{start: float, end: float}>  $windows  The windows to compare, by the same names
@@ -69,6 +72,31 @@ class AgreedEdgeWords
     }
 
     /**
+     * A window's tokens timed by their aligned ends (whisper.cpp DTW), which mark where a word ends:
+     * within 0.03 s of the decoder's own end on clear speech (median, 556 words, 11-08). A word
+     * starts where the one before it ended, or {@see self::AFTER_PAUSE} s before its own end after a
+     * pause; 0.8 s placed 28 of 31 heard song ends right, 0.6 s 26, the decoder's own times 25.
+     *
+     * @param  list<array{start: float, end: float, word: string, aligned_end?: float}>  $tokens
+     * @return list<array{start: float, end: float, word: string}>
+     */
+    public function aligned(array $tokens, float $windowStart): array
+    {
+        $timed = [];
+        $previous = $windowStart;
+
+        foreach ($tokens as $token) {
+            if (! isset($token['aligned_end']) || $this->normalised($token['word']) === '') {
+                continue;
+            }
+            $timed[] = ['start' => max($previous, $token['aligned_end'] - self::AFTER_PAUSE), 'end' => $token['aligned_end'], 'word' => $token['word']];
+            $previous = $token['aligned_end'];
+        }
+
+        return $timed;
+    }
+
+    /**
      * Agreed words split where the gap between them passes `$gap` seconds.
      *
      * @param  list<array{start: float, end: float}>  $agreed
@@ -80,7 +108,7 @@ class AgreedEdgeWords
         $run = [];
 
         foreach ($agreed as $word) {
-            if ($run !== [] && $word['start'] - $run[array_key_last($run)]['end'] > $gap) {
+            if ($run !== [] && $gap < $word['start'] - $run[array_key_last($run)]['end']) {
                 $runs[] = $run;
                 $run = [];
             }

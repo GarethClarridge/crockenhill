@@ -17,6 +17,7 @@ use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\DependentSongOpening;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
+use App\Services\ChurchService\SongEndSpeechOnset;
 use App\Services\ChurchService\Structure\DeadFeedInsideSection;
 use App\Services\Media\Audio\LocalWhisperServiceTranscriptionService;
 use App\Services\Media\Audio\ServiceArtifactStorage;
@@ -1294,6 +1295,39 @@ class WordTimedOutputEdgesTest extends TestCase
         $payload = app(OutputEdgeWordTimings::class)->read($log->fresh(), ['start' => 98.0, 'end' => 102.0]);
         $this->assertEquals([['start' => 99.0, 'end' => 99.5, 'word' => 'Amen']], $payload['words']);
         $this->assertSame('temp/edge-test.json', $log->fresh()->serviceTranscriptPath());
+    }
+
+    /**
+     * RA3, 11-08: a window that asks for aligned word timing is decoded on the aligned server, its
+     * aligned ends map to service time, and a plain decode of the same span never stands in for it.
+     */
+    #[Test]
+    public function an_aligned_window_is_decoded_aligned_and_read_only_as_aligned(): void
+    {
+        $cue = ['start' => 99.0, 'end' => 101.0, 'text' => 'Amen'];
+        $log = $this->log($cue);
+        $log->writeProcessingMetadata(fn (array $metadata): array => [...$metadata,
+            'service_artifacts' => [['kind' => 'audio', 'disk' => 'local', 'path' => 'service-audio/test.mp3']]]);
+        $extractor = \Mockery::mock(ServiceAudioWindowExtractor::class);
+        $extractor->shouldReceive('extract')->once()->with('/audio.mp3', 98.0, 110.0, $log->processing_id)->andReturn('/window.mp3');
+        $extractor->shouldReceive('delete')->once()->with('/window.mp3');
+        $storage = \Mockery::mock(StorageAdapterHelper::class);
+        $storage->shouldReceive('downloadToTemp')->once()->andReturn('/audio.mp3');
+        $storage->shouldReceive('isS3CompatibleDisk')->once()->andReturn(false);
+        $whisper = \Mockery::mock(LocalWhisperServiceTranscriptionService::class);
+        $whisper->shouldReceive('transcribeEdgeWindow')->once()->with('/window.mp3', true)
+            ->andReturn([['start' => 1.0, 'end' => 2.9, 'word' => ' Amen', 'aligned_end' => 1.6]]);
+        $service = new PrepareOutputEdgeWordTimings(app(OutputEdgeWordTimings::class), $whisper, $extractor, app(ServiceArtifactStorage::class), $storage);
+        $aligned = ['start' => 98.0, 'end' => 110.0, 'window_rule' => SongEndSpeechOnset::RULE, 'word_timing' => SongEndSpeechOnset::WORD_TIMING];
+
+        $evidence = app(OutputEdgeWordTimings::class);
+        $kind = $evidence->kind($evidence->identity($log, $aligned));
+
+        $this->assertSame(1, $service->prepareWindows($log->fresh(), [$kind => $aligned])['decoded']);
+
+        $this->assertEquals([['start' => 99.0, 'end' => 100.9, 'word' => ' Amen', 'aligned_end' => 99.6]], $evidence->read($log->fresh(), $aligned)['tokens']);
+        $this->expectException(OutputEdgeTimingsMissing::class);
+        $evidence->read($log->fresh(), array_diff_key($aligned, ['word_timing' => true]));
     }
 
     #[Test]

@@ -26,7 +26,10 @@ use App\Services\Media\Audio\AudioTimeline;
  */
 class SongEndSpeechOnset
 {
-    public const RULE = 'song-end-slide-12-step-2-v1';
+    /** v2 (11-08): decoded on the aligned server, words timed by their aligned ends. */
+    public const RULE = 'song-end-slide-12-step-2-dtw-v2';
+
+    public const WORD_TIMING = 'dtw';
 
     public const REASON = 'song_end_agreed_speech_onset';
 
@@ -53,7 +56,7 @@ class SongEndSpeechOnset
 
     public function __construct(private AgreedEdgeWords $agreement = new AgreedEdgeWords) {}
 
-    /** @return array<string, array{start: float, end: float, window_rule: string}> */
+    /** @return array<string, array{start: float, end: float, window_rule: string, word_timing: string}> */
     public function windows(float $cut, ?float $duration): array
     {
         $limit = $duration ?? INF;
@@ -63,7 +66,7 @@ class SongEndSpeechOnset
             $start = max(0.0, $cut + $offset);
             $end = min($limit, $start + self::SLIDE_SECONDS);
             if ($end > $start) {
-                $windows['cut-slide-'.(int) -$offset] = ['start' => $start, 'end' => $end, 'window_rule' => self::RULE];
+                $windows['cut-slide-'.(int) -$offset] = ['start' => $start, 'end' => $end, 'window_rule' => self::RULE, 'word_timing' => self::WORD_TIMING];
             }
         }
 
@@ -75,6 +78,17 @@ class SongEndSpeechOnset
      * is not banked, which leaves the planned cut.
      */
     public function cut(MediaProcessingLog $log, float $cut, ?AudioTimeline $timeline): ?float
+    {
+        $onset = $this->onset($log, $cut, $timeline);
+
+        return $onset === null ? null : $onset - self::LEAD;
+    }
+
+    /**
+     * Where the speech's first agreed word starts, from the banked decodes; null when the rule does
+     * not apply or a decode is not banked.
+     */
+    public function onset(MediaProcessingLog $log, float $cut, ?AudioTimeline $timeline): ?float
     {
         if ($timeline === null) {
             return null;
@@ -91,13 +105,23 @@ class SongEndSpeechOnset
             return null;
         }
 
-        return $this->cutFrom($words, $cut, $timeline, $log->duration);
+        return $this->onsetFrom($words, $cut, $timeline, $log->duration);
     }
 
     /**
-     * @param  array<string, list<array{start: float, end: float, word: string}>>  $words  Each window's decoder tokens, by window name: unjoined, since joining punctuation stretches a word
+     * @param  array<string, list<array{start: float, end: float, word: string, aligned_end?: float}>>  $words  Each window's decoder tokens, by window name: unjoined, since joining punctuation stretches a word
      */
     public function cutFrom(array $words, float $cut, AudioTimeline $timeline, ?float $duration = 5000.0): ?float
+    {
+        $onset = $this->onsetFrom($words, $cut, $timeline, $duration);
+
+        return $onset === null ? null : $onset - self::LEAD;
+    }
+
+    /**
+     * @param  array<string, list<array{start: float, end: float, word: string, aligned_end?: float}>>  $words  Each window's decoder tokens, by window name; aligned tokens are timed by their aligned ends
+     */
+    public function onsetFrom(array $words, float $cut, AudioTimeline $timeline, ?float $duration = 5000.0): ?float
     {
         $window = $timeline->windowAt($cut + self::MUSIC_AT);
 
@@ -105,8 +129,16 @@ class SongEndSpeechOnset
             return null;
         }
 
+        $windows = $this->windows($cut, $duration);
+        $timed = [];
+        foreach ($windows as $name => $slide) {
+            $tokens = $words[$name] ?? [];
+            $timed[$name] = $tokens !== [] && array_all($tokens, static fn (array $token): bool => isset($token['aligned_end']))
+                ? $this->agreement->aligned($tokens, $slide['start'])
+                : $tokens;
+        }
         $agreed = array_values(array_filter(
-            $this->agreement->agreed($words, $this->windows($cut, $duration)),
+            $this->agreement->agreed($timed, $windows),
             static fn (array $word): bool => $word['start'] >= $cut - self::BEFORE_CUT,
         ));
         $run = array_find($this->agreement->runs($agreed, self::RUN_GAP), static fn (array $run): bool => count($run) >= self::RUN_WORDS);
@@ -115,8 +147,6 @@ class SongEndSpeechOnset
             return null;
         }
 
-        $later = $run[0]['start'] - self::LEAD;
-
-        return $later > $cut ? $later : null;
+        return $run[0]['start'] - self::LEAD > $cut ? $run[0]['start'] : null;
     }
 }

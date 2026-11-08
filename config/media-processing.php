@@ -203,6 +203,9 @@ return [
         'local_whisper_transcription_path' => env('LOCAL_WHISPER_TRANSCRIPTION_PATH', '/v1/audio/transcriptions'),
         // Every loop, coverage and edge measurement in the historic work used this model.
         'local_whisper_model' => env('LOCAL_WHISPER_MODEL', 'large-v3-turbo'),
+        // The same model on a whisper-server run with `--dtw large.v3.turbo --no-flash-attn`: song-end
+        // cut decodes need its aligned word ends (RA3, 11-08; scripts/launchd/). Unset, they refuse.
+        'local_whisper_aligned_url' => env('LOCAL_WHISPER_ALIGNED_URL'),
         'local_whisper_timeout' => (int) env('LOCAL_WHISPER_TIMEOUT', 1800),
         'local_whisper_serialize' => (bool) env('LOCAL_WHISPER_SERIALIZE', true),
         'local_whisper_lock_release_after' => (int) env('LOCAL_WHISPER_LOCK_RELEASE_AFTER', 60),

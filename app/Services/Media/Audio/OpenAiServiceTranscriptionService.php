@@ -76,9 +76,12 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         }
     }
 
-    /** @return list<array{start: float, end: float, word: string}> */
-    public function transcribeEdgeWindow(string $audioPath): array
+    /** @return list<array{start: float, end: float, word: string, aligned_end?: float}> */
+    public function transcribeEdgeWindow(string $audioPath, bool $aligned = false): array
     {
+        if ($aligned) {
+            throw new NonRetryableTranscriptionException('OpenAI transcription does not align words');
+        }
         if (empty(config('media-processing.transcription.openai_api_key'))) {
             throw new NonRetryableTranscriptionException('OpenAI API key not configured for edge transcription');
         }
