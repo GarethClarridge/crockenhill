@@ -938,6 +938,16 @@ tests green.
            would show it.
          - An absolute noise floor (quiet at ≤ −60 dB) also fixes 2922 and 173622 but cuts 2819,
            ruled right at +7.6, to +1.6. Rejected.
+       - **Video check (11-08, `scene_check.json`, read-only from the staging sources):**
+         - 48 endings checked: the 24 biggest jumps and the 24 smallest.
+         - At a 0.25 threshold, no video scene change coincides with a spike.
+         - 3926 and 2922 stay flat (scene score about 0.02) through their spikes.
+         - 173622's only change is 2.2 s before the talking, about 3 s before its spike.
+         - The OBS-switch explanation is not supported visually. A mic unmuted or handled, with no
+           change on screen, would fit the bursts.
+       - **Quiet-frame page (11-08):** https://claude.ai/artifact/AYzx4H7TqF1DHspQG1H5eN
+         (`song-end-quietframe-20261108/`). Current against end-frame-quiet; 8 heard, 6 unheard;
+         blind order in `versions.json`.
        - Open:
          - The spike rule is measured, not built.
          - 3234, underscoring, and the lyric protection check.
