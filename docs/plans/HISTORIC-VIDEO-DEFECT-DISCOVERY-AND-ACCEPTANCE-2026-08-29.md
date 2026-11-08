@@ -1012,6 +1012,12 @@ tests green.
            - Both neithers are silence endings with voice after L that nothing removes: 28 of
              102 silence or recording-cut ends have voice above the singing threshold between L
              and E.
+         - **Leftover voice, built on the working copy (11-08, uncommitted;
+           `voiceAfterTheSinging`):**
+           - Silence and recording-cut endings with voice after L take the voice out from L, as
+             endings under the talking do. That covers 28 endings.
+           - Page: https://claude.ai/artifact/J3wmKgHXTnYZ9PwcLgnTkH
+             (`song-end-breath-20261108/`): 10 endings, as now vs removed.
          - 3234, underscoring, and the lyric protection check.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
