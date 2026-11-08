@@ -917,8 +917,29 @@ tests green.
        - Tried and rejected:
          - Requiring the end frame itself to be quiet moved 105 ends 0.5 s later (1966 → +3.7).
          - Requiring quiet all the way to the talking sent 4359 and 931 to no ending.
+       - **Amended (operator, 11-08): never fade the last sung word.**
+         - A recording cut fades from max(E − 3, L).
+         - 3 s would have crossed L in 11 of 17 cuts.
+         - Fades now: 3 s ×6, 1–2 s ×5, 0.3–0.7 s ×3, 0.1 s ×3 (2758, 4269, and 1166, where
+           the singing runs into the cut).
+         - 637 drops from the 3 s it was ruled with to 0.3 s.
+       - **Spike measurement (11-08, `spike_rows.json`):** the largest instrument frame in the 3 s
+         after V, against the median of the 0.5 s before V.
+         - Heard too long: 173622 +25 dB, 3926 +33, 2922 +35, all above the outro's own level.
+         - Heard right/new/either: ≤ +14 dB (3769 +14, 3473 +14).
+         - Corpus (125 under the speech): ≥ 20 dB in 7, ≥ 15 in 12, ≥ 10 in 24.
+         - Shape:
+           - Mostly 0.2–0.3 s bursts while the voice is no louder (173622, 2922, 1991, 176323):
+             not leaked talking.
+           - 3926 instead stays −27 to −36 dB for over 1 s from the talking.
+         - Ending at the spike's onset (≥ 20 dB) would move 2922 (13.3 → about 3.6), 3926 (4.8 →
+           about 1.6), 173622 (5.1 → about 2.6) and 1991 (3.4 → 3.2), and no heard right ending.
+         - Whether it is the OBS switch is unverified; the video's scene change at the same moment
+           would show it.
+         - An absolute noise floor (quiet at ≤ −60 dB) also fixes 2922 and 173622 but cuts 2819,
+           ruled right at +7.6, to +1.6. Rejected.
        - Open:
-         - 173622, 3926 and 2922 still long; the OBS scene-switch spike idea is not measured yet.
+         - The spike rule is measured, not built.
          - 3234, underscoring, and the lyric protection check.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend

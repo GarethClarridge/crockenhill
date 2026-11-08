@@ -18,8 +18,8 @@ namespace App\Services\ChurchService;
  *   it is taken to be the speech's start, an accepted imperfection (4451).
  * - Under the talking, the talking leaks into the instrument track as short spikes, so the outro
  *   is gone once half of a second is quiet (1966: heard +2.6 s, a strict second found +14.8 s).
- * - Where the recording itself cuts out of the music to digital silence, the song fades over 3 s
- *   into the cut (1314, 637). A dropout the music comes back from is not the end (176320).
+ * - Where the recording itself cuts out of the music to digital silence, the song fades into the
+ *   cut over up to 3 s, from no earlier than the end of the last sung word (1314, 637). A dropout the music comes back from is not the end (176320).
  * - Where the outro never dies away within the separated stretch (music under a prayer), there is
  *   no ending to find, and the cut before the speech stands.
  *
@@ -80,7 +80,11 @@ class SongEndOutro
     /** ...to this (17 of 107 silences in the corpus; a natural decay is 10–20 dB in a second). */
     private const RECORDING_CUT_REACHES_DB = -70.0;
 
-    /** ...and the cut is faded over this long, so the music does not stop dead (operator, 11-08: 1314, 637). */
+    /**
+     * ...and the cut is faded over up to this long, so the music does not stop dead (operator, 11-08:
+     * 1314), but never from before the last sung word ends (operator, 11-08): 637's singing stops
+     * 0.3 s before its cut, so it fades over 0.3 s.
+     */
     private const RECORDING_CUT_FADE = 3.0;
 
     /** A muted stretch that the music comes back from this abruptly was a dropout, not the end (176320, 175132)... */
@@ -104,7 +108,9 @@ class SongEndOutro
         }
         $found = ['speech' => $speech, 'last_sung' => $lastSung, 'outro_end' => $outroEnd];
         if ($outroEnd < $speech && $this->recordingCutAt($stems, $outroEnd)) {
-            return ['time' => $outroEnd, 'fade_out' => self::RECORDING_CUT_FADE, 'song_end_outro' => self::RECORDING_CUT, ...$found];
+            $fadeFrom = max($outroEnd - self::RECORDING_CUT_FADE, min($lastSung, $outroEnd));
+
+            return ['time' => $outroEnd, 'fade_out' => round(max(self::CLICK, $outroEnd - $fadeFrom), 3), 'song_end_outro' => self::RECORDING_CUT, ...$found];
         }
         if ($outroEnd < $speech) {
             return ['time' => $outroEnd, 'fade_out' => self::CLICK, 'song_end_outro' => self::SILENCE, ...$found];

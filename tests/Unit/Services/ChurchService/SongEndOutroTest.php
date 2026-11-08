@@ -128,8 +128,8 @@ class SongEndOutroTest extends TestCase
     }
 
     /**
-     * 1016 §1314: the recording itself cuts from the music to digital silence. The operator chose a
-     * 3 s fade into the cut over 0.1 s and 1.5 s (11-08), so the music does not stop dead.
+     * 1016 §1314: the recording itself cuts from the music to digital silence, 4.9 s after the last
+     * sung word. The operator chose a 3 s fade into the cut over 0.1 s and 1.5 s (11-08).
      */
     #[Test]
     public function a_recording_that_cuts_out_is_faded_into_the_cut(): void
@@ -146,6 +146,41 @@ class SongEndOutroTest extends TestCase
         $this->assertEqualsWithDelta(self::CUT, $ending['time'], 0.001);
         $this->assertEqualsWithDelta(3.0, $ending['fade_out'], 0.001);
         $this->assertArrayNotHasKey('voice_removal', $ending);
+    }
+
+    /** 939 §637: the singing stops 0.3 s before the recording cuts out, so the fade starts there, not 3 s back. */
+    #[Test]
+    public function a_recording_cut_never_fades_the_last_sung_word(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, -3.3, -24.0], [-3.3, 0.3, -95.0], [0.3, 16, -30.0]],
+            instruments: [[-8, -3.0, -29.0], [-3.0, 0.3, -90.0], [0.3, 16, -45.0]],
+        );
+
+        $ending = (new SongEndOutro)->ending($stems, self::CUT + 0.8, self::CUT);
+
+        $this->assertNotNull($ending);
+        $this->assertSame(SongEndOutro::RECORDING_CUT, $ending['song_end_outro']);
+        $this->assertEqualsWithDelta(self::CUT - 3.3, $ending['last_sung'], 0.001);
+        $this->assertEqualsWithDelta(self::CUT - 3.0, $ending['time'], 0.001);
+        $this->assertEqualsWithDelta(0.3, $ending['fade_out'], 0.001);
+    }
+
+    /** A recording cut where the singing runs into it has no room for a fade beyond a click's. */
+    #[Test]
+    public function a_recording_cut_through_the_singing_only_avoids_a_click(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, 0, -24.0], [0, 2.0, -95.0], [2.0, 16, -30.0]],
+            instruments: [[-8, 0, -29.0], [0, 2.0, -90.0], [2.0, 16, -45.0]],
+        );
+
+        $ending = (new SongEndOutro)->ending($stems, self::CUT + 1.5, self::CUT);
+
+        $this->assertNotNull($ending);
+        $this->assertSame(SongEndOutro::RECORDING_CUT, $ending['song_end_outro']);
+        $this->assertEqualsWithDelta(self::CUT, $ending['time'], 0.001);
+        $this->assertEqualsWithDelta(0.1, $ending['fade_out'], 0.001);
     }
 
     /**
