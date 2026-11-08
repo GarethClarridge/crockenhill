@@ -281,6 +281,28 @@ class SongEndOutroTest extends TestCase
         $this->assertEqualsWithDelta(self::CUT - 3.8, $voice['last_sung'], 0.001);
     }
 
+    /**
+     * 2858, 3586, 907 (11-08, preferred with it taken out): the song ends at a silence, but voice that
+     * is not singing sounds after the last sung word. It is taken out with the voice track from there,
+     * as under the talking.
+     */
+    #[Test]
+    public function voice_left_after_the_singing_before_a_silence_is_taken_out(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, -1.0, -30.0], [-1.0, 0.5, -95.0], [0.5, 1.1, -45.0], [1.1, 2.5, -95.0], [2.5, 16, -35.0]],
+            instruments: [[-8, 1.5, -30.0], [1.5, 16, -70.0]],
+        );
+
+        $ending = (new SongEndOutro)->ending($stems, self::CUT + 2.0, self::CUT);
+
+        $this->assertNotNull($ending);
+        $this->assertSame(SongEndOutro::SILENCE, $ending['song_end_outro']);
+        $this->assertEqualsWithDelta(self::CUT - 1.0, $ending['last_sung'], 0.001);
+        $this->assertEqualsWithDelta(self::CUT + 1.5, $ending['time'], 0.001);
+        $this->assertEqualsWithDelta(self::CUT - 1.0, $ending['voice_removal']['from'] ?? null, 0.001);
+    }
+
     /** Music under a prayer never dies away in the separated stretch: there is no ending to find. */
     #[Test]
     public function music_that_plays_on_under_the_talking_finds_no_ending(): void

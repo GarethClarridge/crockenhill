@@ -20,6 +20,8 @@ namespace App\Services\ChurchService;
  *   is gone once half of a second is quiet (1966: heard +2.6 s, a strict second found +14.8 s).
  * - Taking the talking out leaves a trace of it, louder the louder the talking. The song ends once
  *   that trace would be heard through the fade, even if the outro plays on (3926, 3811, 2331).
+ * - Ending at a silence, any voice left after the last sung word (a breath, a murmur) is taken out
+ *   the same way (2858, 3586, 907).
  * - Where the recording itself cuts out of the music to digital silence, the song fades into the
  *   cut over up to 3 s, from no earlier than the end of the last sung word (1314, 637). A dropout the music comes back from is not the end (176320).
  * - Where the outro never dies away within the separated stretch (music under a prayer), there is
@@ -118,19 +120,24 @@ class SongEndOutro
             return null;
         }
         $found = ['speech' => $speech, 'last_sung' => $lastSung, 'outro_end' => $outroEnd];
+        $removal = ['from' => $lastSung, 'instruments' => $stems['instruments'], 'instruments_start' => $stems['start']];
+        $voiceLeft = $outroEnd < $speech && $this->voiceAfterTheSinging($stems, $lastSung, $outroEnd, $speech);
         if ($outroEnd < $speech && $this->recordingCutAt($stems, $outroEnd)) {
             $fadeFrom = max($outroEnd - self::RECORDING_CUT_FADE, min($lastSung, $outroEnd));
+            $ending = ['time' => $outroEnd, 'fade_out' => round(max(self::CLICK, $outroEnd - $fadeFrom), 3), 'song_end_outro' => self::RECORDING_CUT, ...$found];
 
-            return ['time' => $outroEnd, 'fade_out' => round(max(self::CLICK, $outroEnd - $fadeFrom), 3), 'song_end_outro' => self::RECORDING_CUT, ...$found];
+            return $voiceLeft ? [...$ending, 'voice_removal' => $removal] : $ending;
         }
         if ($outroEnd < $speech) {
-            return ['time' => $outroEnd, 'fade_out' => self::CLICK, 'song_end_outro' => self::SILENCE, ...$found];
+            $ending = ['time' => $outroEnd, 'fade_out' => self::CLICK, 'song_end_outro' => self::SILENCE, ...$found];
+
+            return $voiceLeft ? [...$ending, 'voice_removal' => $removal] : $ending;
         }
         $fadeFrom = max($lastSung, $speech - self::LEAD_IN);
         $end = $this->endBeforeTheTalkingShows($stems, $fadeFrom, $speech, $outroEnd);
 
         return ['time' => $end, 'fade_out' => round(max(self::CLICK, $end - $fadeFrom), 3), 'song_end_outro' => self::UNDER_SPEECH, ...$found,
-            'voice_removal' => ['from' => $lastSung, 'instruments' => $stems['instruments'], 'instruments_start' => $stems['start']]];
+            'voice_removal' => $removal];
     }
 
     /**
@@ -320,6 +327,27 @@ class SongEndOutro
         }
 
         return null;
+    }
+
+    /**
+     * Whether voice sounds, at the singing's level, between the last sung word and an end before the
+     * talking: a breath or a first spoken word that the song would otherwise keep (173622, 175597,
+     * 11-08). It is taken out with the rest of the voice after the last sung word.
+     *
+     * @param  array{start: float, frame_seconds: float, voice_db: list<float>}  $stems
+     */
+    private function voiceAfterTheSinging(array $stems, float $lastSung, float $end, float $speech): bool
+    {
+        $at = static fn (float $time): int => max(0, (int) floor(($time - $stems['start']) / $stems['frame_seconds'] + 1e-6));
+        $singing = array_slice($stems['voice_db'], 0, $at($speech));
+        if ($singing === [] || $end <= $lastSung) {
+            return false;
+        }
+        sort($singing);
+        $level = $singing[(int) floor(0.9 * (count($singing) - 1))];
+
+        return array_any(array_slice($stems['voice_db'], $at($lastSung), $at($end) - $at($lastSung)),
+            static fn (float $db): bool => $db > $level - self::VOICE_QUIET_BELOW && $db > self::VOICE_QUIET_DB);
     }
 
     /**

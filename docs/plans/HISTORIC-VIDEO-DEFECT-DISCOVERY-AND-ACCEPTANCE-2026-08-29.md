@@ -1018,6 +1018,21 @@ tests green.
              endings under the talking do. That covers 28 endings.
            - Page: https://claude.ai/artifact/J3wmKgHXTnYZ9PwcLgnTkH
              (`song-end-breath-20261108/`): 10 endings, as now vs removed.
+           - **Answers (11-08):**
+             - Removed better 3 (2858, 3586, 907), either 4, current 0.
+             - Neither 3:
+               - 175597 and 173622 sounded "identical" both ways.
+               - 677: "this is not actually the end of this song".
+             - Committed.
+             - 175597's spoken word is as loud in the instrument track as in the voice track
+               (−41 against −42 dB), so removal cannot take it out.
+             - 173622's breathy sound is an instrument-track jump from −57 to −19 dB at +0.9.
+             - Ending at the first leftover voice would cut 1.3–3.1 s of outro from the three
+               endings removal improved.
+           - **Instrument jumps after L (≥ 20 dB above the 0.5 s before):** 10 endings.
+             - 173622 +0.9, 2922 +2.7 (E 10.1; heard +0.4), 3926 +0.9 (E 1.8), 1340, 1542,
+               1991, 752.
+             - Also 1966 −0.4, and the dropout returns 176320 and 175132, which are music.
          - 3234, underscoring, and the lyric protection check.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
