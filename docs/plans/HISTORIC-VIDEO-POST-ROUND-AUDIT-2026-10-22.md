@@ -532,7 +532,10 @@ section identity through re-detection; an old section ID may now name different 
   752 (unresolved), 1340 (a line of speech left), 175597 (a spoken word that voice separation
   cannot remove) and 677 (not the song's end). They are cut as the current rules leave them; the video
   plan §4.1d RA3e "Song-end lane closed" holds the evidence. Hear each in the round's output before
-  acceptance; 677 may change with the song-continues fix.
+  acceptance. 677 is not a song end: it is the same song as § 678 (adjacent same-song work).
+  Added 11-09 (operator): 336327 (ends halfway through the last verse: steady-music singing reads as
+  talking on the voice track), 1897 (keeps "Well let's turn to"), 672 and 336013 (voice removal
+  leaves the talking audible under the music).
 
 - **11-05/06 residual media leads:** 1307 §4665's faded song end; 1215 §2643's lyric disagreement
   at source 1980–2025 s; 1006's source black interval and its presentation consequence; 1059's

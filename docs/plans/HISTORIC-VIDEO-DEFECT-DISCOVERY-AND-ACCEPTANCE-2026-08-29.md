@@ -157,6 +157,16 @@ and specific operator rulings.
    parallel suite and Dusk for browser behaviour. Rebind captures after newly gathered edge evidence;
    keep a fixture's expected output separate from its listening ruling. Review conflicting changes
    under Q13 and E27. No processing tests run in the round clone.
+   **Speed the ruled-endings set once the processing logic stops changing (operator 11-09).** It
+   is about a third of the suite's test time: about 1,060 s of 3,069 s on 11-09. Each case rebuilds
+   its run from a gzipped capture and re-plans it, and a run with several rulings is rebuilt once
+   per entry. Candidates: rebuild once per capture, cache decoded fixtures per process, retire
+   superseded entries. Time each case before choosing. Measured 11-09:
+   - The suite was capped at 4 workers by `ParallelTestingProcessLimiter` and is now capped at 8
+     (`a74cb355a`): 13:28 → 8:21–11:01.
+   - Beyond the worker count, the limit is the project folder shared from the Mac (gRPC FUSE),
+     not CPU or MySQL. Test storage in `/tmp` (22 failures: commands build `storage/` paths
+     themselves) and CLI opcache (no gain) were tried and dropped.
 6. **Freeze and execute only through the runbook.** Fresh membership, revision/worker checks,
    storage headroom, backups and pause/resume preflight; representative encoded transitions and
    internal joins before expansion. At close, verify actual destination generations with hashes,
@@ -1134,6 +1144,9 @@ tests green.
              is too late: separate from this lane).
            - Corpus: under_speech fade < 2 s = 18 of 49. Without them v2 moves 88.
            - Open: 336327 (verse over steady music reads as talk on the voice track), and 1897.
+             **Recorded as named misses 11-09 (operator), with 672 and 336013** (voice removal
+             leaves the talking audible under the music). Cut as the current rules leave them;
+             audit "Named residue".
          - **Round 3 (11-09, 13 fresh under_speech, `versions.json`; round 2's map kept as
            `versions-r2.json`): the 2 s fade line does not hold.**
            - Above 2 s (6): 2399 new; 2274, 2595, 2540 either; 3107 (2.6 s) and 3127 (2.1 s)
@@ -1154,6 +1167,46 @@ tests green.
            the scorer's 65 less 3895, whose music after the cut is just under 0.3 (the scorer
            rounded it to 0.3). Not built: under_speech endings; 336327; the voice removal leaving
            talking audible (672, 336013).
+       - **Lyric-ended tail exemption re-measured 11-09 (read-only, nothing built;
+         `storage/scratch/tail-exemption-20261109/`, guarded like `probe.php`, E30 laid over from
+         `song-continues-20261109/corpus/`).** 1,174 historic song sections planned, no errors.
+         - The trailing hold fires on 104 planned cuts (122 on stored bounds): 94 of the 11-07 130
+           plus 10 new. The rule (last tail content cue is the song's own lyric, ≤ 12 s, no content
+           words after it) releases 35: 30 of 58 sung, 2 of 22 sung-then-spoken (2351, 2762: the
+           speech is already after the cut), 1 spoken (3427) and 2 new (637, 176225).
+         - **Today's planned cuts are the 11-07 cuts for all 35.** The fade-cut onset, RA3e outro
+           and E30 move a cut only once the edge step banks agreed words, DTW and stems, and none
+           of the 35 has them. So the 9 released "cut short" rulings (796, 1572, 1814, 2819,
+           175597, 3282, 3886, 4623, plus 3103 continues) are still cut short here; the exemption
+           would publish them without a hold. A re-measure on round cuts needs the edge step's
+           evidence for these sections first.
+         - **New false release: 3427.** The hymn is Psalm 148 and the reader then reads Psalm 148,
+           so the reading's "Praise the Lord from the heavens" (273.9, inside the fade) matches the
+           song's own lyrics. A lyric match cannot tell a psalm hymn from its psalm reading.
+         - Only 336237 is ruled right among the released.
+         - **Edge step run on the 91 runs behind the 104 holds (11-09, operator go;
+           `storage/scratch/edge-step-20261109/`).** 91 prepared, 0 failed: 3,336 tail windows,
+           544 fade-cut windows, 136 stem separations; 1 h 46 min on 4 processes (GPU-bound, runbook
+           updated). It moves 151 of 1,175 planned song ends.
+         - **Re-measure on round cuts** (`scored-after-edge.txt`; pre-edge results in `pre-edge/`):
+           101 held (91 of the 130, 10 new). The rule releases 24: 18 sung, 3 sung-then-spoken
+           (837, 1927, 3795: their cuts moved 1–15 s earlier, before the speech), 1 spoken (3427),
+           2 new. Known wrong among them: 3427 (psalm reading), and 1814, 3282, 3886, still ruled
+           cut short (the edge evidence did not move 3282 or 3886; 1814 moved 1 s earlier). 175597
+           is a named miss ("That's fine." has no content words, so the rule cannot see it). 2819
+           releases with "Let's pray" in the transcript, but under voice removal (below). Ruled
+           right: 336237 only; 17 unruled.
+         - **The hold reads speech that voice removal has taken out.** 9 held cuts end
+           `under_speech` with voice removal (796, 936, 2404, 216616, 2762, 2819, 3811, 4333, 4623).
+           The trailing check measures transcript to the end of the fade, so the removed talking
+           counts as trailing content; 8 of the 9 are held for words that the output does not
+           carry. The check should judge the audible output: to the speech onset where the voice is
+           removed after it. That is a precision fix to the hold itself, separate from the
+           exemption, and it needs listening to confirm the removed talking is inaudible
+           (672/336013 say it sometimes is not).
+         - **Verdict:** the exemption as specified is not safe alone (4 known-wrong releases of 7
+           ruled or known). Next: the audible-tail fix to the hold, then a listening page of the
+           unruled releases before any build.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates
@@ -1258,10 +1311,11 @@ question rather than opening another whole-corpus discovery or processing round.
 
 ### 4.1e Speaker identification before the next run (proposed 2026-11-08)
 
-**Status: planning only.** The operator asked to consider fixing and resuming speaker identification
-before the next processing run, then to record the proposal here; implementation, dependency changes,
-re-enrolment, inference and re-enabling have not been authorised. P3 and the historic speaker-off
-preflight/watch remain in force. Weekly resumption still waits for historic completion under G5/R8.
+**Status: go given 11-09 (operator: "We're going to do it"), not started.** The operator asked on
+11-08 to consider fixing and resuming speaker identification before the next processing run. On 11-09
+they authorised doing it as this section proposes: implementation, dependency changes, re-enrolment and
+inference. Automatic assignment still needs the separately agreed adoption decision in the target below.
+P3 and the historic speaker-off preflight/watch stay in force until that work replaces them. Weekly resumption still waits for historic completion under G5/R8.
 
 **Target:** useful ranked speaker proposals for confirmation before the next run, followed by
 automatic assignment only if measured accuracy supports a separately agreed adoption decision.

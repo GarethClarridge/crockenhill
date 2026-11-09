@@ -256,7 +256,11 @@ Every dispatch is a dry run without `--execute` and is bounded by `--max`.
   first: evidence is keyed by window, model and signature, so it carries into the round only while those hold,
   and pre-freeze work that moves an edge (RA3, K20, K21, E27) needs that window decoded again. It decodes on
   host Whisper and asks the structure model (K16 and the sentence check). It never changes a run's status or
-  cuts, so a run that fails it stays as it was. Measured 11-07 on the 42: about 21 s a run, almost all of
+  cuts, so a run that fails it stays as it was. **Since RA3 v5/RA3e (11-07/08) it also decodes 8 song-tail
+  windows per song on the aligned server (:2025) and separates stems at fade cuts: measured 11-09 on 91 runs,
+  140–370 s a run and about 0.85 runs a minute across 4 processes (the one aligned server is the limit: the
+  M1 Max GPU reads 98–100 % busy while CPU and containers idle, so a second server on this Mac only splits
+  the same GPU), so roughly 8 hours for 400 runs. Plan the round's first stage for that.** Measured 11-07 on the 42: about 21 s a run, almost all of
   it the K16 and sentence-check model calls (the v16 decodes were mostly banked already). Runs are independent,
   so 3–4 processes over disjoint run lists are worthwhile; the host Whisper server decodes one window at a
   time, so more processes than that gain nothing on runs that need decodes. Pass run IDs as separate
