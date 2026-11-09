@@ -136,7 +136,7 @@ class PrepareOutputEdgeEvidence
 
     /**
      * Where each song end fades into speech, as the rules before {@see SongEndSpeechOnset} place it:
-     * a cut it already moved is decoded at the cut it replaced, so its windows stay the same.
+     * a cut it or the voice track already moved is decoded at the cut it replaced, so its windows stay the same.
      *
      * @param  list<array<string, mixed>>  $audit
      * @return list<float>
@@ -149,7 +149,7 @@ class PrepareOutputEdgeEvidence
             if ($entry['edge'] !== 'end') {
                 continue;
             }
-            $decision = ($entry['reason'] ?? null) === SongEndSpeechOnset::REASON ? $entry['replaced'] : $entry;
+            $decision = CueSafeExtractionPlan::cutBeforeTheMove($entry);
             if (in_array($decision['reason'] ?? null, ['song_end_speech', CueSafeExtractionPlan::SONG_END_FADE], true)) {
                 $cuts[] = (float) $decision['time'];
             }

@@ -225,6 +225,16 @@ class CueSafeExtractionPlan
     public const SONG_END_SPEECH_OVER_MUSIC = 'song_end_speech_over_music';
 
     /**
+     * The audit reason for a song faded into speech no decodes agree on, whose outro the separated
+     * voice track finds dying away before the talking ({@see SongEndOutro::endingFromTheVoiceTrack()}).
+     * Like {@see SongEndSpeechOnset::REASON}, it keeps the cut it replaced.
+     */
+    public const SONG_END_VOICE_TRACK_TALKING = 'song_end_voice_track_talking';
+
+    /** The reasons that move a song's end past a cut while the next item keeps that cut ({@see self::cutBeforeTheMove()}). */
+    private const SONG_END_PAST_THE_CUT = [SongEndSpeechOnset::REASON, self::SONG_END_VOICE_TRACK_TALKING];
+
+    /**
      * The audit reason for a cut widened over speech recovery left without words (F11): it goes
      * into both outputs bordering it (operator, 2026-10-06), since no edge rule can place it.
      */
@@ -1005,8 +1015,8 @@ class CueSafeExtractionPlan
             $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log));
             // The song keeps its last note up to the agreed speech, but agreement can miss the
             // speech's first word (796's "Would you"), so the next item still starts at the cut before it.
-            if (($decision['reason'] ?? null) === SongEndSpeechOnset::REASON) {
-                $decision = [...$decision, ...$decision['replaced']];
+            if ($decision !== null) {
+                $decision = self::cutBeforeTheMove($decision);
             }
 
             if (! in_array($decision['reason'] ?? null, ['song_end_silence', 'song_end_speech', self::SONG_END_FADE, self::SONG_END_SPEECH_OVER_MUSIC], true)) {
@@ -2519,6 +2529,19 @@ class CueSafeExtractionPlan
     }
 
     /**
+     * A song end as the cut it replaced, where a rule moved it past that cut: the next item still
+     * starts at the cut (E27), and the cut's evidence is prepared there, so its decodes and stems stay
+     * the same ({@see PrepareOutputEdgeEvidence}).
+     *
+     * @param  array<string, mixed>  $entry
+     * @return array<string, mixed>
+     */
+    public static function cutBeforeTheMove(array $entry): array
+    {
+        return in_array($entry['reason'] ?? null, self::SONG_END_PAST_THE_CUT, true) ? [...$entry, ...$entry['replaced']] : $entry;
+    }
+
+    /**
      * A song faded into speech keeps everything up to the speech's first word (operator, 11-07):
      * the edge decode stretches that word back over the outro's last note, so the cut before it
      * fades the note out. Overlapping aligned decodes on the cut place the speech ({@see SongEndSpeechOnset}).
@@ -2527,6 +2550,10 @@ class CueSafeExtractionPlan
      * ({@see SongEndOutro}, E29): at a silence before the talking, or, with talking over the outro,
      * when the outro has died away, the talking taken out and the sound faded from the last sung word.
      * Without them, the song ends just before the speech, fading from the last sung sound (E7).
+     *
+     * With no speech agreed, the song may still carry on past the cut (1780, heard 11-09): while the
+     * music plays just after the cut, the voice track finds the talking, and an outro that dies
+     * before it ends the song there ({@see SongEndOutro::endingFromTheVoiceTrack()}).
      *
      * @param  array<string, mixed>|null  $decision
      * @return array<string, mixed>|null
@@ -2540,7 +2567,7 @@ class CueSafeExtractionPlan
         $onset = app(SongEndSpeechOnset::class)->onset($log, $decision['time'], $timeline);
 
         if ($onset === null) {
-            return $decision;
+            return $this->beforeVoiceTrackTalking($log, $decision, $timeline);
         }
         $replaced = ['reason' => SongEndSpeechOnset::REASON, 'replaced' => ['time' => $decision['time'], 'reason' => $decision['reason']], 'speech_onset' => $onset];
         $stems = app(SongEndStems::class)->read($log, $decision['time']);
@@ -2551,6 +2578,22 @@ class CueSafeExtractionPlan
         $later = $onset - SongEndSpeechOnset::LEAD;
 
         return [...$decision, 'time' => $later, ...$replaced, 'fade_out' => $this->fadeOut($later, $decision['last_sound'])];
+    }
+
+    /**
+     * @param  array<string, mixed>  $decision
+     * @return array<string, mixed>
+     */
+    private function beforeVoiceTrackTalking(MediaProcessingLog $log, array $decision, ?AudioTimeline $timeline): array
+    {
+        if ($timeline === null || ! app(SongEndSpeechOnset::class)->musicPlaysAfter($decision['time'], $timeline)) {
+            return $decision;
+        }
+        $stems = app(SongEndStems::class)->read($log, $decision['time']);
+        $ending = $stems === null ? null : app(SongEndOutro::class)->endingFromTheVoiceTrack($stems, $decision['time']);
+
+        return $ending === null ? $decision : [...$decision, ...$ending, 'reason' => self::SONG_END_VOICE_TRACK_TALKING,
+            'replaced' => ['time' => $decision['time'], 'reason' => $decision['reason']]];
     }
 
     /**

@@ -1040,13 +1040,78 @@ class SongEndEdgesTest extends TestCase
         $this->assertSame('song_end_speech', $this->endEdge($plan)['reason']);
     }
 
-    /** 1250 §4911's outro into the prayer (as in a_song_runs_on_through_its_outro_until_someone_starts_talking). */
-    private function outroIntoPrayer(): ServiceSection
+    /**
+     * 1088 §1780 (heard 11-09): no speech is agreed after the cut, but the song carries on past it. The
+     * banked voice track finds the talking, and the outro that dies before it ends the song at that
+     * silence. The next item still starts at the old cut.
+     */
+    #[Test]
+    public function a_song_with_no_agreed_speech_ends_at_the_silence_its_voice_track_finds(): void
+    {
+        $section = $this->outroIntoPrayer();
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankStems($section, $cut, voice: [[-8, 1.5, -24.0], [1.5, 8.5, -98.0], [8.5, 16, -35.0]],
+            instruments: [[-8, 4.3, -30.0], [4.3, 16, -60.0]]);
+        $prayer = ServiceSection::factory()->create(['media_processing_log_id' => $section->media_processing_log_id,
+            'section_type' => ServiceSectionType::Prayer, 'start_time' => 4475.48, 'end_time' => 4600.0]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta($cut + 4.3, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame(CueSafeExtractionPlan::SONG_END_VOICE_TRACK_TALKING, $this->endEdge($plan)['reason']);
+        $this->assertSame('song_end_speech', $this->endEdge($plan)['replaced']['reason']);
+        $this->assertSame(SongEndOutro::SILENCE, $this->endEdge($plan)['song_end_outro']);
+        $this->assertEqualsWithDelta(0.1, $plan['audio_fade_out'], 0.001);
+        $this->assertEqualsWithDelta($cut, app(CueSafeExtractionPlan::class)->forSection($prayer->fresh())['segments'][0]['start_time'], 0.001);
+    }
+
+    /**
+     * Heard 11-09: with no agreed speech, an outro the voice track finds running under the talking
+     * was preferred to today's cut no more often than not, so the cut stands.
+     */
+    #[Test]
+    public function a_song_with_no_agreed_speech_whose_outro_runs_under_the_talking_keeps_its_cut(): void
+    {
+        $section = $this->outroIntoPrayer();
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankStems($section, $cut, voice: [[-8, 0.2, -24.0], [0.2, 1.4, -70.0], [1.4, 16, -40.0]],
+            instruments: [[-8, 2.0, -20.0], [2.0, 4.5, -33.0], [4.5, 16, -62.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta($cut, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame('song_end_speech', $this->endEdge($plan)['reason']);
+    }
+
+    /**
+     * 175130, 3598 (heard 11-09): where the music has already stopped just after the cut, the voice
+     * after it is the speech, not the song carrying on: the cut stands, as {@see SongEndSpeechOnset} has it.
+     */
+    #[Test]
+    public function a_song_with_no_agreed_speech_whose_music_has_stopped_at_the_cut_keeps_its_cut(): void
+    {
+        $section = $this->outroIntoPrayer(timeline: [[4300, 4495, 0.8, 0.01], [4495, 4510, 0.01, 0.88]]);
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankStems($section, $cut, voice: [[-8, 1.5, -24.0], [1.5, 8.5, -98.0], [8.5, 16, -35.0]],
+            instruments: [[-8, 4.3, -30.0], [4.3, 16, -60.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta($cut, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertNotSame(CueSafeExtractionPlan::SONG_END_VOICE_TRACK_TALKING, $this->endEdge($plan)['reason']);
+    }
+
+    /**
+     * 1250 §4911's outro into the prayer (as in a_song_runs_on_through_its_outro_until_someone_starts_talking).
+     *
+     * @param  list<array{0: float|int, 1: float|int, 2: float, 3: float}>  $timeline
+     */
+    private function outroIntoPrayer(array $timeline = [[4300, 4495, 0.8, 0.01], [4495, 4500, 0.55, 0.82], [4500, 4510, 0.01, 0.88]]): ServiceSection
     {
         $last = ['start' => 4469.04, 'end' => 4475.48, 'text' => 'Glory to you, there is no greater thing'];
         $prayer = ['start' => 4475.48, 'end' => 4498.26, 'text' => 'Lord God, we thank you for fellowship with one another.'];
         $section = $this->song(4300.0, 4475.48, [$last, $prayer], [[4300, 4495.9, self::LOUD], [4495.9, 4510, -25.0]],
-            timeline: [[4300, 4495, 0.8, 0.01], [4495, 4500, 0.55, 0.82], [4500, 4510, 0.01, 0.88]]);
+            timeline: $timeline);
         $this->bank($section, 4475.48, [
             ['start' => 4473.75, 'end' => 4475.18, 'word' => ' greater'],
             ['start' => 4475.18, 'end' => 4476.26, 'word' => ' thing.'],

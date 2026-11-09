@@ -119,13 +119,22 @@ class SongEndSpeechOnset
     }
 
     /**
+     * Whether the music still plays just after the cut: where it has stopped, the planner cut between
+     * two spoken sentences and the song has nothing left to keep (1508, 175130, 3598).
+     */
+    public function musicPlaysAfter(float $cut, AudioTimeline $timeline): bool
+    {
+        $window = $timeline->windowAt($cut + self::MUSIC_AT);
+
+        return $window !== null && $timeline->windows[$window]['music'] >= self::MUSIC;
+    }
+
+    /**
      * @param  array<string, list<array{start: float, end: float, word: string, aligned_end?: float}>>  $words  Each window's decoder tokens, by window name; aligned tokens are timed by their aligned ends
      */
     public function onsetFrom(array $words, float $cut, AudioTimeline $timeline, ?float $duration = 5000.0): ?float
     {
-        $window = $timeline->windowAt($cut + self::MUSIC_AT);
-
-        if ($window === null || $timeline->windows[$window]['music'] < self::MUSIC) {
+        if (! $this->musicPlaysAfter($cut, $timeline)) {
             return null;
         }
 

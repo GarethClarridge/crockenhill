@@ -337,6 +337,91 @@ class SongEndOutroTest extends TestCase
     }
 
     /**
+     * 1088 §1780 (heard 11-09): no speech is agreed after the cut, but the song carries on, singing to
+     * +1.5 s and an outro dying away at +4.3 s; the talking is +8.5 s. The voice track finds the
+     * talking where the voice comes back after a pause, and the song ends at the silence before it.
+     */
+    #[Test]
+    public function a_song_with_no_agreed_speech_ends_at_the_silence_before_the_talking_the_voice_track_finds(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, 1.5, -24.0], [1.5, 8.5, -98.0], [8.5, 16, -35.0]],
+            instruments: [[-8, 4.3, -30.0], [4.3, 16, -60.0]],
+        );
+
+        $ending = (new SongEndOutro)->endingFromTheVoiceTrack($stems, self::CUT);
+
+        $this->assertNotNull($ending);
+        $this->assertSame(SongEndOutro::SILENCE, $ending['song_end_outro']);
+        $this->assertEqualsWithDelta(self::CUT + 8.5, $ending['speech'], 0.001);
+        $this->assertEqualsWithDelta(self::CUT + 4.3, $ending['time'], 0.001);
+        $this->assertEqualsWithDelta(0.1, $ending['fade_out'], 0.001);
+    }
+
+    /**
+     * 1365 §4562 (heard 11-09: "should be about 58:43"): a note held past the cut, the instruments
+     * quietened under it. Read from the cut, the outro "died" at +1.0 s; it is read from the last sung
+     * word, so the song never ends before its singing.
+     */
+    #[Test]
+    public function a_song_with_no_agreed_speech_never_ends_before_its_last_sung_word(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, 4.0, -24.0], [4.0, 10, -98.0], [10, 16, -35.0]],
+            instruments: [[-8, 1.0, -20.0], [1.0, 4.7, -42.0], [4.7, 16, -65.0]],
+        );
+
+        $ending = (new SongEndOutro)->endingFromTheVoiceTrack($stems, self::CUT);
+
+        $this->assertNotNull($ending);
+        $this->assertSame(SongEndOutro::SILENCE, $ending['song_end_outro']);
+        $this->assertEqualsWithDelta(self::CUT + 4.7, $ending['time'], 0.001);
+    }
+
+    /**
+     * Heard 11-09 (27 endings in three rounds): where the talking the voice track finds starts under
+     * the music, the new ending was preferred 6 times and today's cut 8, and nothing measured told them
+     * apart. The cut before the speech stands.
+     */
+    #[Test]
+    public function a_song_with_no_agreed_speech_whose_outro_runs_under_the_talking_keeps_its_cut(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, 0.2, -24.0], [0.2, 1.4, -70.0], [1.4, 16, -40.0]],
+            instruments: [[-8, 2.0, -20.0], [2.0, 4.5, -33.0], [4.5, 16, -62.0]],
+        );
+
+        $this->assertNull((new SongEndOutro)->endingFromTheVoiceTrack($stems, self::CUT));
+    }
+
+    /** With no voice coming back after the cut, there is no talking to end before. */
+    #[Test]
+    public function a_song_with_no_agreed_speech_and_no_talking_on_the_voice_track_keeps_its_cut(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, 1.5, -24.0], [1.5, 16, -98.0]],
+            instruments: [[-8, 4.3, -30.0], [4.3, 16, -60.0]],
+        );
+
+        $this->assertNull((new SongEndOutro)->endingFromTheVoiceTrack($stems, self::CUT));
+    }
+
+    /** A breath after the singing (voice for 0.1 s) is not the talking: the talking is the voice held after it. */
+    #[Test]
+    public function a_breath_after_the_singing_is_not_the_talking_the_voice_track_finds(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, 1.5, -24.0], [1.5, 3.0, -98.0], [3.0, 3.1, -30.0], [3.1, 8.5, -98.0], [8.5, 16, -35.0]],
+            instruments: [[-8, 4.3, -30.0], [4.3, 16, -60.0]],
+        );
+
+        $ending = (new SongEndOutro)->endingFromTheVoiceTrack($stems, self::CUT);
+
+        $this->assertNotNull($ending);
+        $this->assertEqualsWithDelta(self::CUT + 8.5, $ending['speech'], 0.001);
+    }
+
+    /**
      * Frames every 0.1 s from the cut − 8 s to the cut + 16 s, each span at one level.
      *
      * @param  list<array{0: float|int, 1: float|int, 2: float}>  $voice

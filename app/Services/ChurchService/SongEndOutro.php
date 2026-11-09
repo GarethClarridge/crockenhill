@@ -55,6 +55,9 @@ class SongEndOutro
     /** Voice this long, not a click or a breath (828's 0.1 s blip before the talking). */
     private const VOICED_SECONDS = 0.2;
 
+    /** Talking found on the voice track alone is voice held this long (a breath is shorter). */
+    private const TALKING_HELD = 0.3;
+
     /** A sung phrase lasts at least this long... */
     private const SUNG_PHRASE_SECONDS = 0.5;
 
@@ -148,6 +151,61 @@ class SongEndOutro
 
         return ['time' => $end, 'fade_out' => round(max(self::CLICK, $end - $fadeFrom), 3), 'song_end_outro' => self::UNDER_SPEECH, ...$found,
             'voice_removal' => $removal];
+    }
+
+    /**
+     * How a song ends where no speech is agreed after its cut, but the song may carry on past it
+     * (1780, heard 11-09). The talking is where the voice comes back, held, after a pause following the
+     * cut; the outro is read from the later of the cut and the last sung word, so the song never ends
+     * before its singing (4562). Only an outro that dies before that talking, at a silence or where the
+     * recording cuts out, ends the song: under the talking, the new ending was preferred 6 times and the
+     * cut 8 in 27 heard, with nothing measured to tell them apart (three rounds, 11-09), so the cut stands.
+     *
+     * @param  array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>, instruments: array{disk: string, path: string}}  $stems
+     * @return array{time: float, fade_out: float, song_end_outro: string, speech: float, last_sung: float, outro_end: float, noise?: float, voice_removal?: array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}}|null
+     */
+    public function endingFromTheVoiceTrack(array $stems, float $cut): ?array
+    {
+        $talking = $this->talkingAfter($stems, $cut);
+        if ($talking === null) {
+            return null;
+        }
+        $ending = $this->ending($stems, $talking, max($cut, $this->voice($stems, $talking)['last_sung']));
+
+        return in_array($ending['song_end_outro'] ?? null, [self::SILENCE, self::RECORDING_CUT], true) ? $ending : null;
+    }
+
+    /**
+     * Where the voice comes back after the cut: held for {@see self::TALKING_HELD} s after at least
+     * {@see self::PAUSE_SECONDS} s of quiet, judged against the singing's level before the cut.
+     *
+     * @param  array{start: float, frame_seconds: float, voice_db: list<float>}  $stems
+     */
+    private function talkingAfter(array $stems, float $cut): ?float
+    {
+        $voice = $stems['voice_db'];
+        $step = $stems['frame_seconds'];
+        $first = max(0, min(count($voice), (int) floor(($cut - $stems['start']) / $step)));
+        $singing = array_slice($voice, 0, $first);
+        sort($singing);
+        $level = $singing === [] ? self::VOICE_QUIET_DB : $singing[(int) floor(0.9 * (count($singing) - 1))];
+        $active = static fn (float $db): bool => $db > $level - self::VOICE_QUIET_BELOW && $db > self::VOICE_QUIET_DB;
+        $pause = (int) round(self::PAUSE_SECONDS / $step);
+        $held = (int) round(self::TALKING_HELD / $step);
+        $quiet = 0;
+        for ($index = $first; $index + $held <= count($voice); $index++) {
+            if (! $active($voice[$index])) {
+                $quiet++;
+
+                continue;
+            }
+            if ($quiet >= $pause && array_all(array_slice($voice, $index, $held), $active)) {
+                return round($stems['start'] + $index * $step, 3);
+            }
+            $quiet = 0;
+        }
+
+        return null;
     }
 
     /**

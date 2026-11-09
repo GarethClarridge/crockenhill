@@ -1078,6 +1078,82 @@ tests green.
            tail exemption, the planner missing speech inside the section, music under a prayer
            (underscoring) and the lyric protection check. 3234 and 4451 (speech straight after the
            last sung word) are accepted imperfections (11-08).
+       - **The song carrying on past the cut (11-09, read-only so far;
+         `storage/scratch/song-continues-20261109/`).** The 11-07 "song continues" notes were
+         re-read against where each clip stopped and against today's planned cut (guarded probe,
+         `probe.php`: read-only disks, autocommit off, savepoint, no staging context):
+         - 961 (heard to ≥ 1127.3, the clip end) now ends at 1133.72 before "do please sit down";
+           3427 (≥ 267.5, clip end) now ends at 274.07. Inclusive widening moved both; neither is
+           listened to yet. 3427's fade still holds the reader's "Psalm 148" (272.2–273.9, the
+           cue opens at 261.5), and reading § 3428 still starts at 261.5, inside the song.
+         - 1915: the operator's 36:01 was the clip end. Separated, the outro ends 2159.0, digital
+           silence to 2171.5, so today's `song_end_silence` 2159.46 is right.
+         - 3103: today 1998.14 (`song_end_speech`); with stems banked the outro rule ends it at the
+           silence +2.5 (2000.6), matching "33:20". Arrives with the edge step.
+         - 677: not an ending. The doxology is § 678, the same title, starting at 677's end with no
+           gap; both already hold `adjacent_same_song`, and run 945 is a stopped run with its own
+           route. Owned by the adjacent same-song merge work above.
+         - **1780 is a real class.** The cut (810.98) sits on a zero-length garbage cue ("Savaş 2")
+           after a hallucinated "Thank you." (791–810.98). The aligned decodes agree on sung words
+           after the cut; separated, singing runs to +1.5, the outro to +4.3, digital silence to
+           +8.5, then speech. `beforeAgreedSpeech()` asks `SongEndOutro` only after an agreed speech
+           onset, and 1780 has none (the 815 window reads music 0.53), so the old cut stands.
+         - Screen: 338 of 576 fade cuts have no agreed onset. 17 of them have words agreed across
+           windows after the cut with the cut in music; separated, 5 continue (1780; 4634 sings to
+           +3.5; 3539 keeps a −30 dB outro to the speech at +3.5; 4562 holds a note to +3; 336327
+           runs on about 11 s), 2 are fine (806: the next song starts at the cut; 1094), 1 unclear
+           (2581). The word screen cannot see a wordless outro, so all 338 are being separated
+           (`corpus/`) to measure the class before any rule.
+         - **Candidate (`eval.php`):** with no agreed onset, the talking = the first voice return
+           after a quiet ≥ 0.3 s following the cut; then `SongEndOutro::ending()` unchanged. It moves
+           224 of 338 (174 later, median +2.25 s; 50 earlier) and moves 24 ruled ends by ≥ 1 s,
+           about 12 of them ruled keep. Narrowing to a last sung word ≥ +0.5 s still moves 4–5 of
+           its 6 ruled ends, and 50 endings would end before their own last sung word. Not
+           rejected (operator 11-09: "accepted cuts aren't necessarily perfect"): page
+           https://claude.ai/artifact/Pwm6ZoAdDRKbyeqMkPe7Xa (`rulings`, ids `<run>-s<section>`,
+           `versions.json` maps Version 1/2 to current/new): the 24 ruled moves, 1780/4634/3539/
+           4562/336327 plus 2771 (talking at the cut), and 8 fresh moves. Round 1: 17 answered
+           (`versions-v1.json`).
+         - **Guarded v2 (`eval2.php`):** two guards. (1) Speech at the cut: the classifier window at
+           cut + 0.5 s reads music < 0.3 (or none), so the cut stands. This is the onset rule's own
+           guard (175130, 3598). (2) The outro is measured from max(cut, last sung word), so it never
+           ends before its singing (4562). v2 moves 106 of 338 (86 later, 20 earlier). Kinds: 161
+           speech_at_cut, 39 no_ending, 24 no talking seen; silence 60, under_speech 49,
+           recording_cut 5. Round 2 (same page, `versions.json`) asked 15: 7 ruled moves, 8 fresh.
+         - **Answers 11-09 (32), scored against v2:**
+           - *silence* (outro dies before the talking): 4 new (1780, 2702, 3539, 163060), 5 either,
+             4562 neither on the v1 clip ("about 58:43"; v2 ends 58:43.8). None current.
+           - *recording_cut*: 1462 either.
+           - *under_speech* with a fade ≥ 2 s: 3 new (3515, 4634, 165462), 5 either, and 336327
+             neither (singing read as talking; "halfway through the last verse"). None current.
+           - *under_speech* with a fade < 2 s (talking starts as the singing stops, so the new end
+             is near a hard cut at the speech): 4 current (1521, 2806, 175905, 216555), 3754
+             either. None new.
+           - Unmoved by v2: 175130, 3598, 3661 current (the guards hold them); 3350, 3642, 4874
+             either; 1897 neither (both cuts keep "Well let's turn to", a speech_at_cut cut that
+             is too late: separate from this lane).
+           - Corpus: under_speech fade < 2 s = 18 of 49. Without them v2 moves 88.
+           - Open: 336327 (verse over steady music reads as talk on the voice track), and 1897.
+         - **Round 3 (11-09, 13 fresh under_speech, `versions.json`; round 2's map kept as
+           `versions-r2.json`): the 2 s fade line does not hold.**
+           - Above 2 s (6): 2399 new; 2274, 2595, 2540 either; 3107 (2.6 s) and 3127 (2.1 s)
+             current.
+           - Below 2 s (7): 2897 and 2707 current; 3374, 175829, 1674 either. 672 and 336013
+             neither, though the new one is better: "the spoken 'We have heard a joyful sound' is
+             audible", "still has quite a bit of speech noise". The voice removal leaves the talking
+             audible under the music.
+           - All 27 under_speech answers: 8 current, 6 new (counting 672/336013), 12 either, 336327
+             neither. No measured feature (fade, last sung, speech, voiced at cut, music after,
+             noise) separates the 8. The silence and recording-cut endings stay 14 answers with
+             none current.
+         - **Built 11-09 (E30):** `SongEndOutro::endingFromTheVoiceTrack()`, asked by
+           `CueSafeExtractionPlan::beforeAgreedSpeech()` when no onset is agreed and
+           `SongEndSpeechOnset::musicPlaysAfter()` holds. It keeps only silence and recording-cut
+           endings. Reason `song_end_voice_track_talking` keeps the replaced cut for the next item
+           and for evidence preparation. Checked over the corpus (`check-app.php`): it moves 64,
+           the scorer's 65 less 3895, whose music after the cut is just under 0.3 (the scorer
+           rounded it to 0.3). Not built: under_speech endings; 336327; the voice removal leaving
+           talking audible (672, 336013).
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates
