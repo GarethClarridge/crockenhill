@@ -14,8 +14,18 @@ class ParallelTestingProcessLimiterTest extends TestCase
     public function it_adds_a_default_process_limit_for_parallel_test_runs(): void
     {
         $this->assertSame(
+            ['artisan', 'test', '--parallel', '--processes=8'],
+            ParallelTestingProcessLimiter::apply(['artisan', 'test', '--parallel'], cores: 10)
+        );
+    }
+
+    /** CI's runners have 4 vCPUs: more workers than cores only contend. */
+    #[Test]
+    public function it_runs_no_more_processes_than_there_are_cores(): void
+    {
+        $this->assertSame(
             ['artisan', 'test', '--parallel', '--processes=4'],
-            ParallelTestingProcessLimiter::apply(['artisan', 'test', '--parallel'])
+            ParallelTestingProcessLimiter::apply(['artisan', 'test', '--parallel'], cores: 4)
         );
     }
 
@@ -23,8 +33,8 @@ class ParallelTestingProcessLimiterTest extends TestCase
     public function it_supports_the_short_parallel_flag(): void
     {
         $this->assertSame(
-            ['artisan', 'test', '-p', '--processes=4'],
-            ParallelTestingProcessLimiter::apply(['artisan', 'test', '-p'])
+            ['artisan', 'test', '-p', '--processes=8'],
+            ParallelTestingProcessLimiter::apply(['artisan', 'test', '-p'], cores: 10)
         );
     }
 
