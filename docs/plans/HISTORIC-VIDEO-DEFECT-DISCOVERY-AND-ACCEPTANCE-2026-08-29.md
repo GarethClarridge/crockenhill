@@ -1061,6 +1061,23 @@ tests green.
                removal fixed: 57 endings have one, mostly the breath before the talking, including
                907 and 2858. Rejected.
          - 3234, underscoring, and the lyric protection check.
+       - **Song-end lane closed 11-09 (operator: "record the six misses").** No more one-ending
+         rules. These six stay as they are now cut, as named misses (audit "Named residue"):
+         - 2922: still too long (heard end about cut + 0.4; now E 4.8). The accompaniment is
+           nearly inaudible, so the outro level means nothing; 3 of 235 endings are like this,
+           and one of them (2819) is ruled right. Not a class.
+         - 173622: the first breath (−0.3) is left. It is mostly in the voice track; removal takes
+           that part out, leaving +8 dB in the instrument track over a −54 dB outro.
+         - 752: "neither really deals with the problem" (noise rule 1.7 → 0.8).
+         - 1340: a whole line of speech is left in both versions (3.2 → 2.9).
+         - 175597: the spoken word is as loud in the instrument track as in the voice track
+           (−41 against −42 dB), so voice removal cannot take it out.
+         - 677: "this is not actually the end of this song". This belongs to the song carrying on
+           past the cut (961/1915/3103), which RA3 step (a) takes next, not to the ending rules.
+         - Still open and owned by RA3 below: the song carrying on past the cut, the lyric-ended
+           tail exemption, the planner missing speech inside the section, music under a prayer
+           (underscoring) and the lyric protection check. 3234 and 4451 (speech straight after the
+           last sung word) are accepted imperfections (11-08).
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates

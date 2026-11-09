@@ -528,6 +528,11 @@ section identity through re-detection; an old section ID may now name different 
   1147's prayer-request discussion until adjudicated against current artifacts. Media uncertainties
   on 991/1280/1283/1323 and 1199 remain unresolved by text agreement. The frozen findings JSON,
   not this abbreviated list, is the exhaustive ledger.
+- **Song-end misses (closed lane 11-09):** 2922 (too long), 173622 (first breath left),
+  752 (unresolved), 1340 (a line of speech left), 175597 (a spoken word that voice separation
+  cannot remove) and 677 (not the song's end). They are cut as the current rules leave them; the video
+  plan §4.1d RA3e "Song-end lane closed" holds the evidence. Hear each in the round's output before
+  acceptance; 677 may change with the song-continues fix.
 
 - **11-05/06 residual media leads:** 1307 §4665's faded song end; 1215 §2643's lyric disagreement
   at source 1980–2025 s; 1006's source black interval and its presentation consequence; 1059's
