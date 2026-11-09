@@ -22,6 +22,8 @@ namespace App\Services\ChurchService;
  *   that trace would be heard through the fade, even if the outro plays on (3926, 3811, 2331).
  * - Ending at a silence, any voice left after the last sung word (a breath, a murmur) is taken out
  *   the same way (2858, 3586, 907).
+ * - A sudden noise breaking into the dying outro (a breath into the microphone, a knock) lands in
+ *   the instrument track, which taking the voice out cannot touch: the song ends before it (173622).
  * - Where the recording itself cuts out of the music to digital silence, the song fades into the
  *   cut over up to 3 s, from no earlier than the end of the last sung word (1314, 637). A dropout the music comes back from is not the end (176320).
  * - Where the outro never dies away within the separated stretch (music under a prayer), there is
@@ -75,6 +77,9 @@ class SongEndOutro
      */
     private const OUTRO_GONE_SHARE_UNDER_SPEECH = 0.5;
 
+    /** A noise breaks into the outro this far above its level (11-08). */
+    private const NOISE_JUMP = 20.0;
+
     /** The talking taken out is heard above this, through the fade (11-08). */
     private const TALKING_HEARD_DB = -42.0;
 
@@ -110,7 +115,7 @@ class SongEndOutro
      * @param  array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>, instruments: array{disk: string, path: string}}  $stems
      * @param  float  $onset  Where the first agreed spoken word starts ({@see SongEndSpeechOnset::onset()})
      * @param  float  $cut  The cut the planner placed before the speech
-     * @return array{time: float, fade_out: float, song_end_outro: string, speech: float, last_sung: float, outro_end: float, voice_removal?: array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}}|null
+     * @return array{time: float, fade_out: float, song_end_outro: string, speech: float, last_sung: float, outro_end: float, noise?: float, voice_removal?: array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}}|null
      */
     public function ending(array $stems, float $onset, float $cut): ?array
     {
@@ -119,7 +124,12 @@ class SongEndOutro
         if ($outroEnd === null) {
             return null;
         }
+        $noise = $this->noiseAfterTheSinging($stems, $lastSung, $outroEnd);
         $found = ['speech' => $speech, 'last_sung' => $lastSung, 'outro_end' => $outroEnd];
+        if ($noise !== null) {
+            $found['noise'] = $noise;
+            $outroEnd = $noise;
+        }
         $removal = ['from' => $lastSung, 'instruments' => $stems['instruments'], 'instruments_start' => $stems['start']];
         $voiceLeft = $outroEnd < $speech && $this->voiceAfterTheSinging($stems, $lastSung, $outroEnd, $speech);
         if ($outroEnd < $speech && $this->recordingCutAt($stems, $outroEnd)) {
@@ -323,6 +333,31 @@ class SongEndOutro
                 && $instruments[$index] - $instruments[$index - 1] >= self::DROPOUT_RETURN_RISE
                 && array_all(array_slice($instruments, $index, $held), static fn (float $db): bool => $db > self::DROPOUT_RETURN_DB)) {
                 return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Where a sudden noise breaks into the dying outro, after the last sung word: the instrument track
+     * jumps {@see self::NOISE_JUMP} dB above its level over the half second before. A breath into the
+     * microphone or a knock lands there, not in the voice track, so taking the voice out leaves it
+     * (173622, 11-08: "both have non speech breath sounds"; 3926, 2922). Music coming back from a
+     * muted stretch is not a noise (176320). The song ends before it.
+     *
+     * @param  array{start: float, frame_seconds: float, instruments_db: list<float>}  $stems
+     */
+    private function noiseAfterTheSinging(array $stems, float $lastSung, float $outroEnd): ?float
+    {
+        $instruments = $stems['instruments_db'];
+        $step = $stems['frame_seconds'];
+        $at = static fn (float $time): int => max(0, (int) floor(($time - $stems['start']) / $step + 1e-6));
+        $before = (int) round(0.5 / $step);
+        for ($index = max($at($lastSung) + $before, $before); $index < min($at($outroEnd), count($instruments)); $index++) {
+            $level = $this->median(array_slice($instruments, $index - $before, $before));
+            if ($level > self::DIGITAL_SILENCE_DB && $instruments[$index] - $level >= self::NOISE_JUMP) {
+                return round($stems['start'] + $index * $step, 3);
             }
         }
 

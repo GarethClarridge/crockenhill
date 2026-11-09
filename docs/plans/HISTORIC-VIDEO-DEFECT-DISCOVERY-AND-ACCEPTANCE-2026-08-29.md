@@ -1047,6 +1047,19 @@ tests green.
                - 1991 3.4 → 3.3
              - Page: https://claude.ai/artifact/4nfXnkULB63GcfpZNPgu7C
                (`song-end-noise-20261108/`).
+             - **Answers (11-09):**
+               - Noise better 3 (173622, 2922, 3926), either 3 (1966, 1991, 752), current 0.
+               - Committed.
+               - Notes:
+                 - 2922 "still too long".
+                 - 173622 "only removes the second of two spikes". The first, at −0.3, is a
+                   breath that is mostly in the voice track (−82 → −54 dB); removal takes that
+                   part out, leaving +8 dB in the instrument track over a −54 dB outro.
+                 - 752: "neither really deals with the problem".
+                 - 1340: "both have a whole line of speech".
+             - Ending at sudden voice-track jumps does not separate breaths from the endings
+               removal fixed: 57 endings have one, mostly the breath before the talking, including
+               907 and 2858. Rejected.
          - 3234, underscoring, and the lyric protection check.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend

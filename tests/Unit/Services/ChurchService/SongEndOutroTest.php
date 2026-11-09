@@ -303,6 +303,27 @@ class SongEndOutroTest extends TestCase
         $this->assertEqualsWithDelta(self::CUT - 1.0, $ending['voice_removal']['from'] ?? null, 0.001);
     }
 
+    /**
+     * 969 §173622 (11-08, preferred): a breath into the microphone lands in the instrument track,
+     * 35 dB above the dying outro, so taking the voice out leaves it. The song ends before it.
+     */
+    #[Test]
+    public function a_noise_breaking_into_the_dying_outro_ends_the_song_before_it(): void
+    {
+        $stems = $this->stems(
+            voice: [[-8, -3.8, -42.0], [-3.8, 2.1, -85.0], [2.1, 16, -40.0]],
+            instruments: [[-8, 0.9, -55.0], [0.9, 1.4, -20.0], [1.4, 16, -80.0]],
+        );
+
+        $ending = (new SongEndOutro)->ending($stems, self::CUT + 1.4, self::CUT);
+
+        $this->assertNotNull($ending);
+        $this->assertSame(SongEndOutro::SILENCE, $ending['song_end_outro']);
+        $this->assertEqualsWithDelta(self::CUT + 1.4, $ending['outro_end'], 0.001);
+        $this->assertEqualsWithDelta(self::CUT + 0.9, $ending['noise'] ?? null, 0.001);
+        $this->assertEqualsWithDelta(self::CUT + 0.9, $ending['time'], 0.001);
+    }
+
     /** Music under a prayer never dies away in the separated stretch: there is no ending to find. */
     #[Test]
     public function music_that_plays_on_under_the_talking_finds_no_ending(): void
