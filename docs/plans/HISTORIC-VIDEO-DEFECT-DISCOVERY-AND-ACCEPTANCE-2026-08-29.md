@@ -1033,6 +1033,20 @@ tests green.
              - 173622 +0.9, 2922 +2.7 (E 10.1; heard +0.4), 3926 +0.9 (E 1.8), 1340, 1542,
                1991, 752.
              - Also 1966 −0.4, and the dropout returns 176320 and 175132, which are music.
+           - **Noise rule, built on the working copy (11-08, uncommitted;
+             `noiseAfterTheSinging`):**
+             - After L, the first instrument frame ≥ 20 dB above the median of the 0.5 s before.
+               That median must be above digital silence, so dropout returns are excluded.
+             - The song ends before it. 7 endings move:
+               - 173622 1.8 → 0.9
+               - 2922 10.1 → 4.8
+               - 3926 1.8 → 0.9, now a silence
+               - 1966 2.1 → −0.4, now a silence
+               - 752 1.7 → 0.8
+               - 1340 3.2 → 2.9
+               - 1991 3.4 → 3.3
+             - Page: https://claude.ai/artifact/4nfXnkULB63GcfpZNPgu7C
+               (`song-end-noise-20261108/`).
          - 3234, underscoring, and the lyric protection check.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
