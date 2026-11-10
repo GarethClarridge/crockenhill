@@ -1012,7 +1012,8 @@ class CueSafeExtractionPlan
 
             $songEnd = (float) $song->end_time;
             $window = app(OutputEdgeWordTimings::class)->timingWindow($cues, $songEnd, $log->duration);
-            $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log));
+            // The gap after a song cut may contain noise that belongs to neither output.
+            $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log), requireSustainedReturn: false);
             // The song keeps its last note up to the agreed speech, but agreement can miss the
             // speech's first word (796's "Would you"), so the next item still starts at the cut before it.
             if ($decision !== null) {
@@ -2513,9 +2514,9 @@ class CueSafeExtractionPlan
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
      * @return array<string, mixed>|null
      */
-    private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline): ?array
+    private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline, bool $requireSustainedReturn = true): ?array
     {
-        $decision = $this->songEndByCues($log, $cues, $window, $end, $levels, $timeline);
+        $decision = $this->songEndByCues($log, $cues, $window, $end, $levels, $timeline, $requireSustainedReturn);
         $tail = app(SongTailSpeechOnset::class)->cut($log, $end, $decision['time'] ?? $end, $timeline);
 
         if ($tail === null) {
@@ -2605,9 +2606,9 @@ class CueSafeExtractionPlan
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
      * @return array<string, mixed>|null
      */
-    private function songEndByCues(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline): ?array
+    private function songEndByCues(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline, bool $requireSustainedReturn): ?array
     {
-        $decision = $this->songEndBySoundOrSpeech($log, $cues, $window, $end, $levels, $timeline);
+        $decision = $this->songEndBySoundOrSpeech($log, $cues, $window, $end, $levels, $timeline, $requireSustainedReturn);
         $line = $decision !== null ? $this->speechOverMusic($cues, $end, $timeline) : null;
 
         if ($line === null || $decision['time'] <= $line['start'] + self::CUE_BOUNDARY_TOLERANCE) {
@@ -2675,7 +2676,7 @@ class CueSafeExtractionPlan
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
      * @return array<string, mixed>|null
      */
-    private function songEndBySoundOrSpeech(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline): ?array
+    private function songEndBySoundOrSpeech(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline, bool $requireSustainedReturn): ?array
     {
         $evidence = app(OutputEdgeWordTimings::class);
         $singing = $this->singingStops($timeline, $end);
@@ -2732,8 +2733,7 @@ class CueSafeExtractionPlan
             }
         }
 
-        // A silence the music comes back after is inside the outro, not its end: 1117 §1959 dipped
-        // for 1.8 s after its last sung word and played on to 720 (canary 13). A cue start the
+        // The first silence ends the song unless music sustains a return. A cue start the
         // classifier hears speech after, not at, has not shown speech there: a second of silence
         // before that speech window ends is still the song's end. 954 §901's "Our gracious…" opened
         // in the music 6.5 s before it was said, after 3.9 s of silence (heard 10-20); 1216 §2655's
@@ -2743,7 +2743,10 @@ class CueSafeExtractionPlan
         // only silence began as "pray" ended (heard 10-28).
         $silenceUntil = $speechHeardBy !== null && abs($until - $speech['start']) < 0.001
             ? max($until, min($speechHeardBy, $speech['end'] - self::SONG_END_SILENCE_SECONDS)) : $until;
-        $silence = $levels !== null ? $this->beforeMusicResumes(fn (float $from): ?float => $this->silenceOnset($levels, $from, $silenceUntil), $levels, $timeline, $lastSound, $silenceUntil) : null;
+        $silence = $levels !== null ? $this->beforeMusicResumes(
+            fn (float $from): ?float => $this->silenceOnset($levels, $from, $silenceUntil),
+            $levels, $timeline, $lastSound, $silenceUntil, $requireSustainedReturn,
+        ) : null;
 
         if ($silence !== null) {
             return ['time' => $silence, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
@@ -3086,7 +3089,8 @@ class CueSafeExtractionPlan
     /**
      * The first silence or quiet a finder returns from a time on that the music does not come back
      * after before the bound: sound returning in a window the classifier hears as music alone
-     * means the song played on, so the search starts again there.
+     * means the song played on, so the search starts again there. After a measured silence,
+     * the returning sound must stay above the threshold for as long as the silence had to last.
      *
      * @template T of float|array{start: float, end: float}
      *
@@ -3094,15 +3098,30 @@ class CueSafeExtractionPlan
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}  $levels
      * @return T|null
      */
-    private function beforeMusicResumes(\Closure $find, array $levels, ?AudioTimeline $timeline, float $from, float $until): float|array|null
+    private function beforeMusicResumes(\Closure $find, array $levels, ?AudioTimeline $timeline, float $from, float $until, bool $requireSustainedReturn = false): float|array|null
     {
         while (($found = $find($from)) !== null) {
             $at = is_array($found) ? $found['start'] : $found;
             $back = null;
+            $confirmed = false;
 
             foreach ($levels['samples'] as $sample) {
-                if ($sample['time'] > $at && $sample['time'] < $until && $sample['rms'] >= $levels['threshold']) {
-                    $back = $sample['time'];
+                if ($sample['time'] <= $at) {
+                    continue;
+                }
+
+                if ($sample['time'] >= $until || ($back !== null && $sample['rms'] < $levels['threshold'])) {
+                    break;
+                }
+
+                if ($sample['rms'] < $levels['threshold']) {
+                    continue;
+                }
+
+                $back ??= $sample['time'];
+
+                if (! $requireSustainedReturn || self::SONG_END_SILENCE_SECONDS - 0.0001 <= $sample['time'] - $back) {
+                    $confirmed = true;
 
                     break;
                 }
@@ -3110,7 +3129,7 @@ class CueSafeExtractionPlan
 
             $window = $back !== null ? $timeline?->windowAt($back) : null;
 
-            if ($back === null || $timeline === null || $window === null || $timeline->classOf($window) !== SoundClass::Music) {
+            if (! $confirmed || $back === null || $timeline === null || $window === null || $timeline->classOf($window) !== SoundClass::Music) {
                 return $found;
             }
 

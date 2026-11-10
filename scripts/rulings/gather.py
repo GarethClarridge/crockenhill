@@ -949,6 +949,42 @@ records.extend([
                  'Philippians chapter 2." (B 2044.95).', minute='01'),
 ])
 
+# 11-10, plan §4.1d: compare the first silence (V1) against the cut that skipped it (V2).
+for source in ('end-faults-20261110', 'end-faults-1959-20261110'):
+    cuts = load(f'{source}/export.json')
+    for question_id, ruling in saved(f'{source}/answers/rulings').items():
+        section = question_id.split('-s')[1]
+        cut = cuts[section]
+        if cut['group'] != 'silence' or ruling['choice'] not in ('v1', 'either'):
+            continue
+        add(source, ruling, run=cut['run'], output='section', section_id=int(section), section_type='song',
+            edge='end', heard=cut['planned_end'], expect='inward',
+            heard_range=[cut['alt_end'], cut['planned_end']] if ruling['choice'] == 'either' else None)
+
+# The earlier page heard 1265's extra seconds as noise. The other questions on that page were
+# about the hold replay, not whether a shorter cut at the first silence was better.
+source = 'later-endings-listening-20261110'
+ruling = saved(f'{source}/answers/rulings')['1008-s1265']
+cut = load(f'{source}/export.json')['1265']
+add(source, ruling, run=cut['run'], output='section', section_id=1265, section_type='song',
+    edge='end', heard=cut['planned_end'], expect='inward')
+
+# The scope page compares the current and proposed cuts, including the two fallback paths.
+source = 'silence-end-scope-20261110'
+cuts = load(f'{source}/export.json')
+answers = load(f'{source}/silence-end-scope-rulings.json')
+if len(answers) != len(cuts) or {r['question_id'] for r in answers} != {f"{c['run']}-s{s}" for s, c in cuts.items()}:
+    sys.exit(f'{source}: answers do not match the listening page')
+for ruling in answers:
+    section = ruling['question_id'].split('-s')[1]
+    cut = cuts[section]
+    versions = cut['versions']
+    choice = ruling['choice']
+    heard = versions[choice if choice in versions else 'before']['end']
+    add(source, ruling, run=cut['run'], output='section', section_id=int(section), section_type='song',
+        edge='end', heard=heard, expect='keep' if choice in versions else 'at' if choice == 'neither' else None,
+        heard_range=[v['end'] for v in versions.values()] if choice == 'either' else None)
+
 # A section ruling the page recorded without a section id is on the run's section of its type whose edge is nearest
 # the cut heard, as RuledEndingsTestCase::latestRulings() and the round's analyze.py read it. Without that binding the
 # newest id-less ruling on a run replaced every other on the same edge, whatever its section (1304's §3879 start by a

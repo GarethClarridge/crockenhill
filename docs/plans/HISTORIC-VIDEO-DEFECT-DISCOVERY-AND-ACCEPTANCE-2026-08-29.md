@@ -1313,7 +1313,7 @@ tests green.
              reason `beforeMusicResumes` was written. Canary 13's earlier complaint (713.62 clipped "shielded
              by your powerful hand") is about an end 0.8 s before this one. **All 21 heard class A ends agree:
              the earlier silence or either.**
-       - **Plan: a silence ends the song unless the music truly comes back (class A; not started).**
+       - **A silence ends the song unless the music truly comes back (class A).**
          1. **Rule.** In `beforeMusicResumes`, the sound after a found silence counts as the music
             coming back only when it stays above the level threshold for ≥ 1 s
             (`SONG_END_SILENCE_SECONDS`, the length the silence itself must last), not just when its first
@@ -1324,6 +1324,21 @@ tests green.
             building, re-run `end-faults-20261110/measure.php` with the rule applied to all three
             (read-only) and list every end that moves. Ends on the other two paths that were never heard go
             on a page before they change; if any of them must not move, limit the rule to the silence path.
+            **Scope replay 11-10:** all 1,175 songs, no errors. The rule moves 50 ends across all three
+            paths, or 36 on the silence path alone. The 14 extra moves come from `firstQuiet` (3)
+            and `lastGap` (11). The full list and 30 listening comparisons are in
+            `storage/scratch/silence-end-scope-20261110/{changes.tsv,index.html}`. Start with 946 §788:
+            its 3870.89 end was ruled right on 10-22, and both candidates move it to 3867.64.
+            **Heard 11-10:** the proposed §788 end is right. All 20 comparisons on the silence path
+            accepted the proposed end or either. The current cuts were preferred for fallback cases
+            §175130 and §3201, so the sustained-return check applies only to the silence path when
+            cutting the song itself. The following spoken output keeps its own boundary, since the
+            noise omitted by the song cut does not belong to the spoken item. §4567 was ruled
+            neither, with an end at 7:20, and remains a separate miss.
+            Two of the new earlier rulings still fail under either candidate: §529's preferred
+            silence starts before the planner searches, and §3589's preferred gap never qualifies
+            as a full second of sampled silence. Neither can be fixed by changing what follows an
+            already detected silence.
          3. **Tests first** (`SongEndEdgesTest`):
             - 1265 shape: digital zero after the last sung sound, then a 0.6 s and a 0.05 s burst in a
               music window. The end is at the first silence.
@@ -1334,9 +1349,15 @@ tests green.
          4. **Fixture.** Mark `canary14:003-1117-end` (720.0, keep) superseded in
             `tests/Fixtures/Rulings/edge-rulings.json`. Add the 11-10 rulings from
             `end-faults-20261110/answers/` and `end-faults-1959-20261110/answers/`, with 1959, 1265 and the
-            12 v1 ends as `inward` and the 6 either ends as `either`. Run the ruled-endings set.
+            12 v1 ends as `inward` and the 6 either ends as `either`. The 30 scope page rulings are also
+            in the register. The original captures retain their input evidence, with revised cut
+            expectations only for the affected song outputs.
          5. **Then** replay the hold variants with the fix in. The hold change (R1, the hold judges the
             published cut) waits on this.
+            **Replay with the fix 11-10:** re-running the 36 changed cuts with the applied planner
+            reproduced the silence-only candidate results. R1 holds 107, as before, but now holds
+            §1265 and releases §4134. It still releases §94692 with speech in its tail. Counts and
+            section IDs are in `storage/scratch/silence-end-scope-20261110/hold-final/summary.json`.
        - **Not planned yet: class B.** 3 bad / 1 soft / 5 right on the voice track, and the track covers
          only 132 ends. It needs its own design: talking the voice track hears inside the fade, told
          apart from breaths and the right endings. 4616 (speech over the outro, "end before the speech

@@ -19,6 +19,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Support\AudioTimelineFixture;
 use Tests\TestCase;
 
@@ -748,19 +749,34 @@ class SongEndEdgesTest extends TestCase
         $this->assertGreaterThanOrEqual(4195.0, $plan['segments'][0]['end_time']);
     }
 
+    /** 1008 §1265 (heard 11-10): two short bursts after digital silence are noise, not an outro. */
+    #[Test]
+    public function short_noise_bursts_in_a_music_window_do_not_extend_a_song(): void
+    {
+        $section = $this->song(1210.0, 1385.8, [],
+            [[1370, 1386.4, self::LOUD], [1391.5, 1392.1, self::LOUD], [1394.0, 1394.05, self::LOUD], [1396.5, 1410, -25.0]],
+            timeline: [[1370, 1395, ...self::MUSIC], [1395, 1410, ...self::SPEECH]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta(1386.7, $plan['segments'][0]['end_time'], 0.01);
+        $this->assertSame('song_end_silence', $this->endEdge($plan)['reason']);
+    }
+
     /**
-     * Canary 13, 1117 §1959: the announcement's 15 s cue opens at 713.62, in a window of music
-     * alone; its words are heard from 725 ("Well" smeared over 17 s). The cut sat at the cue's start
-     * and the 1.5 s fade took the last sung word. The song runs through its outro (music to 720)
-     * and ends in the quiet before the speech, fading after its last sung sound.
+     * 1117 §1959 (heard 11-10): the announcement cue opens at 713.62, before the last sung sound.
+     * The earlier silence ends the song when the sound after it is a burst, but a sustained
+     * return of music carries the song through to the next silence.
      */
     #[Test]
-    public function a_cue_starting_in_music_alone_does_not_place_the_speech_after_a_song(): void
+    #[TestWith([716.07, 714.4], 'short burst after a 1.6-second silence')]
+    #[TestWith([716.8, 717.1], 'music stays above threshold for a full second')]
+    public function silence_ends_a_song_unless_music_returns_for_a_second(float $returnEnds, float $expectedEnd): void
     {
         $sung = ['start' => 708.66, 'end' => 713.62, 'text' => 'Shirev ayo kamotan'];
         $talk = ['start' => 713.62, 'end' => 728.59, 'text' => "Well, in a moment we're going to have just a short five-"];
         $section = $this->song(569.32, 713.62, [$sung, $talk],
-            [[690, 713.6, -37.0], [713.6, 715.4, -50.0], [715.4, 720.0, -42.0], [720.0, 724.8, -52.0], [724.8, 735, -22.0]],
+            [[690, 714.1, -37.0], [715.7, $returnEnds, -42.0], [724.8, 735, -22.0]],
             timeline: [[690, 715, 0.677, 0.012], [715, 720, 0.639, 0.288], [720, 725, 0.012, 0.018], [725, 735, 0.009, 0.779]]);
         $this->bank($section, 713.62, [
             ['start' => 707.80, 'end' => 725.22, 'word' => ' Well'],
@@ -773,10 +789,8 @@ class SongEndEdgesTest extends TestCase
 
         $plan = app(CueSafeExtractionPlan::class)->forSection($section);
 
-        $end = $plan['segments'][0]['end_time'];
-        $this->assertGreaterThanOrEqual(720.0, $end);
-        $this->assertLessThanOrEqual(724.8, $end);
-        $this->assertGreaterThanOrEqual(713.62, $end - ($plan['audio_fade_out'] ?? 0.0) - 0.001, 'the fade starts after the last sung sound');
+        $this->assertEqualsWithDelta($expectedEnd, $plan['segments'][0]['end_time'], 0.01);
+        $this->assertSame('song_end_silence', $this->endEdge($plan)['reason']);
     }
 
     /**
