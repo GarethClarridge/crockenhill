@@ -5,6 +5,9 @@ its subsequent repair sessions are closed. Later fixes still need pipeline appli
 current-output acceptance. Historic outputs remain quarantined; no release batch is authorised.
 Weekly processing stays paused until historic completion (G5/R8, reaffirmed 11-06).
 
+**The next round is meant to be the last corpus-wide one (operator 11-10, G13).** §4.1f is the
+checklist that makes that possible; nothing freezes until each of its rows is done or disposed of.
+
 This cleanup made no fresh corpus/production census and ran no processing. Detailed execution
 history through 11-06 is in the [archived record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-11-06.md).
 Use the current work below; an archived “next”, “owed” or “final round” is not a second backlog.
@@ -91,7 +94,8 @@ records the full-decode and complementary-media checks, their limits and what mu
 ### 4.0 Round status
 
 No round is active or newly authorised by this plan. Finish and measure the chosen repairs,
-then follow the round runbook for freeze, preflight, staged start and closure. Do not reuse old
+close §4.1f's last-round checklist, then follow the round runbook for freeze, preflight, staged
+start and closure. Do not reuse old
 423-run/15-import routing lists without reconciliation.
 
 ### 4.1 Current processing work
@@ -99,7 +103,8 @@ then follow the round runbook for freeze, preflight, staged start and closure. D
 §4.1a is the pre-freeze sequence; §4.1b separates remaining repairs from post-round verification.
 The outcome-review follow-up in §4.1c informs that work without making a broad architecture
 refactor a new prerequisite. §4.1e proposes speaker-identification repair and a bounded proposal
-pass before the next run; execution and re-enabling remain undecided. Preserve accepted limitations
+pass before the next run; execution and re-enabling remain undecided. §4.1f (11-10) orders all of
+this so that the next round can be the last corpus-wide one. Preserve accepted limitations
 and specific operator rulings.
 
 ### 4.1a Before the next round: regression coverage and combined verification (2026-10-29)
@@ -167,7 +172,9 @@ and specific operator rulings.
    - Beyond the worker count, the limit is the project folder shared from the Mac (gRPC FUSE),
      not CPU or MySQL. Test storage in `/tmp` (22 failures: commands build `storage/` paths
      themselves) and CLI opcache (no gain) were tried and dropped.
-6. **Freeze and execute only through the runbook.** Fresh membership, revision/worker checks,
+6. **Freeze and execute only through the runbook.** First close §4.1f: the edge evidence, the
+   complete replay, the moved acceptance checks and the production census all come before the
+   freeze (11-10). Fresh membership, revision/worker checks,
    storage headroom, backups and pause/resume preflight; representative encoded transitions and
    internal joins before expansion. At close, verify actual destination generations with hashes,
    application-container readability and the post-round items below. Acceptance follows under the
@@ -1510,7 +1517,8 @@ cleanup rather than assuming either that it was applied or that it remains untou
    existing identity questions or alter other holds, visibility or publication. Disabled, no-match,
    ambiguous, missing-audio and provider-error cases remain distinguishable. Reject stale results
    and make retries idempotent.
-2. **Integrate the evaluated encoder.** Subject to dependency approval, add ECAPA-TDNN using the
+2. **Integrate the evaluated encoder.** (The `speaker-id-ecapa` branch named in earlier notes is not in
+   the repository, checked 11-10; start from the September record's method.) Subject to dependency approval, add ECAPA-TDNN using the
    existing speaker-identification interface. Pin the model revision and compatible CPU runtime
    dependencies, bake weights into the image and verify offline inference. Version the extraction
    policy and keep ECAPA embeddings separate from Resemblyzer profiles: dimensions, scores and old
@@ -1557,6 +1565,112 @@ for the populations it would cover. Unknown or ambiguous identities retain hones
 review; a high score is not confirmation. Planning this work grants no processing or release
 authority. If evidence is insufficient before the next run, keep identification disabled and
 record the residual identity work explicitly.
+
+### 4.1f Making the next round the last (review 2026-11-10)
+
+**Status: planned 11-10 from a review the operator asked for; nothing built, run or decided by
+this section.** The operator wants the next round to be the last and as much automation as is
+reasonable (G13). The review read this plan, the runbook, the audit, the programme, the register
+and the 11-07 review inventory. It ran no processing and did not look at production.
+
+**"Last round" means the last corpus-wide dispatch.** A later finding is repaired on the named run
+through the routes the runbook already has (`sections:recut`, `ProcessingRunOrchestrator::reExtract`,
+`sermons:re-extract --held-section`), under the same hash and hold checks. That is repair through
+the pipeline, not another round. It only works if the repair route outlives the round (row 8).
+
+**Why the round would not be the last as the plan stood.** A round allows one recompose and one cut
+per run per commit, and any commit restarts every worker (runbook §1, §4.2). A defect found after
+the freeze therefore cannot be fixed inside the round. Four things were set to surface defects
+only after the freeze: the audit's checks, the edge evidence, the unbuilt cut-changing work and
+production. Each row below moves one of them ahead of the freeze.
+
+| # | Before the freeze | Done when | Owner |
+|---|---|---|---|
+| 1 | **Edge evidence for every member, then a complete replay.** Run `historic-import:prepare-output-edges` on every remaining member before the freeze, not as the round's first stage. It writes evidence only and never changes a run's status or cuts. 42 runs were prepared 11-07 and 91 more were timed 11-09 (`storage/scratch/edge-step-20261109/`); recount what is left. Run it after the last edge-moving change (row 3), because evidence is keyed by window, model and signature. Then rerun the replay and the inventory. | No sermon end is unassessable for missing evidence (430 on 11-07); stems exist at every fade cut; replay and inventory are rerun on the candidate revision with every moved edge accounted for. | §4.1a steps 2–3; runbook §4.2 |
+| 2 | **Acceptance checks whose failure means reprocessing.** Run them now on current outputs and the replay's planned cuts, with rendered audio where the question is audible: source-first completeness on a fresh declared sample (omitted talks, readings, songs and long `other` sections); the transcription-gap follow-up and H10's transcript-negative runs (a failure needs re-transcription); every assembled sermon join; the detector/transcript evaluation; song protocol stage 2/M2/M4. Checks that need the final bytes (full decode, hashes, delivery, thumbnails, editorial fields) stay after the round. | Each lane reports checked/unassessable counts and findings. Every finding is fixed and measured, held, or recorded as residue before the freeze. The post-round audit then confirms; it should not be the first look. | Audit §0 "Before the freeze" and §7 |
+| 3 | **Every open cut-changing item gets one of two answers: built and measured, or left as it is and named.** No item stays "pending" at the freeze. The list is below. | Each item below carries a build commit and measurement, or a recorded disposition (held, soft miss under E23, named residue). | §§4.1a–4.1d |
+| 4 | **Stopped runs.** 15 historic-era runs are stopped and not excluded (1145 is excluded). 11 are parked on a sermon content hold: 1003, 1019, 1039, 1084, 1095, 1107, 1121, 1176, 1187, 1373, 1380. Four failed for their own reason: 882 (no RMS data for a song period), 904 (transcription interrupted by a host shutdown), 945 (structure failed validation, sections cover 64%), 1143 (several speech blocks over the sermon threshold). | Each has a route written down (held-section cut and release page, retry through its own failure, or exclusion with a reason) and is either a round member or explicitly out. | RA1 routes; runbook §4.2 |
+| 5 | **Anything that changes encoded bytes or file tags.** Diagnose 1055's +5.6 dBTP video peak and scan the corpus for the same cause. Build and test P5's partial-recording wording in MP3 tags and the podcast summary (the 10-29 code review found the summary wording absent and the tags unchecked). Check which outputs bake in the speaker's name (MP3 tags, thumbnails), so §4.1e's late names are known to need only those artefacts regenerated, not a cut. | The peak has a cause and a corpus count, fixed or accepted; P5 wording is built and tested; the list of name-bearing artefacts and their regeneration route is recorded. | Audit §7 "Thumbnails and partial recordings"; sound treatment stage |
+| 6 | **Production census and one small era rehearsal.** Run programme §0.4 step 0 on the server (read-only) and compare identities with the local graph. Rehearse export and quarantined apply of one small era, with media, on a production copy. Check the song catalogue: clips bind local song IDs, and an OpenLP merge re-binds nothing. | Create/enrich/leave-alone dispositions exist for every production row in the historic range; membership changes are fed into row 1's recount; the rehearsal applied media end to end; catalogue differences are listed with their relink route. | Programme §0.4, IC5, §7 |
+| 7 | **Talk-type detection for the weekly pipeline.** See "Talk-type detection" below. Type does not change a cut, so the work must be shaped so that it needs no round: a step of its own over finished sections, not a change to the structure prompt. Speaker identification is §4.1e's and is not repeated here. | The design below is accepted or changed by the operator; the type step is confirmed to run on existing sections without re-detection; the ground-truth page is built. Measurement and any ruling on automatic confirmation can follow the round. | Register T1, T2, G10; RA6 |
+| 8 | **Repair route after the round.** Decide §4.6's route now: keep the masters, promotion tooling and single-run commands working after closeout, or record that released outputs are final. | Decision recorded in the register; if kept, one named run is taken through each single-run route as a test before the freeze. | §4.6; programme IC8 |
+
+**Row 3: the open cut-changing items (state on 11-10).**
+
+- Song hold judges the published cut (R1, §4.1d RA3): measured, not built. The 5 s
+  `CANDIDATE_END_TOLERANCE_SECONDS` is still in `SongPublicationBoundaryEvidenceService`. With the
+  silence fix in (`741918dbd`), R1 holds 107 and still releases §94692 with speech in its tail,
+  so it waits on class B or an explicit guard.
+- Lyric-ended tail exemption with its speech guard: measured 11-09, not built.
+- Class B, speech inside a fade end (94692, 2303, 3666 bad; 3628 soft): no design. Stems cover
+  132 of 1,175 ends, so its size is unknown until row 1 has run. Design it after row 1, or record
+  the class as named residue with its hold kept.
+- Still listed open under RA3: the planner missing speech inside the section, music under a
+  prayer, the lyric protection check, under-speech endings.
+- K20 introduction completeness (1301), K21 ending selection, E27 overlap (§4.1c): implementation
+  pending. Also 954 span 1's dropped invitation and 1233's start (§4.1b).
+- RA4 (173 records on 11-07), RA5 (331, 49 of them unassessable) and RA6: no build status. RA6's
+  answer preservation (the 1148/1197 renumbering cases) matters most here: a recompose that re-asks
+  settled questions is manual work the round would create.
+- Built but unapplied work is not on this list. The round applies it: K18/K19 starts, split-song
+  snap, the ten stale generations, the 33 Scripture refreshes, the song-end rules through `741918dbd`.
+
+**Talk-type detection (row 7): state on 11-10 and planned work. No ruling is changed here.**
+The operator's direction (11-10): the weekly pipeline needs more work before it detects talk type
+automatically. Speaker identification has its own plan (§4.1e) and is not duplicated here.
+
+What exists. The structure model proposes `talk_type` for each short talk as one field of its
+structure answer (`OpenAiServiceStructureService`), with no confidence and no reasons. Only a type
+the operator confirms is published (T2), and every short talk also needs approval
+(`TalkPublicationHandler::requiresApproval()` returns `true`). Local count on 11-10, 355 short-talk
+sections:
+
+| Proposed type | Sections |
+|---|---:|
+| `childrens_talk` | 134 |
+| `partner_update` | 44 |
+| `testimony` | 18 |
+| none | 159 |
+
+- **No type has ever been confirmed locally**, so the proposals have never been measured.
+- **45% have no proposal.** The prompt allows a children's talk only on structural cues and says
+  "null when none of these is clear". The unproposed titles are recurring kinds: catechism talks,
+  heroes of faith, Bible-character series, "Family Talk". 156 of the 159 are bound to an
+  order-of-service item, so there is evidence the proposal does not use.
+- **Ruled 11-10 (T7): catechism, hero-of-faith and Bible-character talks are children's talks.**
+  Those names identify the series the talk belongs to, and the series is to be recorded. T1's
+  four types stand. The `sermons` row already has a `series` field; the section proposal does not
+  carry one yet.
+- **A wrong non-sermon type is not harmless.** Standalone testimonies are withheld by default
+  (G10), so a testimony typed as a children's talk would be released to members.
+
+Planned work, in order:
+
+1. **Ground truth.** One page on which the operator confirms the type of the pending talks (type
+   only; transcript opening, the bound item's title, the proposal). "None of the four" is an
+   allowed answer. These are the first confirmed types and the only measure available.
+2. **Apply T7 and record the series.** A talk in a catechism, hero-of-faith or Bible-character
+   series is proposed as a children's talk, and the series is proposed beside the type and
+   published in the talk's `series` field. Any other kind that step 1 answers "none of the four"
+   is grouped and put to the operator; nothing further is assumed.
+3. **Make type detection its own step.** A classifier over a finished short-talk section: its
+   transcript, its bound order-of-service item, its recurring title or series and its place in the
+   service. It records the proposed type, the proposed series, a confidence and the reasons. It does not touch the structure
+   prompt, so it moves no section and can be rerun on existing sections at any time. The same step
+   runs for weekly uploads; nothing is historic-only.
+4. **Measure by type against step 1.** A confusion table, with testimony errors and "typed when
+   it should be none" counted separately. Hold out part of step 1's answers from any tuning.
+5. **Decide automatic confirmation.** The operator sees step 4's numbers and rules which types,
+   if any, are confirmed without review, amending T2. Testimony stays manual unless ruled
+   otherwise (G10). Whether approval then follows without a separate click is a further ruling.
+
+Steps 1 and 3's design come before the freeze; the rest can follow the round, because a
+type changes access and labelling, not a cut.
+
+**Order.** Row 3 first (it changes cuts), with row 7's design alongside; then row 1 and the replay; rows 2, 4, 5, 6 and 8
+can run alongside. Then §4.1a steps 5–6 and the runbook. If a row cannot be finished, record what
+is left out and why: an explicit hold or named residue is a disposition, an unlisted gap is the
+next round.
 
 ### 4.2 Regular uploads are the lasting outcome
 
@@ -1632,8 +1746,10 @@ excluded; retained assets were not deleted. The run-to-service mapping is 1120�
 - [ ] A second copy of source masters remains **operator-deferred** until a destination is available
   (likely the staging drive after processing). Do not confuse this with C2's deliberate single-copy
   quarantine/staging outputs. Retain C6 until processing/custody permits cleanup to resume.
-- [ ] Before IC8, decide and retain a maintained post-release media repair route, or explicitly
-  record that released outputs are final. The masters/promotion tooling currently live locally.
+- [ ] **Before the freeze (moved from "before IC8" on 11-10, §4.1f row 8):** decide and retain a
+  maintained media repair route, or explicitly record that released outputs are final. The
+  masters/promotion tooling currently live locally. After the last round, a finding is repaired on
+  the named run through the existing single-run routes, not by another corpus-wide dispatch.
 
 ### 4.7 Legacy sermon transcripts (decided 2026-10-17; planned, not built)
 
@@ -1645,6 +1761,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Recorded status / next evidence |
 |---|---|
+| Last-round readiness | §4.1f, added 11-10: eight rows open. No freeze until each is done or disposed of. |
 | Processing | November round and named repairs closed. K19 reach-back built and ruled 11-06, not yet applied; it and the other later built fixes need the measured routes and output checks above. No new dispatch authority. |
 | Content acceptance | Incomplete. Ten stale main generations require verified recovery; other coverage, content and editorial obligations are in the audit ledger. The old 21-container-path incident is resolved, not an outstanding loss. |
 | Production convergence and delivery | Fresh programme census, rehearsal and destination verification still required. |

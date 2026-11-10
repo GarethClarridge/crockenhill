@@ -247,7 +247,13 @@ Every dispatch is a dry run without `--execute` and is bounded by `--max`.
   `sections:recut <processing-id>` dispatches candidate preparation. It does not re-cut the
   sermon; use the full route when sermon media or composition also changes. Bind this exception
   to the round's reviewed membership and verify the resulting clip hash and hold state.
-- **Edge evidence for the rest of the corpus is the round's first stage (decided 11-07).** The 11-07 final-code
+- **Edge evidence for the rest of the corpus comes before the freeze (changed 11-10; it was the round's first
+  stage, decided 11-07).** The step writes evidence only, so nothing is gained by waiting, and a bad edge found
+  after the freeze needs a commit, which the round cannot take (video plan §4.1f row 1). Run it on the candidate
+  revision after the last edge-moving change, rerun the replay and the inventory, and freeze only when no sermon
+  end is unassessable for missing evidence. If a later commit changes the processing signature, the affected
+  windows are decoded again before the freeze. Inside the round the step is then a recount that should find
+  nothing to do. The rest of this entry is the 11-07 record and the timings. The 11-07 final-code
   replay could not assess 430 sermon ends: their K16 answers and sentence checks were never asked under the
   current processing signature (version 16), though most of their word decodes were already banked. Only the 42 runs whose cuts the replay changed were prepared before
   the freeze (`storage/scratch/edge-step-20261107/`). After the freeze, before any recompose or cut, run
@@ -399,6 +405,9 @@ whole-job retries still follow D10. This is not permission to skip a required pr
 change frozen membership mid-pass. State the round's purpose and stopping condition using the
 [audit's existing rule](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md#stopping-rule).
 
+0. The video plan's §4.1f last-round checklist is closed: every row done or disposed of, including the
+   edge evidence and complete replay, the moved acceptance checks, the stopped runs' routes and the
+   production census (added 11-10).
 1. Freeze exact membership in the snapshot; settle transcript and structure dependencies before
    cutting; retain or exclude unresolved cases explicitly rather than widening the batch.
    Include every eligible sermon output in the K16 check, including runs whose last selected

@@ -114,6 +114,12 @@ The census decides, for every production row, whether a round will create it, en
 alone. It names the production-only content (the 2014–2019 sermons, weekly services processed
 there) that no historic round may overwrite or duplicate.
 
+**The census and one small era rehearsal come before the last video round's freeze (11-10,
+video plan §4.1f row 6).** Production's own content can change the round's membership, and the
+media export and quarantined apply have never been rehearsed end to end. Also compare the song
+catalogues: clips bind local song IDs and an OpenLP merge re-binds nothing. Neither step publishes
+or mutates production; the rehearsal runs on a production copy.
+
 Prepare the read-only census early. Agents compare identities and prepare create/enrich/leave-alone
 exceptions; verify cross-date/title duplicates, richer incumbent metadata and service/media links.
 Rehearse against a production copy before apply. The [audit §0](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md#0-wider-release-confidence-and-who-does-the-checks-2026-10-29)

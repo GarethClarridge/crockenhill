@@ -141,6 +141,11 @@ owns the measured queue baseline and RA1–RA6 build sequence: evidence routing,
 song boundaries/identity, repetition recovery, consequential structure checks and reusable answers.
 Talk-type confirmation and other reserved decisions remain explicit; no round or data apply is started.
 
+**Last-round checklist (planned 2026-11-10):** [video §4.1f](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md#41f-making-the-next-round-the-last-review-2026-11-10)
+lists what must be done or disposed of before the freeze so the next round is the last corpus-wide
+one (G13): edge evidence and a complete replay, moved acceptance checks, open cut-changing items,
+stopped runs, byte-changing fixes, the production census, talk-type detection for weekly and the repair route.
+
 The [post-round audit work package](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md)
 records discovery stopped at 45 services on 11-05, supplemental review stopped after 100 services
 on 11-06, and a completed 2,127-file decode. Old October and November unfinished review batches

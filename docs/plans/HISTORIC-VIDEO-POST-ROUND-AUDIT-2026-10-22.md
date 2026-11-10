@@ -18,6 +18,7 @@ Its historical “resume”, “next” and “not started” instructions are s
 | Output generations / access | Ten stale main generations remain; promotion cause fixed. 21 host-valid clips readable after app-container recreation | Verify recovered video/audio/text generations and fresh-container access after processing. Repairs belong to video §4.1b. |
 | Independent media/identity checks | 442 frozen packets; 26 text-overlap pairs triaged; 18 source/output windows over six services; three retained-transcription comparisons | No new confirmed processing defect in this scope. Semantic listening, full output/join coverage and named residual leads remain open. |
 | Delivery | Six local HTTP probes; quarantine correctly denied. Staging URL guard blocked listing/published-media rehearsal | Use an isolated published-media rehearsal with correct storage context, then authorised destination checks; keep quarantine protected. No production-outage claim. |
+| Pre-freeze acceptance (11-10) | Not started | §0 "Before the freeze": the reprocessing-sensitive lanes run before the last round's freeze (video §4.1f row 2). |
 | Release | No batch authorised | Complete §7 and pass exact accepted membership to programme §§7–8. Weekly remains paused. |
 
 ### 2026-11-06 supplemental Luna boundary reviews
@@ -100,7 +101,24 @@ another audit framework or replace the song protocol's measurements.
 
 ### Sequence and confidence report
 
-Keep the pre-freeze checklist bounded. During the authorised staged canary, take one representative
+**Before the freeze (added 11-10, video plan §4.1f row 2).** The next round is meant to be the
+last corpus-wide one, so a check whose failure can only be repaired by re-transcribing, re-detecting
+or re-cutting runs before the freeze, on current outputs and the final-code replay's planned cuts
+(rendered audio where the question is audible):
+
+- source-first completeness on a fresh declared sample, including apparently clean services;
+- the transcription-gap follow-up above and H10's transcript-negative runs;
+- every assembled sermon join;
+- the detector/transcript evaluation;
+- song protocol stage 2/M2/M4.
+
+Declare the sample, seed and denominators first, as §5 requires. Each finding is fixed and
+measured, held, or recorded as residue before the freeze. Checks that need the final bytes (full
+decode, hashes, delivery, thumbnails, editorial fields) stay after the round, where the same lanes
+are confirmed on the round's outputs rather than examined for the first time. After the last
+round a finding is repaired on the named run through the single-run routes (runbook §4.2).
+
+Keep the pre-freeze checklist bounded to that list. During the authorised staged canary, take one representative
 service through the complete local acceptance journey above before bulk expansion; mark production
 and unavailable checks pending rather than calling the journey complete. Prepare the production
 census early, independently of local cut repair. After the round, finish current-output checks and
