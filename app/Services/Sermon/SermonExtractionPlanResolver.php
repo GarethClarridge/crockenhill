@@ -381,8 +381,9 @@ class SermonExtractionPlanResolver
      * section at all (1027's 233 s the recording opens with). It is the stretch directly before
      * the first part when that part is a reading — an `other` section ending at most
      * {@see self::UNACCOUNTED_GAP_SECONDS} before it, or else the time since the section before —
-     * and it is the reading's introduction when it names the passage. A leader handing the
-     * reading to someone names no passage, and stays out (T4). An unsectioned introduction starts
+     * and naming the passage is evidence that it introduces the reading. K20 also admits a
+     * section identified as a sermon introduction when its words frame the preacher's message.
+     * A leader merely handing the reading to someone stays out (T4). An unsectioned introduction starts
      * where the section before it ends (F2: speech after a song belongs to the next item), and a
      * stretch the song's music runs through is no introduction of its own.
      *
@@ -419,10 +420,17 @@ class SermonExtractionPlanResolver
             default => (float) $previous->end_time,
         };
         $transcript = $readingStart > $from ? $this->transcript($log, $candidate) : null;
+        if ($transcript === null) {
+            return $none;
+        }
+
         $references = array_values(array_map(static fn (ServiceSection $reading): ?string => $reading->metadata?->readingReference,
             array_filter($selected, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::BibleReading)));
 
-        if ($transcript === null || ! $this->spokenPassages->isNamedIn($transcript->sliceText($from, $readingStart), $references)) {
+        $framesSermon = $typed && strcasecmp(trim($previous->title ?? ''), 'Sermon introduction') === 0
+            && $this->framesOwnPreaching($transcript->sliceText($from, min((float) $previous->end_time, $readingStart)));
+
+        if (! $framesSermon && ! $this->spokenPassages->isNamedIn($transcript->sliceText($from, $readingStart), $references)) {
             return $none;
         }
 
@@ -438,6 +446,13 @@ class SermonExtractionPlanResolver
         return $typed
             ? ['section' => $previous, 'unsectioned' => null]
             : ['section' => null, 'unsectioned' => ['reading_section_id' => $opening->id, 'start_time' => $from, 'end_time' => $readingStart]];
+    }
+
+    private function framesOwnPreaching(string $text): bool
+    {
+        $text = str_replace('’', "'", $text);
+
+        return preg_match("/\\bI(?:'ve| have) (?:been preaching|had the opportunity to preach)\\b|\\bmy (?:choice of|preparation for (?:this|the)) sermon\\b/iu", $text) === 1;
     }
 
     /** @param list<int> $sectionIds */

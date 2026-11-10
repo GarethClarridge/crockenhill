@@ -1427,6 +1427,43 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame([$introduction->id, $reading->id, $sermon->id], $this->resolver->compose($log)['selected_section_ids']);
     }
 
+    #[Test]
+    public function the_preachers_introduction_on_run_1301_is_cut_even_when_the_passage_is_named_later(): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 1914.96, 'end' => 1920.96, 'text' => 'Good morning.'],
+            ['start' => 1920.96, 'end' => 1925.96, 'text' => 'Now some of you might be expecting another sermon on Proverbs.'],
+            ['start' => 1925.96, 'end' => 1931.96, 'text' => "When I've had the opportunity to preach over the last couple of years, I've been working my way through the first nine chapters."],
+            ['start' => 1931.96, 'end' => 1935.96, 'text' => "But we're leaving Proverbs today and starting a new series."],
+            ['start' => 1935.96, 'end' => 1959.96, 'text' => 'I bumped into Simon this week and he said he was looking forward to hearing a sermon illustration featuring our new dog, Bentley.'],
+            ['start' => 1964.96, 'end' => 1968.96, 'text' => "Well, we're going to turn to Romans chapter 3"],
+        ]);
+        $this->section($log, ServiceSectionType::Song, 1, 1744.52, 1907.96);
+        $introduction = $this->section($log, ServiceSectionType::Other, 2, 1914.96, 1959.96, 'Sermon introduction');
+        $reading = $this->reading($log, 3, 1959.96, 2085.96, reference: 'Romans 3:21-31');
+        $sermon = $this->sermon($log, 4, 2088.96, 3188.97, 'Romans 3:21-31');
+        $this->bankNoWordOutputEdges($log);
+
+        $plan = $this->resolver->resolve($log);
+
+        $this->assertSame([$introduction->id, $reading->id, $sermon->id], $plan['metadata']['selected_section_ids']);
+        $this->assertSame(1914.96, $plan['segments'][0]['start_time']);
+    }
+
+    #[Test]
+    public function sermon_framing_outside_the_labelled_section_does_not_select_that_section(): void
+    {
+        $log = $this->logWithTranscript([
+            ['start' => 900.0, 'end' => 910.0, 'text' => 'Thank you for coming along to our church meeting last week.'],
+            ['start' => 918.0, 'end' => 924.0, 'text' => "I've been preaching on the cross over the past few weeks."],
+        ]);
+        $this->section($log, ServiceSectionType::Other, 1, 900.0, 915.0, 'Sermon introduction');
+        $reading = $this->reading($log, 2, 930.0, 1100.0, reference: 'Acts 17:16-34');
+        $sermon = $this->sermon($log, 3, 1100.0, 3000.0);
+
+        $this->assertSame([$reading->id, $sermon->id], $this->resolver->compose($log)['selected_section_ids']);
+    }
+
     /**
      * K18, run 18434's shape: however long the introduction is (219 s), and however late it names
      * the passage ("Paul's letter to the Ephesians").
@@ -1524,6 +1561,7 @@ class SermonExtractionPlanResolverTest extends TestCase
      */
     #[Test]
     #[TestWith(['typed'])]
+    #[TestWith(['mistitled'])]
     #[TestWith(['unsectioned'])]
     public function a_handover_naming_the_reader_is_not_cut_with_the_sermon(string $shape): void
     {
@@ -1532,8 +1570,8 @@ class SermonExtractionPlanResolverTest extends TestCase
             ['start' => 1506.0, 'end' => 1508.0, 'text' => 'Thank you, John.'],
         ]);
         $this->section($log, ServiceSectionType::Prayer, 1, 1300.0, 1495.0);
-        if ($shape === 'typed') {
-            $this->section($log, ServiceSectionType::Other, 2, 1495.0, 1510.0, 'Bible reading handover');
+        if ($shape !== 'unsectioned') {
+            $this->section($log, ServiceSectionType::Other, 2, 1495.0, 1510.0, $shape === 'mistitled' ? 'Sermon introduction' : 'Bible reading handover');
         }
         $reading = $this->reading($log, 3, 1510.0, 1700.0, reference: 'John 3:1-16');
         $sermon = $this->sermon($log, 4, 1700.0, 3000.0);

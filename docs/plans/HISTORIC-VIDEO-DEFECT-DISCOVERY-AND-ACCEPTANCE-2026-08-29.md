@@ -43,8 +43,8 @@ the amended decisions; §4.1c below owns their implementation follow-up.
   usable outputs, material omissions and contamination. Escalate consequential residual uncertainty.
 - G8 keeps full corpus comparison but requires a reason for repeating model work, rendering or
   listening. Reuse valid evidence; use the audit's bounded stopping rule and E23's soft-miss policy.
-- K20 corrects the K17 overgeneralisation. K18's passage-name check is evidence, not the meaning of
-  "sermon introduction"; 1301's omission remains a known gap, not an accepted exclusion.
+- K20 corrects the K17 overgeneralisation. K18's passage-name check is one source of evidence for
+  a sermon introduction. The run 1301 omission is fixed in the resolver (§4.1b). The recut and output verification are pending.
 - D24 retains the ensemble provisionally and requires source-first checks of unanimous results.
   K21 calls for a measured replacement of consequential middle/earlier-line ending selection.
 - E27 sets the overlap priority: substantive speech/complete singing, musical introductions, then
@@ -110,7 +110,7 @@ and specific operator rulings.
 ### 4.1a Before the next round: regression coverage and combined verification (2026-10-29)
 
 1. **Settle the current start work.** K19 reach-back is built and ruled (§4.1b); opening thanks needs
-   no rule; 1301's substantive introduction remains a K20 miss. Write reproducing tests before fixes,
+   no rule; K20's run 1301 omission is fixed in the resolver. Write reproducing tests before fixes,
    preserve handover/song counterexamples and measure each change. Do not revive the rejected broad
    first-sentence rule or closing-prayer prompt experiments from the archive.
 2. **Replay final code across the eligible corpus.** Compare recorded executed cuts with plans,
@@ -188,7 +188,7 @@ Reconciled through the 11-06 record; older interpretations and exact evidence ar
 | Work/status | Next action and evidence |
 |---|---|
 | **K19 reach-back — built 11-06** | `openedOnStraddledInvitation()`; operator answered “Opening Invitations” (record below). Changed starts 1244/1247/1250 join/1308/1339 need recapture after application. 954 span 1's invitation is still dropped by the dead-feed move (unassessed). |
-| **1301 introduction — known miss** | K18's current passage-name mechanism misses it; K20/§4.1c own the content-based correction. No-passage stretches on 1044/1258/960/1163 need evidence-based disposition, not automatic inclusion. |
+| **1301 introduction — fixed in code (K20)** | The resolver now accepts a section labelled “Sermon introduction” when its transcript corroborates the preacher's own preaching or sermon preparation. The existing music check still applies. The two source-backed 1301 captures add 1914.10–1959.96 and retain the same ending. A scan of 442 frozen packets found 33 preceding `other` windows, of which only 1301 met the new criteria. A read-only check of the current local sections and 1301 transcript confirmed the same window. Apply through the round, retaining 1301's separate R10 recompose route. No-passage stretches on 1044/1258/960/1163 still need evidence-based disposition. |
 | **Opening thanks / 1233 — no rule** | Operator 11-06 “Opening Thanks”: either on 941/1128/1230/1117, A (keep the thanks) on 1258, so no opening-thanks rule; rulings `operator-20261106:*` in `gather.py`. 1233's preferred start about 1651.0 remains an open-defect fixture (needs a wider decode window). |
 | **Quiet spoken openings — built, apply/verify** | `transcribedSpeechSounds()` protects 1308 and 928's internal reading start. 1308's announcement reach-back is now K19's (built 11-06, 1513.54 → 1509.34). 1136 is now an accepted source limitation (keep 15.06); 1354 drops only an optional invitation under K19. |
 | **K18/K19 captures — evidence refresh** | Changed starts need current edge/K16 evidence and recapture after application. K18 starts at 0.0 on 1027/1053/1072 currently lack decoded edge evidence. Preserve 1040's either and 1154's preferred exclusion; apply Q13/E27 to conflicts. |
@@ -229,7 +229,7 @@ below has already been implemented. Broader orchestration work stays with archit
 
 | Follow-up | Next useful result and verification | Owner |
 |---|---|---|
-| Introduction completeness (K20) | Reproduce 1301's omitted introduction; distinguish semantic membership from passage-name detection. Measure a correction against known introductions and handover/song counterexamples, including fresh source evidence. Keep unreached cases explicit. | This plan §4.1b / extraction planning |
+| Introduction completeness (K20) | The run 1301 omission is fixed in the resolver and verified against source replays and handover/song counterexamples. Apply it and verify the resulting output. Keep unreached cases explicit. | This plan §4.1b / extraction planning |
 | Ending disagreement (K21) | Inventory middle/earlier-line fallback cases; separate harmless alternatives from differences that lose a conclusion or add unrelated content. Reuse banked/source evidence first; measure the replacement before changing the selector. No automatic human question for every model disagreement. | This plan / `SermonSongIntroductionCheck` |
 | Competing boundaries (E27) | Exercise speech over a musical introduction and speech over an outro using actual rendered transitions. Compare with named rulings, preserve complete content, and report compromises; do not claim a fade removes speech selectively. | This plan / edge planning; audit owns audible acceptance |
 | Generalisation and operator effort (D24/Q15) | Report source-first completeness and unflagged errors on fresh recordings alongside questions/review minutes per service. Preserve the distinction between known-case regression evidence and independent evaluation. | Post-round audit §0 |
@@ -1607,12 +1607,13 @@ production. Each row below moves one of them ahead of the freeze.
   the class as named residue with its hold kept.
 - Still listed open under RA3: the planner missing speech inside the section, music under a
   prayer, the lyric protection check, under-speech endings.
-- K20 introduction completeness (1301), K21 ending selection, E27 overlap (§4.1c): implementation
-  pending. Also 954 span 1's dropped invitation and 1233's start (§4.1b).
+- K21 ending selection and E27 overlap (§4.1c) are pending, as are 954 span 1's dropped invitation
+  and 1233's start (§4.1b). K20's run 1301 omission is fixed in the resolver. The other four no-passage stretches
+  listed under §4.1b still need disposition.
 - RA4 (173 records on 11-07), RA5 (331, 49 of them unassessable) and RA6: no build status. RA6's
   answer preservation (the 1148/1197 renumbering cases) matters most here: a recompose that re-asks
   settled questions is manual work the round would create.
-- Built but unapplied work is not on this list. The round applies it: K18/K19 starts, split-song
+- Built but unapplied work is not on this list. The round applies it: K18/K19/K20 starts, split-song
   snap, the ten stale generations, the 33 Scripture refreshes, the song-end rules through `741918dbd`.
 
 **Talk-type detection (row 7): state on 11-10 and planned work. No ruling is changed here.**
