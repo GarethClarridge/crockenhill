@@ -536,6 +536,9 @@ section identity through re-detection; an old section ID may now name different 
   Added 11-09 (operator): 336327 (ends halfway through the last verse: steady-music singing reads as
   talking on the voice track), 1897 (keeps "Well let's turn to"), 672 and 336013 (voice removal
   leaves the talking audible under the music).
+  Added 11-10: 4616 (speech over the outro: end before it at about 72:32 or remove it; the outro ends
+  about 72:36). Class B ends 2303 and 3666 (speech before a fade end) stay open in video plan §4.1d
+  until class B has a design.
 
 - **11-05/06 residual media leads:** 1307 §4665's faded song end; 1215 §2643's lyric disagreement
   at source 1980–2025 s; 1006's source black interval and its presentation consequence; 1059's

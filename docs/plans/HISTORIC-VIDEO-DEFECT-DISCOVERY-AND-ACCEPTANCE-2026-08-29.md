@@ -1207,6 +1207,140 @@ tests green.
          - **Verdict:** the exemption as specified is not safe alone (4 known-wrong releases of 7
            ruled or known). Next: the audible-tail fix to the hold, then a listening page of the
            unruled releases before any build.
+         - **Listening page (11-09):** https://claude.ai/artifact/3LVxbfRgnmNUgUTiqRpjwb
+           (`storage/scratch/tail-exemption-listening-20261109/`, `rulings`, ids `<run>-s<section>`): the 17
+           unruled releases ("does A end right?") and the 9 voice-removed tails ("can you hear the talking?"),
+           rendered from the round cuts with voice removal mirrored from `withoutVoice()`.
+         - **Answered 11-09 (26):** voice-removed tails 9 of 9 inaudible, so the audible-tail fix to the
+           hold is supported. Released: 16 of 17 right; 837 cut short softly ("ideally an extra second
+           with the last note of the outro").
+         - **Speech guard on the exemption:** treat the last lyric cue as sung only where the
+           classifier window at its start reads speech < 0.5. That stops 3 of the 24: 3427 (psalm reading, 0.61),
+           175597 (named miss, 0.61) and 2819 (0.62, under voice removal; the audible-tail fix takes its
+           "Let's pray" out of the tail anyway). Every right release reads ≤ 0.03.
+         - With the guard, it releases 21: 17 right (16 + 336237), 837 soft, and 1814, 3282, 3886 ruled cut
+           short on 11-07 (their cuts unchanged or earlier). The hold only catches those three by
+           coincidence: their cuts are the defect, not their tails.
+       - **Plan: the song hold judges the clip that publishes (11-09, operator "Yes" to plan + measure;
+         nothing built).** Found while scoping the audible-tail fix: production's
+         `SongPublicationBoundaryEvidenceService::assess()` judges the stored bounds (plus operator
+         edge answers, `asCut()`), not the cut that publishes. That cut, with its fade and voice removal,
+         is recorded as `publication_candidate_extraction` in `PrepareSectionPublicationCandidates`
+         *before* `requiresApproval()` runs, so the hold can read it. One change, three parts:
+         1. `asCut()` takes the recorded candidate cut's outer bounds when present (operator answers are
+            already inside it; the planner applies them).
+         2. Replace the 5 s `CANDIDATE_END_TOLERANCE_SECONDS` cliff, which 11-07 found clears 32 real
+            holds when the planned cut is judged (above). Candidates, measured read-only first: (R1) test
+            transcript reach against the stored end, the bound the transcript was segmented against,
+            while the tail is measured to the cut; (R2) no cliff at all.
+         3. End the judged tail where the recorded cut takes the voice out (`audio_voice_removal.from`):
+            past it the clip carries no voice (9 of 9 heard inaudible, page 3LVxb).
+         Measure on all historic song sections: holds under stored bounds (today), planned cut + current
+         cliff, R1, R2, each with and without part 3; list every section whose hold changes, score
+         against the tail labels, the tail/end rulings and page 3LVxb. Then re-run the exemption on the
+         chosen variant. Build test-first only after the operator has the numbers. Later users of the
+         same "voice present until" bound: the lyric protection check, anything reading cut text.
+       - **Measured 11-09 (`storage/scratch/hold-variants-20261109/`, read-only, the service's own private
+         steps called through a bound closure; S reproduces production `assess()` on all 1,175).** Trailing holds:
+         S (today) 122 · P0 planned cut + today's reach test 100 · R1 reach against stored end 107 · R2 no
+         reach test 157 · with part 3: P0V 104, R1V 111, R2V 161.
+         - **R2 rejected:** it adds about 55 holds on clips whose last seconds have no cue (many with
+           round stored ends, 2000.0, 2115.0): what the reach test exists for, including 637 and 176225,
+           heard right on page 3LVxb.
+         - **R1 (part 1 + 2):** 23 released, 8 new. Of the released, 12 are labelled or ruled and look
+           right: the cut now ends before the speech (921, 1986, 2991, 4220, 4276, 136468, 837 soft), heard
+           right (3753, 3795, 4713), or the song-continues fix (961, 1915). 4 are the voice-removed cuts
+           whose last gap sits just before the talking (692, 3103, 3627, 176323). 7 unlabelled (1265, 2447,
+           3981, 4336, 94692, 173672, 175128) end 4–18 s *later* than stored: a new short gap near the end
+           makes the tail < 10 s. Whether the extra seconds are song needs listening. The 8 new holds
+           (511, 2072, 2108, 3222, 3561, 4134, 4677, 232943) are unlabelled.
+         - **Part 3 alone adds holds (correction to the earlier claim that 8 of the 9 voice-removed cuts
+           are held for removed words).** In all 9 the judged tail starts at an instrumental break 40–50 s
+           earlier; cutting the talking leaves it well over 10 s. In 4 (692, 3103, 3627, 176323), removing
+           the talking moves the last gap back to the break, and the hold then sees a long sung tail. So
+           part 3 belongs with the exemption (the line before the cut becomes the song's own lyric), not
+           with the hold alone.
+         - **The weakness under all of it is "the last wordless gap"**: an instrumental break reads as the
+           gap before trailing content (defect (a)), and moving an end creates or removes a near-end gap.
+           The variants above only move that brittleness around.
+         - **Heard 11-10 (page SW7Za1JVWsWWVdxLEfmAaP, `storage/scratch/later-endings-listening-20261110/`,
+           answers in `answers/rulings/`): 5 of the 7 later ends are right** (2447, 3981, 4336, 173672,
+           175128). **Two are cut faults that today's hold catches only by accident** (it judges the stored
+           end, not the cut):
+           - **1265** `song_end_silence`, ends 1394.35, 2 s before the next speech: "the extra seconds are
+             random noise. Should finish about 23:07" (≈1387, stored end 1385.8). The silence end runs
+             through non-song noise to the gap before the speech.
+           - **94692** `song_end_voice_track_talking` (E30), ends 3937.99 with a 0.1 s fade: "speech in
+             the last second". The prayer cue is timed from 3929.68; the voice track put the talking
+             later, and the end still lands about a second into it.
+           So R1 as it stands would publish 2 wrong ends out of 7 unlabelled releases. The hold is right to
+           judge the published cut; the faults are in the planner's end. Fix (or class-measure) those two
+           mechanisms before R1 is built.
+         - **Class-measured 11-10 (`storage/scratch/end-faults-20261110/`, read-only, all 1,175, no errors).**
+           - **A (1265's mechanism):** 1265 ends in digital zero from 1386.4. Bursts at 1391.5 (0.6 s) and
+             1394.0 (0.05 s) fall in 5 s windows classed music, so `beforeMusicResumes` treats each as the
+             music coming back and steps on to the next silence. Of 593 silence ends, 21 skipped a silence
+             for a burst with a longest run < 1 s in a music window. One is 1959, the case the rule was
+             written for (music did come back: longest run 0.35 s, 0.95 s above threshold in 2 s), so
+             "burst < 1 s" alone would break it. The levels cannot separate the classes yet; they need the ear.
+           - **B (94692's mechanism):** the `song_end_fade` cut at 3937.79 was already inside the talking
+             (voice track active from 3936.4, classifier speech 0.69, singing 0.004). `talkingAfter` only
+             looks after the cut, so E30 took the talking for the last sung voice. Only 132 ends have banked
+             stems; on those, 9 have a voice-track onset in a speech window 0.4–2.6 s before the end.
+             Already heard on today's cut: 94692 bad; 2447, 1521, 3107, 2858 right. 2303 ends at the later
+             version the 11-07 tail-onset page turned down (329.4 was chosen), now with a 2.47 s fade. 2187 was heard only
+             on an older cut. 3628 and 3666 are unheard.
+           - Paged on QJrrG1msJ4HKgQrtJpCZ77: the 19 unheard A ends (version 1 = the earlier silence,
+             version 2 = today's) and B ends 2187, 2303, 3628, 3666.
+           - **Heard 11-10 (`end-faults-20261110/answers/rulings/`). A: no one chose today's end.** The
+             earlier silence: 529, 682, 1172, 1749, 2108, 2566, 2834, 3280, 3589, 3603, 3645, 4089.
+             Either: 941, 1635, 1680, 3237, 3672, 174798. 4616 neither: "outro ends about 72:36, but the
+             speech needs to be removed. Or it could end before the speech at 72:32" (speech over the
+             outro, its own case). With 1265, that makes 19 of 19 for the earlier silence or either.
+             **The levels do not separate 1959:** after the skipped silence it has 22% of the time above
+             threshold and a longest run of 0.37 s, against 2566 at 29%/0.28 s, 3603 at 28%/0.53 s and
+             3589 at 29%/0.51 s (`probe4.php`). 1959 is re-asked on 358G41D77A9Dzu2rVkoqvP (its ruling is
+             from canary 13, and rulings are evidence). If it comes back as the earlier silence or either,
+             the measured rule is "a silence of ≥ 1 s after the last sung sound ends the song unless the
+             sound after it holds for ≥ 1 s".
+           - **B:** 2187 right ("no speech, but an intake of breath"). 2303 speech at 5:30 and 3666 speech
+             at 6:27, both `song_end_fade`, onset 2.2 and 2.6 s before the end. 3628 speech at 7:25, "but
+             faded so not really a problem". Of the 9 voice-track hits, 3 are bad (94692, 2303, 3666), 1 is
+             soft (3628) and 5 are right (2447, 1521, 3107, 2858, 2187). Stems exist for only 132 of the
+             1,175 ends, so the class's size outside them is unknown.
+           - **1959 re-asked 11-10 (358G41D77A9Dzu2rVkoqvP, `end-faults-1959-20261110/answers/`): version 1,
+             the earlier silence (714.41).** This supersedes canary 14's "right" at 720.0, and so does the
+             reason `beforeMusicResumes` was written. Canary 13's earlier complaint (713.62 clipped "shielded
+             by your powerful hand") is about an end 0.8 s before this one. **All 21 heard class A ends agree:
+             the earlier silence or either.**
+       - **Plan: a silence ends the song unless the music truly comes back (class A; not started).**
+         1. **Rule.** In `beforeMusicResumes`, the sound after a found silence counts as the music
+            coming back only when it stays above the level threshold for ≥ 1 s
+            (`SONG_END_SILENCE_SECONDS`, the length the silence itself must last), not just when its first
+            sample sits in a window classed music. Otherwise the found silence is returned. No new
+            threshold: the silence and its return are judged over the same length.
+         2. **Scope.** `beforeMusicResumes` has three callers: the `song_end_silence` path (line ~2746,
+            the one measured), the `firstQuiet` path (~2784) and the `lastGap` path (~2792). Before
+            building, re-run `end-faults-20261110/measure.php` with the rule applied to all three
+            (read-only) and list every end that moves. Ends on the other two paths that were never heard go
+            on a page before they change; if any of them must not move, limit the rule to the silence path.
+         3. **Tests first** (`SongEndEdgesTest`):
+            - 1265 shape: digital zero after the last sung sound, then a 0.6 s and a 0.05 s burst in a
+              music window. The end is at the first silence.
+            - 1959 shape: a 1.6 s silence, then a return whose longest run is 0.37 s. The end is at the
+              first silence. This replaces the canary 13 test at line ~752, whose expectation (play on to
+              720) is now ruled wrong.
+            - Music that really comes back: a silence, then ≥ 1 s held above threshold. It still plays on.
+         4. **Fixture.** Mark `canary14:003-1117-end` (720.0, keep) superseded in
+            `tests/Fixtures/Rulings/edge-rulings.json`. Add the 11-10 rulings from
+            `end-faults-20261110/answers/` and `end-faults-1959-20261110/answers/`, with 1959, 1265 and the
+            12 v1 ends as `inward` and the 6 either ends as `either`. Run the ruled-endings set.
+         5. **Then** replay the hold variants with the fix in. The hold change (R1, the hold judges the
+            published cut) waits on this.
+       - **Not planned yet: class B.** 3 bad / 1 soft / 5 right on the voice track, and the track covers
+         only 132 ends. It needs its own design: talking the voice track hears inside the fade, told
+         apart from breaths and the right endings. 4616 (speech over the outro, "end before the speech
+         at 72:32 or remove it") is a single case and joins the named residue.
 
 **RA4 — Targeted song identity and transcript-repetition recovery (after RA1 routing).** Extend
 `MatchSongsFromTranscript` and `SongCatalogueTitlePolicy` only where the inventory demonstrates
