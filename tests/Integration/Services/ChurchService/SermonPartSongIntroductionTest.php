@@ -57,6 +57,25 @@ class SermonPartSongIntroductionTest extends TestCase
             && str_starts_with($parameters['messages'][1]['content'], 'Bible reading: "Jonah 3"'));
     }
 
+    #[Test]
+    #[TestWith(['Gareth', 'stand and sing again', 1618.46])]
+    #[TestWith(['Lord', 'stand and sing again', 1626.42])]
+    #[TestWith(['Gareth', 'continue with the next verse', 1626.42])]
+    public function a_reading_ends_before_the_leader_thanks_the_reader_and_invites_singing(string $addressee, string $following, float $expected): void
+    {
+        $log = $this->service();
+        $this->rewriteCue($log, 1618.46, 'thank you');
+        $this->rewriteCue($log, 1623.4, $addressee);
+        $this->rewriteCue($log, 1626.42, "let's");
+        $this->rewriteCue($log, 1629.0, $following);
+        $line = $this->lineNumber($log, $addressee);
+        $this->answers([$line, false, $line], [$line, false, $line]);
+        $check = app(SermonSongIntroductionCheck::class);
+
+        $this->assertSame($expected, $check->prepare($log, $this->spans(), 0)['end']);
+        $this->assertSame($expected, $check->read($log->fresh(), $this->spans(), 0)['end']);
+    }
+
     /**
      * The output's own end is asked exactly as before, whatever its section, so its banked answers
      * (and a closing prayer's, asked as the sermon's end since 10-16) still stand.

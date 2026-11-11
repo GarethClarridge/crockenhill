@@ -242,7 +242,9 @@ TXT;
      */
     private function bank(MediaProcessingLog $log, array $question, array $calls): array
     {
-        $decision = $this->decision($calls, $question['lines'], 'sermon_last_line', $this->identitySongStart($question['identity']), $this->identityPartEnd($question['identity']));
+        $identity = $question['identity'];
+        $decision = $this->decision($calls, $question['lines'], 'sermon_last_line', $this->identitySongStart($identity), $this->identityPartEnd($identity),
+            readingPart: ($identity['part'] ?? null) === ServiceSectionType::BibleReading->value);
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $this->kind($question['identity']), [
             'calls_completed' => true, 'identity' => $question['identity'], 'prompt' => $question['prompt'], 'lines' => $question['lines'], 'calls' => $calls, ...$decision,
         ]);
@@ -589,7 +591,7 @@ TXT;
      * @param  'sermon_last_line'|'video_last_line'  $lineKey
      * @return array{ties_to_sermon: bool|null, end: float|null, line: string|null}
      */
-    private function decision(array $calls, array $lines, string $lineKey = 'video_last_line', ?float $songStart = null, ?float $partEnd = null): array
+    private function decision(array $calls, array $lines, string $lineKey = 'video_last_line', ?float $songStart = null, ?float $partEnd = null, bool $readingPart = false): array
     {
         $votes = array_count_values(array_map(static fn (array $call): string => var_export($call['ties_to_sermon'], true), $calls));
         arsort($votes);
@@ -635,12 +637,38 @@ TXT;
         }
 
         if ($partEnd !== null) {
-            $chosen = $this->partLine($chosen, $byNumber, $partEnd, $songStart);
+            $readingEnd = $readingPart && $chosen !== null ? $this->readingEndBeforeHandover($chosen, $byNumber) : null;
+            $chosen = $readingEnd ?? $this->partLine($chosen, $byNumber, $partEnd, $songStart);
         }
 
         return $chosen === null
             ? ['ties_to_sermon' => $ties, 'end' => null, 'line' => null]
             : ['ties_to_sermon' => $ties, 'end' => (float) $byNumber[$chosen]['end'], 'line' => $byNumber[$chosen]['text']];
+    }
+
+    /**
+     * A fragmented thank-you to the reader followed by the call to sing belongs to the leader's
+     * handover (956). The reading ends before both fragments of the thanks.
+     *
+     * @param  array<int, array{n: int, start: float, end: float, text: string, music: 'no'|'may'|'yes'}>  $lines
+     */
+    private function readingEndBeforeHandover(int $chosen, array $lines): ?int
+    {
+        if (! isset($lines[$chosen - 2], $lines[$chosen - 1], $lines[$chosen + 1])
+            || $lines[$chosen - 2]['music'] !== 'no'
+            || TranscriptCueEvidence::tokens($lines[$chosen - 1]['text']) !== ['thank', 'you']) {
+            return null;
+        }
+
+        $addressee = $lines[$chosen]['text'];
+        if (preg_match('/^\p{Lu}\p{Ll}+[.!]?$/u', $addressee) !== 1
+            || in_array(rtrim($addressee, '.!'), ['God', 'Lord', 'Jesus', 'Christ', 'Father', 'Spirit', 'Saviour', 'Savior'], true)) {
+            return null;
+        }
+
+        $invitation = $lines[$chosen + 1]['text'].' '.($lines[$chosen + 2]['text'] ?? '').' '.($lines[$chosen + 3]['text'] ?? '');
+
+        return preg_match("/^(?:so )?let['’]s stand and sing\\b/iu", $invitation) === 1 ? $chosen - 2 : null;
     }
 
     /**
@@ -731,7 +759,8 @@ TXT;
                 }
             }
 
-            $decision = $this->decision($this->bankedCalls($payload), $lines, 'sermon_last_line', $this->identitySongStart($identity), $this->identityPartEnd($identity));
+            $decision = $this->decision($this->bankedCalls($payload), $lines, 'sermon_last_line', $this->identitySongStart($identity), $this->identityPartEnd($identity),
+                readingPart: ($identity['part'] ?? null) === ServiceSectionType::BibleReading->value);
 
             return ['end' => $decision['end'], 'ties_to_sermon' => $decision['ties_to_sermon'], 'line' => $decision['line']];
         }
