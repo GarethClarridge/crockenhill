@@ -187,7 +187,7 @@ Reconciled through the 11-06 record; older interpretations and exact evidence ar
 
 | Work/status | Next action and evidence |
 |---|---|
-| **K19 reach-back — built 11-06** | `openedOnStraddledInvitation()`; operator answered “Opening Invitations” (record below). Changed starts 1244/1247/1250 join/1308/1339 need recapture after application. 954 span 1's invitation is still dropped by the dead-feed move (unassessed). |
+| **K19 reach-back — built 11-06** | `openedOnStraddledInvitation()`; operator answered “Opening Invitations” (record below). Changed starts 1244/1247/1250 join/1308/1339 need recapture after application. Keep 954's previously approved join after checking the source dropout below. |
 | **1301 introduction — fixed in code (K20)** | The resolver now accepts a section labelled “Sermon introduction” when its transcript corroborates the preacher's own preaching or sermon preparation. The existing music check still applies. The two source-backed 1301 captures add 1914.10–1959.96 and retain the same ending. A scan of 442 frozen packets found 33 preceding `other` windows, of which only 1301 met the new criteria. A read-only check of the current local sections and 1301 transcript confirmed the same window. Apply through the round, retaining 1301's separate R10 recompose route. No-passage stretches on 1044/1258/960/1163 still need evidence-based disposition. |
 | **Opening thanks / 1233 — no rule** | Operator 11-06 “Opening Thanks”: either on 941/1128/1230/1117, A (keep the thanks) on 1258, so no opening-thanks rule; rulings `operator-20261106:*` in `gather.py`. 1233's preferred start about 1651.0 remains an open-defect fixture (needs a wider decode window). |
 | **Quiet spoken openings — built, apply/verify** | `transcribedSpeechSounds()` protects 1308 and 928's internal reading start. 1308's announcement reach-back is now K19's (built 11-06, 1513.54 → 1509.34). 1136 is now an accepted source limitation (keep 15.06); 1354 drops only an optional invitation under K19. |
@@ -221,6 +221,17 @@ refusal, 1354 clipped window), K19 docblock amended; replay of the built rule = 
 (`built.json`); rulings `operator-20261106:{1250,1339,1247,1244}-sermon-start*`; six captures rebaselined on their own
 evidence (`rebaseline.py`, originals in `before/`, `live_revision`); ruled endings 659/659.
 
+**954 sermon join, source check (11-11).** The 11-05 transcript-based review reported a lost
+invitation at the join. The staged master matches run 954's recorded SHA-256. Both channels
+show the dropout. The 1562.51 reach-back adds a brief signal around 1562.54–1562.92, followed
+by 4.48 s below −80 dBFS peak before the feed begins to return at 1567.40. Sustained
+speech-level audio resumes around 1568.10. The transcript alone cannot establish that the
+invitation is recoverable across that gap. Keep the 1357.00 → 1567.85 join that the operator
+heard and approved on 10-22. Record the dropout as a source limitation. The earlier preview
+may contain a faint fragment whose intelligibility is unverified. Source measurements and
+decoded previews of both joins are in `storage/scratch/954-invitation-preflight/`.
+Verify the applied join in the round.
+
 ### 4.1c Outcome-review follow-up (agreed 2026-11-06; implementation pending)
 
 Apply these directions to the existing repair and acceptance work. Do not restart completed
@@ -230,11 +241,50 @@ below has already been implemented. Broader orchestration work stays with archit
 | Follow-up | Next useful result and verification | Owner |
 |---|---|---|
 | Introduction completeness (K20) | The run 1301 omission is fixed in the resolver and verified against source replays and handover/song counterexamples. Apply it and verify the resulting output. Keep unreached cases explicit. | This plan §4.1b / extraction planning |
-| Ending disagreement (K21) | Inventory middle/earlier-line fallback cases; separate harmless alternatives from differences that lose a conclusion or add unrelated content. Reuse banked/source evidence first; measure the replacement before changing the selector. No automatic human question for every model disagreement. | This plan / `SermonSongIntroductionCheck` |
+| Ending disagreement (K21) | Banked-vote inventory and selector comparison below. Reconcile the missing banks and measure a conclusion-aware choice before changing the selector. No automatic human question for every model disagreement. | This plan / `SermonSongIntroductionCheck` |
 | Competing boundaries (E27) | Exercise speech over a musical introduction and speech over an outro using actual rendered transitions. Compare with named rulings, preserve complete content, and report compromises; do not claim a fade removes speech selectively. | This plan / edge planning; audit owns audible acceptance |
 | Generalisation and operator effort (D24/Q15) | Report source-first completeness and unflagged errors on fresh recordings alongside questions/review minutes per service. Preserve the distinction between known-case regression evidence and independent evaluation. | Post-round audit §0 |
 | Bounded repeated work (G8) | Full corpus comparison yields explicit reuse/reprocess/unassessable dispositions and affected stages. A round names the defect classes/evidence gaps it addresses and its stopping condition; unchanged valid evidence is reused. | Round runbook §6; audit stopping rule |
 | Independent outputs (G12) | Characterise sermon enrichment failures delaying song preparation; propose the smallest orchestration change that isolates outputs while preserving shared provenance, retries, custody and per-output publication checks. | Architectural maintainability AM8, at its existing gate |
+
+**K21 banked-vote inventory (2026-11-10).** Checked the 450 non-excluded historic runs in the
+11-07 replay membership against the current question identities. The edge-preparation and cut
+planner spans agreed on the questions and bank matches. There were 203 matching banks, 396
+questions without a matching bank and six runs without a question. The matching banks contained
+three earlier-line fallbacks and no middle-line fallback. The comparison ran the banked calls
+through the current selector and its existing end guards.
+The evidence and reproducible read-only analysis are in `storage/scratch/k21-ending-votes-20261110/`.
+
+| Run | Finding and next disposition |
+|---|---|
+| 956 | The recorded cut and final model vote end at 3816.10, on “preaching” in the middle of the conclusion. The later vote ends on “the” at 3822.50. The 11-04 answer to the identical prompt reaches the sentence break at 3822.78, outside the active either ruling. Banked word timings corroborate the approved alternatives at 3798.50 (“resurrection”) and 3831.84 (“quoted”). The saved 3798.50 end and repaired reading join replay together. Apply and verify them in one cut in the round. |
+| 1244 and 1274 | The preacher and congregation Amens attracted different votes. Earlier and later selection produce the same preacher’s Amen after the existing step-back. The planned ends are 3788.96 and 4076.84. Keep the current handling. |
+| 1140 | The recorded 1813.085 cut omits the last application. The 11-04 trial matches the current prompt text, but there is no answer for the current full identity. Its three distinct sermon lines offer an early ending before the application, a middle line cut mid-clause at 1841.95, and a late line through the song announcement. Banked word timings place the end of “Let’s do that, shall we?” at 1852.91, just before the call to sing. Replay that as a candidate and hear the transition before choosing an end. |
+
+The older 11-04 sample of 611 answer sets contained one middle fallback and five earlier
+fallbacks. All six prompts still match, and five lack a bank for the full current identity.
+Besides 1140, three disagreed over adjacent Amens (1052, 1077, 1244). The other two would
+extend into a prayer invitation (1161) or a recitation of song lyrics (1375). Selecting the
+earlier or later numbered line supplies no general replacement. Finish the edge banks and
+repeat the inventory before the freeze. Measure any adjudication against complete spoken
+conclusions and the named rulings, including cases where an answer needs a boundary inside a
+transcript line.
+
+**Named repair preflight (2026-11-10).** Edge preparation completed for both runs. For 956,
+the approved 3798.50 end was saved and the planner placed it exactly. The newly banked inner
+answer also moved the reading join from 2070.00 to 2074.915, adding the leader's thanks to the
+reader. One current decode places the start of the next invitation at 2074.82. The earlier
+bank chose “commandment” at 2069.74, but its prompt differs after the handover near the music,
+so the current identity does not accept it. The selector now steps back before a fragmented
+thanks to the reader followed by the call to sing. Of 212 banked reading answers compared,
+only 956's current answer moved, to “commandment” at 2069.74. Its full plan keeps the reading
+end at 2070.00 and places the saved sermon end at 3798.50. Banked word timings put the end of
+“commandment” before the reading cut and the leader's thanks more than three seconds after it.
+The round applies both ends in one cut. For 1140, the new bank still selects the early
+conclusion. The operator approved the 1852.91 preview,
+and the named re-cut completed in local quarantine with that exact recorded end. The new
+video is 1751.478 s and decoded in full. The approval clip, encoded ending and run record are
+in the same scratch directory.
 
 ### 4.1d Pre-round review automation build plan (2026-11-06)
 
@@ -1607,8 +1657,10 @@ production. Each row below moves one of them ahead of the freeze.
   the class as named residue with its hold kept.
 - Still listed open under RA3: the planner missing speech inside the section, music under a
   prayer, the lyric protection check, under-speech endings.
-- K21 ending selection and E27 overlap (§4.1c) are pending, as are 954 span 1's dropped invitation
-  and 1233's start (§4.1b). K20's run 1301 omission is fixed in the resolver. The other four no-passage stretches
+- K21's banked-vote inventory, the 956 reading-join fix and the completed local 1140 repair
+  are recorded in §4.1c. The recount after edge evidence is open. E27 overlap and 1233's start
+  are pending. 954's approved join stays, with the dropout recorded in §4.1b.
+  K20's run 1301 omission is fixed in the resolver. The other four no-passage stretches
   listed under §4.1b still need disposition.
 - RA4 (173 records on 11-07), RA5 (331, 49 of them unassessable) and RA6: no build status. RA6's
   answer preservation (the 1148/1197 renumbering cases) matters most here: a recompose that re-asks
