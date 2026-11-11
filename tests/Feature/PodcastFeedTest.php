@@ -279,6 +279,27 @@ class PodcastFeedTest extends TestCase
         $content = $response->getContent();
 
         $this->assertStringContainsString('A sermon on John 3:16 from Mark Drury as part of our Gospel of John series.', $content);
+        $this->assertStringNotContainsString('Only part of this sermon was recorded.', $content);
+    }
+
+    #[Test]
+    public function feed_discloses_partial_recordings_in_episode_descriptions(): void
+    {
+        Sermon::factory()->create([
+            'service' => SermonService::Morning->value,
+            'audio_file_path' => 'partial.mp3',
+            'reference' => 'John 3:16',
+            'preacher' => 'Mark Drury',
+            'series' => 'Gospel of John',
+            'partial_recording' => true,
+        ]);
+
+        $content = $this->get('/christ/talks/morning/feed')->assertOk()->getContent();
+        $summary = 'Only part of this sermon was recorded. A sermon on John 3:16 from Mark Drury as part of our Gospel of John series.';
+
+        $this->assertStringContainsString("<itunes:summary><![CDATA[{$summary}]]></itunes:summary>", $content);
+        $this->assertStringContainsString("<itunes:subtitle><![CDATA[{$summary}]]></itunes:subtitle>", $content);
+        $this->assertStringContainsString("<description><![CDATA[{$summary}]]></description>", $content);
     }
 
     #[Test]

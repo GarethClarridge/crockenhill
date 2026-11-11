@@ -117,6 +117,7 @@ class PodcastFeedService
 
         return $this->sermonRepository
             ->publicSermonQuery()
+            ->addSelect('partial_recording')
             ->forPodcast()
             ->forService($serviceType)
             ->limit($limit)
@@ -173,7 +174,9 @@ class PodcastFeedService
             $parts[] = "as part of our {$sermon->series} series";
         }
 
-        return ! empty($parts) ? implode(' ', $parts).'.' : $sermon->title;
+        $summary = ! empty($parts) ? implode(' ', $parts).'.' : $sermon->title;
+
+        return $sermon->partial_recording ? "Only part of this sermon was recorded. {$summary}" : $summary;
     }
 
     /**
