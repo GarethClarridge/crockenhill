@@ -1,7 +1,7 @@
 <x-admin.form-shell
     :title="'Edit ' . $contentTypeLabel"
     :description="$isTalk
-        ? 'Update the published children\'s talk details. Sermon-only fields stay hidden on this form.'
+        ? 'Update the published ' . strtolower($contentTypeLabel) . ' details. Sermon-only fields stay hidden on this form.'
         : 'Update sermon details, metadata, and any AI-assisted content shown publicly.'"
     save-action="save"
 >

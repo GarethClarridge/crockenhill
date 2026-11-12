@@ -6,6 +6,9 @@ namespace Tests\Feature;
 
 use App\Enums\TalkType;
 use App\Livewire\Admin\Sermons\EditSermon;
+use App\Livewire\Admin\Sermons\ListSermons;
+use App\Livewire\Sermons\BrowseSermons;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Models\User;
 use App\Seo\SermonItemListPresenter;
@@ -23,6 +26,7 @@ class ChurchUpdateExposureTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Storage::fake('local');
         Storage::fake('public');
         config(['church.talks.public_types' => TalkType::values(), 'podcast.cache.enabled' => false]);
     }
@@ -34,6 +38,7 @@ class ChurchUpdateExposureTest extends TestCase
         Livewire::actingAs(User::factory()->create(['is_admin' => true]))
             ->test(EditSermon::class, ['sermon' => $talk])
             ->assertSee('Edit Church Update')->assertSee('Church update notes')
+            ->assertSee('Update the published church update details.')
             ->assertDontSee("Children's Corner");
     }
 
@@ -45,7 +50,7 @@ class ChurchUpdateExposureTest extends TestCase
             if ($user !== null) {
                 $this->actingAs($user);
             }
-            foreach ([$this->datedUrl($talk), '/christ/talks?type=church_update', route('sermons.audio', $talk), route('sermons.video', $talk), route('sermons.thumbnail', $talk)] as $url) {
+            foreach ([$this->datedUrl($talk), '/christ/talks?type=church_update', ...$this->assetUrls($talk)] as $url) {
                 $this->get($url)->assertRedirect(route('login'));
             }
         }
@@ -67,11 +72,78 @@ class ChurchUpdateExposureTest extends TestCase
     public function public_pages_and_search_never_advertise_church_updates(): void
     {
         $talk = $this->churchUpdate();
-        foreach (['/christ/talks', '/christ/talks/morning', '/christ/talks/series'] as $url) {
-            $this->get($url)->assertOk()->assertDontSee($talk->title)->assertDontSee($talk->slug);
+        $preacher = Preacher::factory()->create(['name' => 'Public listing preacher']);
+        $talk->update(['series' => 'Shared archive series', 'preacher_id' => $preacher->id]);
+        $sermon = Sermon::factory()->create(['title' => 'Public listing control', 'series' => $talk->series, 'preacher_id' => $preacher->id]);
+
+        foreach (['/', '/christ/talks', '/christ/talks/all', '/christ/talks/morning', '/christ/talks/evening', '/christ/talks/other', '/christ/talks/series', '/christ/talks/series/shared-archive-series', '/christ/talks/preachers', route('sermons.preacher', $preacher)] as $url) {
+            $this->followingRedirects()->get($url)->assertOk()->assertDontSee($talk->title)->assertDontSee($talk->slug);
         }
+        $this->get('/christ/talks')->assertSee($sermon->title);
         $this->getJson('/api/sermons?search='.urlencode($talk->title))
             ->assertOk()->assertJsonCount(0, 'data');
+        $this->getJson('/api/sermons?search='.urlencode($sermon->title))
+            ->assertOk()->assertJsonFragment(['id' => $sermon->id]);
+    }
+
+    #[Test]
+    public function a_guest_cannot_select_church_updates_through_a_livewire_request(): void
+    {
+        $talk = $this->churchUpdate();
+
+        Livewire::test(BrowseSermons::class)
+            ->call('selectType', TalkType::ChurchUpdate->value)
+            ->assertSet('typeFilter', TalkType::Sermon->value)
+            ->assertDontSee($talk->title)
+            ->assertDontSee('Church Updates');
+    }
+
+    #[Test]
+    public function verified_members_can_open_each_church_update_asset(): void
+    {
+        $talk = $this->churchUpdate();
+        $talk->update([
+            'thumbnail_file_path' => 'thumbnails/church-update.webp',
+            'thumbnail_metadata' => ['plain_thumbnail_path' => 'thumbnails/church-update-plain.webp', 'card_thumbnail_path' => 'thumbnails/church-update-card.webp'],
+            'transcript_file_path' => 'transcripts/church-update.txt',
+        ]);
+        config(['media-processing.storage.transcript_disk' => 'public']);
+        foreach ([$talk->audio_file_path, $talk->video_file_path, $talk->thumbnail_file_path, $talk->plain_thumbnail_file_path, $talk->card_thumbnail_file_path, $talk->transcript_file_path] as $path) {
+            Storage::disk('public')->put($path, 'Church update asset');
+        }
+        $this->actingAs(User::factory()->create(['email_verified_at' => now()]));
+
+        foreach (array_slice($this->assetUrls($talk), 0, 5) as $url) {
+            $response = $this->get($url)->assertRedirect();
+            $this->assertNotSame(route('login'), $response->headers->get('Location'));
+        }
+        $this->get(route('sermons.transcript', $talk))->assertOk()->assertSee('Church update asset');
+    }
+
+    #[Test]
+    public function private_family_talks_emit_no_article_or_media_structured_data(): void
+    {
+        config(['church.talks.public_types' => ['sermon']]);
+        $talk = Sermon::factory()->withAudio()->create(['content_type' => TalkType::ChildrensTalk]);
+        $this->actingAs(User::factory()->create());
+
+        $this->get($this->datedUrl($talk))->assertOk()->assertSee('Family Talk')
+            ->assertSee('<meta name="robots" content="noindex">', false)
+            ->assertDontSee('"@type": "Article"', false)
+            ->assertDontSee('"@type": "AudioObject"', false)
+            ->assertDontSee('"contentUrl"', false);
+    }
+
+    #[Test]
+    public function the_admin_family_talk_copy_uses_the_reviewed_label(): void
+    {
+        $talk = Sermon::factory()->create(['content_type' => TalkType::ChildrensTalk]);
+        Livewire::actingAs(User::factory()->create(['is_admin' => true]))
+            ->test(EditSermon::class, ['sermon' => $talk])
+            ->assertSee('Update the published family talk details.')
+            ->assertDontSee("children's talk");
+
+        Livewire::test(ListSermons::class)->assertSee('published talks')->assertDontSee("children's talks");
     }
 
     #[Test]
@@ -143,5 +215,13 @@ class ChurchUpdateExposureTest extends TestCase
     private function datedUrl(Sermon $talk): string
     {
         return '/christ/talks/'.$talk->date->format('Y/m').'/'.$talk->slug;
+    }
+
+    /** @return list<string> */
+    private function assetUrls(Sermon $talk): array
+    {
+        return array_map(fn (string $name): string => route('sermons.'.$name, $talk), [
+            'audio', 'video', 'thumbnail', 'thumbnail.plain', 'thumbnail.card', 'transcript',
+        ]);
     }
 }

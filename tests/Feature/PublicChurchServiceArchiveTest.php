@@ -94,6 +94,7 @@ class PublicChurchServiceArchiveTest extends TestCase
         $this->get(route('church.services.index'))
             ->assertOk()
             ->assertSee('Church services')
+            ->assertSee('sermon, family talk, scripture and songs')
             ->assertSee(route('church.services.index'), false)
             ->assertSee(route('church.services.show', [
                 'date' => $service->date->format('Y-m-d'),

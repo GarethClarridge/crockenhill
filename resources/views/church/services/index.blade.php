@@ -27,7 +27,7 @@
     <section class="space-y-8">
         <div class="rounded-2xl border border-cbc-teal/15 bg-[linear-gradient(135deg,rgba(36,154,151,0.12)_0%,rgba(29,104,106,0.08)_50%,rgba(20,85,87,0.16)_100%)] p-6 shadow-sm sm:p-8">
             <p class="max-w-3xl text-lg text-gray-700">
-                Find a service by year, then open its public order to follow the sermon, children's talk, scripture and songs that are available.
+                Find a service by year, then open its public order to follow the sermon, family talk, scripture and songs that are available.
             </p>
 
             <div class="mt-6 space-y-4" aria-label="Service archive filters">

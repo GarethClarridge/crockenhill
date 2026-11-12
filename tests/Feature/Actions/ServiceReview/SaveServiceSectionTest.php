@@ -53,7 +53,7 @@ class SaveServiceSectionTest extends TestCase
         $this->action->execute(
             section: $section,
             sectionEdits: [$section->id => ['section_type' => 'short_talk', 'title' => 'Conference report', 'talk_type' => 'church_update']],
-            speakerEdits: [],
+            speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']],
             userId: $this->admin->id,
         );
         $this->assertSame(TalkType::ChurchUpdate, $section->refresh()->publicationTalkType());
@@ -66,7 +66,7 @@ class SaveServiceSectionTest extends TestCase
         $this->action->execute(
             section: $section,
             sectionEdits: [$section->id => ['section_type' => 'short_talk', 'title' => 'Undecided talk', 'talk_type' => 'none']],
-            speakerEdits: [],
+            speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']],
             userId: $this->admin->id,
         );
         $section->refresh();

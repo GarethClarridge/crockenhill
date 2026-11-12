@@ -1,6 +1,6 @@
 <x-admin.list-shell
     title="Sermons &amp; Talks"
-    description="Manage sermon recordings and published children's talks"
+    description="Manage sermon recordings and published talks"
     :paginator="$sermons"
     itemsName="sermon"
 >

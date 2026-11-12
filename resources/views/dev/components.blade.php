@@ -360,7 +360,7 @@
                 <p class="mb-3 text-xs uppercase tracking-widest text-gray-400">x-admin.list-shell — full list page shell (props: title, description; slots: actions, filters, pagination)</p>
                 <x-admin.list-shell
                     title="Sermons &amp; Talks"
-                    description="Manage sermon recordings and published children's talks."
+                    description="Manage sermon recordings and published talks."
                 >
                     <x-slot:actions>
                         <x-button link="#" variant="primary" icon="cloud-arrow-up" inline>Upload Sermon</x-button>

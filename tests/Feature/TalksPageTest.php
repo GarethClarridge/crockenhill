@@ -160,9 +160,9 @@ class TalksPageTest extends TestCase
     }
 
     #[Test]
-    public function the_talk_template_renders_for_a_childrens_talk(): void
+    public function the_talk_template_renders_for_a_public_family_talk(): void
     {
-        $this->actingAs(User::factory()->create());
+        config(['church.talks.public_types' => ['sermon', 'childrens_talk']]);
         $talk = $this->childrensTalk([
             'title' => 'Little Listeners',
             'slug' => 'little-listeners',
@@ -182,8 +182,7 @@ class TalksPageTest extends TestCase
         $response->assertDontSee('Summary');
         $response->assertSee('Back to Family Talks', false);
         $response->assertSee(route('sermons.index', ['type' => 'childrens_talk']), false);
-        $response->assertSee('<meta name="robots" content="noindex">', false);
-
+        $response->assertDontSee('<meta name="robots" content="noindex">', false);
         $talk->load('preacherProfile');
         $speakerName = app(SermonViewPresenter::class)->displayPreacherName($talk);
         $response->assertSee("Little Listeners | {$speakerName} | Crockenhill Baptist Church");
