@@ -133,7 +133,9 @@
             'name' => $sermon->title,
             'url' => $sermonView['canonical_url'],
             'contentUrl' => $sermonView['audio_url'],
-            'description' => $metaDescription,
+            'description' => $sermon->partial_recording
+                ? 'Only part of this '.Str::lower($sermon->content_type->label()).' was recorded. '.$metaDescription
+                : $metaDescription,
             'thumbnailUrl' => $thumbnailUrl,
             'encodingFormat' => 'audio/mpeg',
             'uploadDate' => $datePublished,

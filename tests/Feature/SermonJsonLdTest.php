@@ -26,6 +26,21 @@ class SermonJsonLdTest extends TestCase
     use RefreshDatabase;
 
     #[Test]
+    public function partial_audio_schema_carries_the_page_wording(): void
+    {
+        foreach ([false, true] as $partial) {
+            $sermon = Sermon::factory()->withAudio()->create(['partial_recording' => $partial]);
+            $response = $this->get("/christ/talks/{$sermon->date->format('Y/m')}/{$sermon->slug}")->assertOk();
+            preg_match_all('/<script type="application\/ld\+json">(.*?)<\/script>/s', $response->getContent(), $matches);
+            $schemas = array_map(fn (string $json): array => json_decode($json, true, flags: JSON_THROW_ON_ERROR), $matches[1]);
+            $article = collect($schemas)->firstWhere('@type', 'Article');
+
+            $this->assertNotNull($article);
+            $this->assertSame($partial, str_contains($article['audio']['description'], 'Only part of this sermon was recorded.'));
+        }
+    }
+
+    #[Test]
     public function sermon_page_emits_full_json_ld_when_media_is_present(): void
     {
         Storage::fake('local');

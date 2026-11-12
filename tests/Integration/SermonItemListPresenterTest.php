@@ -6,6 +6,7 @@ namespace Tests\Integration;
 
 use App\Models\Sermon;
 use App\Seo\SermonItemListPresenter;
+use App\Services\Public\SermonRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -21,6 +22,19 @@ class SermonItemListPresenterTest extends TestCase
         parent::setUp();
         Storage::fake('public');
         Config::set('media-processing.storage.sermon_disk', 'public');
+    }
+
+    #[Test]
+    public function partial_audio_description_carries_the_page_wording(): void
+    {
+        foreach ([false, true] as $partial) {
+            $sermon = Sermon::factory()->withAudio()->create(['partial_recording' => $partial]);
+            $listed = app(SermonRepository::class)->basePublicSermonQuery()->findOrFail($sermon->id);
+            $schema = app(SermonItemListPresenter::class)->toItemList(collect([$listed]));
+            $description = $schema['itemListElement'][0]['item']['audio']['description'];
+
+            $this->assertSame($partial, str_contains($description, 'Only part of this sermon was recorded.'));
+        }
     }
 
     #[Test]

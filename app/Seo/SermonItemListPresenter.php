@@ -244,7 +244,9 @@ class SermonItemListPresenter
         $audio = [
             '@type' => 'AudioObject',
             'name' => $sermon->title,
-            'description' => $metaDescription,
+            'description' => $sermon->partial_recording
+                ? 'Only part of this '.strtolower($sermon->content_type->label()).' was recorded. '.$metaDescription
+                : $metaDescription,
             'thumbnailUrl' => $sermonView['thumbnail_url'] ?: $logoUrl,
             'contentUrl' => $sermonView['audio_url'],
             'encodingFormat' => 'audio/mpeg',

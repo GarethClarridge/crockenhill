@@ -44,6 +44,7 @@ class SermonRepository
                 'scripture_passage_id',
                 'duration',
                 'audio_file_path',
+                'partial_recording',
                 'video_file_path',
                 'transcript_file_path',
                 'thumbnail_file_path',

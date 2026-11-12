@@ -54,6 +54,20 @@ class SermonResourceTest extends TestCase
     }
 
     #[Test]
+    public function it_exposes_partial_recording_as_a_boolean_and_page_wording(): void
+    {
+        foreach ([false, true] as $partial) {
+            $sermon = Sermon::factory()->make(['partial_recording' => $partial]);
+            $sermon->setAttribute('sermon_view', $this->sermonViewData);
+
+            $array = (new SermonResource($sermon))->toArray(request());
+
+            $this->assertSame($partial, $array['partial_recording']);
+            $this->assertSame($partial ? 'Only part of this sermon was recorded.' : null, $array['partial_recording_note']);
+        }
+    }
+
+    #[Test]
     public function it_throws_logic_exception_if_sermon_view_is_missing(): void
     {
         $sermon = Sermon::factory()->create();

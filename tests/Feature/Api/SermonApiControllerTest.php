@@ -28,6 +28,24 @@ class SermonApiControllerTest extends TestCase
     // ── index ──────────────────────────────────────────────────────────────
 
     #[Test]
+    public function list_and_detail_responses_carry_the_stored_partial_recording_flag(): void
+    {
+        foreach ([false, true] as $partial) {
+            $sermon = Sermon::factory()->withAudio()->create(['partial_recording' => $partial]);
+            $expectedNote = $partial ? 'Only part of this sermon was recorded.' : null;
+
+            $this->getJson('/api/sermons?search='.urlencode($sermon->title))
+                ->assertOk()
+                ->assertJsonPath('data.0.partial_recording', $partial)
+                ->assertJsonPath('data.0.partial_recording_note', $expectedNote);
+            $this->getJson('/api/sermons/'.$sermon->id)
+                ->assertOk()
+                ->assertJsonPath('data.partial_recording', $partial)
+                ->assertJsonPath('data.partial_recording_note', $expectedNote);
+        }
+    }
+
+    #[Test]
     public function api_index_returns_200_with_json(): void
     {
         $response = $this->getJson('/api/sermons');

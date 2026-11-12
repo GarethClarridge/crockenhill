@@ -42,6 +42,10 @@ class SermonResource extends JsonResource
             'series' => $this->series,
             'reference' => $sermonView['display_reference'],
             'points' => $this->when($this->show_points, fn (): ?array => $this->points),
+            'partial_recording' => (bool) $this->partial_recording,
+            'partial_recording_note' => $this->partial_recording
+                ? 'Only part of this '.strtolower($this->content_type->label()).' was recorded.'
+                : null,
             'audio_url' => $sermonView['audio_url'],
             'video_url' => $sermonView['video_url'],
             'formatted_duration' => $sermonView['formatted_duration'],
