@@ -15,6 +15,7 @@ use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\PublicationPlanValidator;
+use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\Structure\SermonContinuationScreen;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\Media\Audio\AudioTimeline;
@@ -64,7 +65,19 @@ class SermonExtractionPlanResolver
         private readonly SermonContinuationScreen $continuations,
         private readonly PublicationPlanValidator $validator,
         private readonly SpokenPassage $spokenPassages,
+        private readonly SermonExposurePolicy $exposure,
     ) {}
+
+    /** Bank an exact legacy answer before section mutation, without rewriting composition state. */
+    public function bankLegacyReview(MediaProcessingLog $log): void
+    {
+        $log->refresh();
+        $review = $log->processing_metadata?->raw['sermon_composition_review'] ?? null;
+        if (! is_array($review) || array_key_exists('identity_version', $review)) {
+            return;
+        }
+        $this->compose($log, bankReviewOnly: true);
+    }
 
     /**
      * Recompute composition after detection or review. Keep a review decision only while
@@ -72,9 +85,9 @@ class SermonExtractionPlanResolver
      *
      * @return array<string, mixed>
      */
-    public function compose(MediaProcessingLog $log, ?ChurchServiceTranscript $transcript = null): array
+    public function compose(MediaProcessingLog $log, ?ChurchServiceTranscript $transcript = null, bool $bankReviewOnly = false): array
     {
-        $sections = $log->serviceSections()->orderBy('start_time')->orderBy('id')->get()->values()->all();
+        $sections = array_values($log->serviceSections()->orderBy('start_time')->orderBy('id')->get()->all());
         $identity = $this->inputIdentity($log, $sections, $transcript);
         $sermons = array_values(array_filter($sections, static fn (ServiceSection $section): bool => $section->section_type === ServiceSectionType::Sermon));
         $risks = [];
@@ -153,7 +166,11 @@ class SermonExtractionPlanResolver
             }
             foreach ($membership['could_be_cut'] as $index) {
                 foreach ($this->prayerHandovers($log, $readings[$index], $transcript) as $cue) {
-                    $risks[] = ['kind' => 'sermon_reading_contains_prayer_handover', 'detail' => sprintf('Reading %s hands over to prayer at %.3f–%.3fs ("%s"): is a prayer inside the reading?', $readings[$index]->metadata->readingReference ?? '#'.$readings[$index]->id, $cue['start'], $cue['end'], trim($cue['text'], " \"'"))];
+                    $risks[] = [
+                        'kind' => 'sermon_reading_contains_prayer_handover',
+                        'detail' => sprintf('Reading %s hands over to prayer at %.3f–%.3fs ("%s"): is a prayer inside the reading?', $readings[$index]->metadata->readingReference ?? '#'.$readings[$index]->id, $cue['start'], $cue['end'], trim($cue['text'], " \"'")),
+                        'semantic_identity' => CanonicalJson::hash([$this->reviewSectionIdentity($readings[$index], $sections), $cue]),
+                    ];
                 }
             }
             $beforeSong = [];
@@ -192,26 +209,23 @@ class SermonExtractionPlanResolver
         // Whether the sections were chosen by the rules or by an operator's review of these inputs:
         // only the first is evidence that the rules compose this sermon unaided.
         $selectionSource = 'rules';
-        if (is_array($review) && ($review['input_identity'] ?? null) === $identity && is_array($review['selected_section_ids'] ?? null)) {
+        $reviewedSelection = is_array($review) ? $this->reviewedSelection($log, $sections, $review, $identity, $transcript) : null;
+        if ($reviewedSelection !== null) {
             $selectionSource = 'operator_review';
-            $byId = collect($sections)->keyBy('id');
-            $selected = [];
-            foreach ($review['selected_section_ids'] as $id) {
-                $section = is_int($id) ? $byId->get($id) : null;
-                if (! $section instanceof ServiceSection) {
-                    throw new InvalidArgumentException('Sermon composition names a section outside its source run');
-                }
-                $selected[] = $section;
-            }
+            $selected = $reviewedSelection;
             if ($sermon !== null && ! in_array($sermon, $selected, true)) {
                 throw new InvalidArgumentException('Sermon composition must include the identified sermon');
             }
             // The review answers the risks it was shown, not the input identity alone: a flag
             // such as a sung span is not part of that identity, so a risk raised after the review
             // is a new question (a review recorded before risks were kept answers none).
-            $shown = array_map(self::riskKey(...), array_filter(is_array($review['answered_risks'] ?? null) ? $review['answered_risks'] : [], is_array(...)));
-            $answered = array_values(array_filter($risks, static fn (array $risk): bool => in_array(self::riskKey($risk), $shown, true)));
-            $risks = array_values(array_filter($risks, static fn (array $risk): bool => ! in_array(self::riskKey($risk), $shown, true)));
+            $semantic = ($review['identity_version'] ?? null) === 2;
+            $shown = array_map(static fn (array $risk): string => self::riskKey($risk, $semantic), array_filter(is_array($review['answered_risks'] ?? null) ? $review['answered_risks'] : [], is_array(...)));
+            if ($semantic) {
+                $shown = [...$shown, ...array_filter(is_array($review['upgraded_answered_risk_keys'] ?? null) ? $review['upgraded_answered_risk_keys'] : [], is_string(...))];
+            }
+            $answered = array_values(array_filter($risks, static fn (array $risk): bool => in_array(self::riskKey($risk, $semantic), $shown, true)));
+            $risks = array_values(array_filter($risks, static fn (array $risk): bool => ! in_array(self::riskKey($risk, $semantic), $shown, true)));
         }
         usort($selected, static fn (ServiceSection $a, ServiceSection $b): int => $a->start_time <=> $b->start_time);
         $composition = [
@@ -233,11 +247,34 @@ class SermonExtractionPlanResolver
         if ($transcript !== null) {
             return $composition;
         }
-        $log->writeProcessingMetadata(static function (array $metadata) use ($composition): array {
-            $metadata['sermon_composition'] = $composition;
+        $upgrade = null;
+        if ($reviewedSelection !== null && is_array($review) && ! array_key_exists('identity_version', $review)) {
+            $upgrade = [
+                ...$review,
+                'identity_version' => 2,
+                'semantic_input_identity' => $this->inputIdentity($log, $sections, semantic: true),
+                'selected_sections' => array_map(fn (ServiceSection $section): array => ['id' => $section->id, 'identity' => $this->reviewSectionIdentity($section, $sections)], $reviewedSelection),
+                'upgraded_from' => 'exact_legacy_match',
+                'upgraded_at' => now()->toIso8601String(),
+                'upgraded_answered_risk_keys' => array_map(static fn (array $risk): string => self::riskKey($risk, true), $answered),
+            ];
+        }
+        if ($bankReviewOnly && $upgrade === null) {
+            return $composition;
+        }
+        $log->writeProcessingMetadata(static function (array $metadata) use ($composition, $upgrade, $review, $bankReviewOnly): array {
+            if (! $bankReviewOnly) {
+                $metadata['sermon_composition'] = $composition;
+            }
+            if ($upgrade !== null && ($metadata['sermon_composition_review'] ?? null) === $review) {
+                $metadata['sermon_composition_review'] = $upgrade;
+            }
 
             return $metadata;
         });
+        if ($bankReviewOnly) {
+            return $composition;
+        }
         if ($sermon !== null) {
             $this->applyCompositionState($sermon, $composition);
             $sermon->save();
@@ -325,10 +362,10 @@ class SermonExtractionPlanResolver
      *
      * @param  array<mixed>  $risk
      */
-    private static function riskKey(array $risk): string
+    private static function riskKey(array $risk, bool $semantic = false): string
     {
         $kind = $risk['kind'] ?? null;
-        $detail = $risk['detail'] ?? null;
+        $detail = $semantic ? ($risk['semantic_identity'] ?? $risk['detail'] ?? null) : ($risk['detail'] ?? null);
 
         return (is_string($kind) ? $kind : '').'|'.(is_string($detail) ? $detail : '');
     }
@@ -505,8 +542,22 @@ class SermonExtractionPlanResolver
             }
         }
         $answeredRisks = [...$current['answered_risks'], ...$current['risks']];
-        $log->writeProcessingMetadata(static function (array $metadata) use ($sectionIds, $inputIdentity, $userId, $answeredRisks): array {
+        $allSections = array_values($log->serviceSections()->orderBy('start_time')->orderBy('id')->get()->all());
+        $byId = $sections->keyBy('id');
+        $bindings = [];
+        foreach ($sectionIds as $id) {
+            $section = $byId->get($id);
+            if (! $section instanceof ServiceSection) {
+                throw new InvalidArgumentException('Composition contains a section outside this run.');
+            }
+            $bindings[] = ['id' => $id, 'identity' => $this->reviewSectionIdentity($section, $allSections)];
+        }
+        $reviewIdentity = $this->inputIdentity($log, $allSections, semantic: true);
+        $log->writeProcessingMetadata(static function (array $metadata) use ($sectionIds, $inputIdentity, $userId, $answeredRisks, $bindings, $reviewIdentity): array {
             $metadata['sermon_composition_review'] = [
+                'identity_version' => 2,
+                'semantic_input_identity' => $reviewIdentity,
+                'selected_sections' => $bindings,
                 'selected_section_ids' => $sectionIds,
                 'input_identity' => $inputIdentity,
                 'answered_risks' => $answeredRisks,
@@ -851,21 +902,122 @@ class SermonExtractionPlanResolver
      *
      * @param  array<int, ServiceSection>  $sections
      */
-    private function inputIdentity(MediaProcessingLog $log, array $sections, ?ChurchServiceTranscript $candidate = null): string
+    private function inputIdentity(MediaProcessingLog $log, array $sections, ?ChurchServiceTranscript $candidate = null, bool $semantic = false): string
     {
+        $sections = array_values($sections);
         $deadFeed = app(DeadFeedExcision::class);
-
-        return hash('sha256', (string) json_encode([
-            'sections' => array_map(fn (ServiceSection $section): array => [
+        $dependencies = $this->planDependencies($sections);
+        if ($semantic) {
+            $sectionIdentities = array_map(fn (ServiceSection $section): string => $this->reviewSectionIdentity($section, $sections), $dependencies);
+            sort($sectionIdentities, SORT_STRING);
+        } else {
+            $sectionIdentities = array_map(fn (ServiceSection $section): array => [
                 $section->id, $section->section_type->value, (float) $section->start_time, (float) $section->end_time,
                 $section->metadata?->readingReference, $section->metadata?->raw['sermon_reference'] ?? null,
                 $section->metadata?->sermonContinuation?->toArray() ?? $this->notedContinuation($section),
-            ], $this->planDependencies($sections)),
+            ], $dependencies);
+        }
+
+        return hash('sha256', (string) json_encode([
+            'sections' => $sectionIdentities,
             'duration' => $log->duration,
             'transcript' => $candidate === null ? $this->evidenceHash($log->serviceTranscriptPath()) : $this->candidateEvidenceHash($log, $candidate),
             'audio_timeline' => $this->evidenceHash($log->audio_timeline_path),
             ...($deadFeed->identity($log) === null ? [] : ['dead_feed_input_identity' => $deadFeed->inputIdentity($log)]),
         ]));
+    }
+
+    /**
+     * Legacy answers keep their exact row/evidence gate until a persisting compose banks
+     * their semantic bindings. Versioned answers require every selected part to match once.
+     *
+     * @param  list<ServiceSection>  $sections
+     * @param  array<string, mixed>  $review
+     * @return list<ServiceSection>|null
+     */
+    private function reviewedSelection(MediaProcessingLog $log, array $sections, array $review, string $identity, ?ChurchServiceTranscript $candidate): ?array
+    {
+        $ids = $review['selected_section_ids'] ?? null;
+        if (! is_array($ids) || $ids === [] || ! array_is_list($ids) || ! array_all($ids, static fn (mixed $id): bool => is_int($id)) || count(array_unique($ids)) !== count($ids)) {
+            return null;
+        }
+
+        if (! array_key_exists('identity_version', $review)) {
+            if (array_key_exists('semantic_input_identity', $review) || array_key_exists('selected_sections', $review)
+                || ($review['input_identity'] ?? null) !== $identity) {
+                return null;
+            }
+            $byId = collect($sections)->keyBy('id');
+            $selected = [];
+            foreach ($ids as $id) {
+                $section = $byId->get($id);
+                if (! $section instanceof ServiceSection) {
+                    return null;
+                }
+                $selected[] = $section;
+            }
+
+            return $selected;
+        }
+
+        if ($review['identity_version'] !== 2
+            || ($review['semantic_input_identity'] ?? null) !== $this->inputIdentity($log, $sections, $candidate, semantic: true)) {
+            return null;
+        }
+        $bindings = $review['selected_sections'] ?? null;
+        if (! is_array($bindings) || ! array_is_list($bindings) || count($bindings) !== count($ids)) {
+            return null;
+        }
+        $selected = [];
+        foreach ($bindings as $index => $binding) {
+            if (! is_array($binding) || ($binding['id'] ?? null) !== $ids[$index] || ! is_string($binding['identity'] ?? null)) {
+                return null;
+            }
+            $matches = array_values(array_filter($sections, fn (ServiceSection $section): bool => $this->reviewSectionIdentity($section, $sections) === $binding['identity']));
+            if (count($matches) !== 1 || in_array($matches[0], $selected, true)) {
+                return null;
+            }
+            $selected[] = $matches[0];
+        }
+
+        return $selected;
+    }
+
+    /**
+     * Sync's type/span identity locates content; exact reviewed bounds and evidence still
+     * bind the answer. A continuation names its subject by content too.
+     *
+     * @param  list<ServiceSection>  $sections
+     */
+    private function reviewSectionIdentity(ServiceSection $section, array $sections): string
+    {
+        $material = static fn (ServiceSection $part): array => ServiceSectionSyncService::materialIdentity([
+            'section_type' => $part->section_type->value, 'start_time' => (float) $part->start_time, 'end_time' => (float) $part->end_time,
+        ]);
+        $marker = $section->metadata?->sermonContinuation;
+        $continuation = $marker?->toArray() ?? $this->notedContinuation($section);
+        if ($marker !== null) {
+            $subject = collect($sections)->first(static fn (ServiceSection $part): bool => $part->id === $marker->ofSectionId);
+            unset($continuation['of_section_id']);
+            $continuation['subject'] = $subject instanceof ServiceSection ? $material($subject) : ['unresolved_id' => $marker->ofSectionId];
+        }
+
+        return CanonicalJson::hash([
+            ...$material($section),
+            'bounds' => [(float) $section->start_time, (float) $section->end_time],
+            'reading_reference' => $section->metadata?->readingReference,
+            'sermon_reference' => $section->metadata?->raw['sermon_reference'] ?? null,
+            'continuation' => $continuation,
+            'talk_type' => $section->publicationTalkType()?->value,
+            'public' => $this->sectionIsPublic($section),
+        ]);
+    }
+
+    private function sectionIsPublic(ServiceSection $section): ?bool
+    {
+        $type = $section->publicationTalkType();
+
+        return $type === null ? null : $this->exposure->isTypePublic($type);
     }
 
     /**

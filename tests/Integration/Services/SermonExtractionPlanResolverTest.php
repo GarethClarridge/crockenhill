@@ -450,8 +450,11 @@ class SermonExtractionPlanResolverTest extends TestCase
     }
 
     #[Test]
-    public function a_reviewed_selection_survives_recomposition_but_not_changed_section_bounds(): void
+    #[TestWith([210.0])]
+    #[TestWith([200.0001])]
+    public function a_reviewed_selection_survives_recomposition_but_not_changed_section_bounds(float $changedEnd): void
     {
+        Storage::fake('local');
         $log = $this->logWithSermon(500.0, 1200.0);
         $sermon = $log->serviceSections()->sole();
         $reading = $this->reading($log, 3, 100, 200);
@@ -462,10 +465,456 @@ class SermonExtractionPlanResolverTest extends TestCase
         $this->assertSame([$reading->id, $sermon->id], $plan['metadata']['selected_section_ids']);
         $this->assertFalse($plan['metadata']['requires_review']);
 
-        $reading->update(['end_time' => 210, 'duration' => 110]);
+        $replacements = $this->replaceSectionIds($log);
+        $reading = $replacements[$reading->id];
+        $sermon = $replacements[$sermon->id];
+        $recomposed = $this->resolver->compose($log->fresh());
+        $this->assertSame('operator_review', $recomposed['selection_source']);
+        $this->assertSame([$reading->id, $sermon->id], $recomposed['selected_section_ids']);
+        $this->assertFalse($recomposed['requires_review']);
+        $this->assertSame($plan['segments'], $this->resolver->resolve($log->fresh())['segments']);
+
+        $reading->update(['end_time' => $changedEnd, 'duration' => $changedEnd - 100]);
         $changed = $this->resolver->resolve($log->fresh());
         $this->assertTrue($changed['metadata']['requires_review']);
         $this->assertNotSame($composition['input_identity'], $changed['metadata']['input_identity']);
+    }
+
+    /** @return array<int, ServiceSection> */
+    private function replaceSectionIds(MediaProcessingLog $log, bool $reverse = false): array
+    {
+        $sections = $log->serviceSections()->orderBy('start_time')->get();
+        $log->serviceSections()->delete();
+        $replacements = [];
+        foreach ($reverse ? $sections->reverse() : $sections as $section) {
+            $replacement = $section->replicate();
+            $replacement->save();
+            $replacements[$section->id] = $replacement;
+        }
+        foreach ($replacements as $replacement) {
+            $marker = $replacement->metadata?->sermonContinuation;
+            if ($marker !== null && isset($replacements[$marker->ofSectionId])) {
+                $replacement->update(['metadata' => [
+                    ...$replacement->metadata->toArray(),
+                    'sermon_continuation' => [...$marker->toArray(), 'of_section_id' => $replacements[$marker->ofSectionId]->id],
+                ]]);
+            }
+        }
+
+        return $replacements;
+    }
+
+    #[Test]
+    public function a_reviewed_split_sermon_keeps_every_part_when_all_ids_are_replaced(): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(500, 1200);
+        $sermon = $log->serviceSections()->sole();
+        $reading = $this->reading($log, 3, 100, 200);
+        $this->section($log, ServiceSectionType::Song, 4, 1200, 1400);
+        $part = $this->section($log, ServiceSectionType::Other, 5, 1400, 1800);
+        $part->update(['metadata' => ['sermon_continuation' => [
+            'of_section_id' => $sermon->id, 'evidence' => 'The preacher resumes the same sermon.', 'source' => 'operator',
+        ]]]);
+        $selection = [$reading->id, $sermon->id, $part->id];
+        $this->resolver->reviewComposition($log, $selection, $this->resolver->compose($log)['input_identity'], 1);
+        $before = $this->resolver->resolve($log->fresh());
+
+        $replacements = $this->replaceSectionIds($log);
+        $after = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('operator_review', $after['metadata']['selection_source']);
+        $this->assertSame(array_map(fn (int $id): int => $replacements[$id]->id, $selection), $after['metadata']['selected_section_ids']);
+        $this->assertCount(3, $after['segments']);
+        $this->assertSame($before['segments'], $after['segments']);
+        $this->assertFalse($after['metadata']['requires_review']);
+    }
+
+    #[Test]
+    #[TestWith(['reading_reference', 'Mark 1'])]
+    public function changed_section_evidence_invalidates_a_reviewed_selection(string $key, mixed $value): void
+    {
+        Storage::fake('local');
+        [$log, $reading] = $this->reviewedReadingSelection();
+        $reading->update(['metadata' => [...$reading->metadata->toArray(), $key => $value]]);
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    #[Test]
+    public function changed_coverage_evidence_invalidates_a_reviewed_selection(): void
+    {
+        Storage::fake('local');
+        [$log] = $this->reviewedReadingSelection();
+        $log->putServiceTranscriptPath('temp/review-evidence.json');
+        Storage::disk('local')->put('temp/review-evidence.json', json_encode(ChurchServiceTranscript::fromCues([], 2000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    #[Test]
+    public function an_added_section_invalidates_a_reviewed_selection(): void
+    {
+        Storage::fake('local');
+        [$log] = $this->reviewedReadingSelection();
+        $this->reading($log, 4, 250, 350);
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    #[Test]
+    public function a_removed_selected_section_invalidates_the_whole_review(): void
+    {
+        Storage::fake('local');
+        [$log, $reading] = $this->reviewedReadingSelection();
+        $reading->delete();
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    #[Test]
+    public function changed_access_invalidates_a_reviewed_selection(): void
+    {
+        Storage::fake('local');
+        config(['church.talks.public_types' => ['childrens_talk']]);
+        [$log, $reading] = $this->reviewedReadingSelection();
+        $sermon = $log->serviceSections()->where('section_type', ServiceSectionType::Sermon)->sole();
+        $talk = $this->section($log, ServiceSectionType::ShortTalk, 4, 250, 350);
+        $talk->update(['metadata' => ['talk_type' => ['reviewed' => ['value' => 'childrens_talk']]]]);
+        $this->resolver->reviewComposition($log->fresh(), [$reading->id, $sermon->id], $this->resolver->compose($log->fresh())['input_identity'], 1);
+
+        $talk->update(['metadata' => ['talk_type' => ['reviewed' => ['value' => 'testimony']]]]);
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    #[Test]
+    public function changed_access_policy_invalidates_an_access_sensitive_review(): void
+    {
+        Storage::fake('local');
+        config(['church.talks.public_types' => ['testimony']]);
+        $log = $this->logWithSermon(500, 1200);
+        $sermon = $log->serviceSections()->sole();
+        $reading = $this->reading($log, 3, 100, 200);
+        $talk = $this->section($log, ServiceSectionType::ShortTalk, 4, 250, 350);
+        $talk->update(['metadata' => ['talk_type' => ['reviewed' => ['value' => 'testimony']]]]);
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $this->resolver->compose($log)['input_identity'], 1);
+        config(['church.talks.public_types' => []]);
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    #[Test]
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function changing_the_stored_selection_membership_invalidates_the_review(bool $add): void
+    {
+        Storage::fake('local');
+        [$log] = $this->reviewedReadingSelection();
+        $log->writeProcessingMetadata(static function (array $metadata) use ($add): array {
+            $ids = $metadata['sermon_composition_review']['selected_section_ids'];
+            if ($add) {
+                $ids[] = $ids[0];
+            } else {
+                array_shift($ids);
+            }
+            $metadata['sermon_composition_review']['selected_section_ids'] = $ids;
+
+            return $metadata;
+        });
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    /** @return array{MediaProcessingLog, ServiceSection} */
+    private function reviewedReadingSelection(): array
+    {
+        $log = $this->logWithSermon(500, 1200);
+        $sermon = $log->serviceSections()->sole();
+        $reading = $this->reading($log, 3, 100, 200);
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $this->resolver->compose($log)['input_identity'], 1);
+
+        return [$log, $reading];
+    }
+
+    #[Test]
+    public function an_exact_legacy_review_is_upgraded_before_replacement_ids_arrive(): void
+    {
+        Storage::fake('local');
+        [$log] = $this->reviewedReadingSelection();
+        $legacy = $this->makeLegacyReview($log);
+        $this->assertSame('operator_review', $this->resolver->compose($log->fresh())['selection_source']);
+        $upgraded = $log->fresh()->processing_metadata->raw['sermon_composition_review'];
+        $this->assertSame(2, $upgraded['identity_version'] ?? null);
+        $this->assertSame($legacy, array_intersect_key($upgraded, $legacy));
+        $this->assertSame('exact_legacy_match', $upgraded['upgraded_from'] ?? null);
+        $this->assertNotEmpty($upgraded['upgraded_at'] ?? null);
+        $before = $this->resolver->resolve($log->fresh());
+
+        $replacements = $this->replaceSectionIds($log);
+        $after = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('operator_review', $after['metadata']['selection_source']);
+        $this->assertSame(array_map(fn (int $id): int => $replacements[$id]->id, $legacy['selected_section_ids']), $after['metadata']['selected_section_ids']);
+        $this->assertSame($before['segments'], $after['segments']);
+        $this->assertSame($upgraded, $log->fresh()->processing_metadata->raw['sermon_composition_review']);
+    }
+
+    /** @return array<string, mixed> */
+    private function makeLegacyReview(MediaProcessingLog $log): array
+    {
+        $log->writeProcessingMetadata(static function (array $metadata): array {
+            unset($metadata['sermon_composition_review']['identity_version'], $metadata['sermon_composition_review']['semantic_input_identity'], $metadata['sermon_composition_review']['selected_sections']);
+            $metadata['sermon_composition_review']['answered_risks'] = array_map(static function (array $risk): array {
+                unset($risk['semantic_identity']);
+
+                return $risk;
+            }, $metadata['sermon_composition_review']['answered_risks']);
+
+            return $metadata;
+        });
+
+        return $log->fresh()->processing_metadata->raw['sermon_composition_review'];
+    }
+
+    #[Test]
+    public function a_stale_legacy_review_is_not_upgraded(): void
+    {
+        Storage::fake('local');
+        [$log, $reading] = $this->reviewedReadingSelection();
+        $legacy = $this->makeLegacyReview($log);
+        $reading->update(['end_time' => 210, 'duration' => 110]);
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+        $this->assertSame($legacy, $log->fresh()->processing_metadata->raw['sermon_composition_review']);
+    }
+
+    #[Test]
+    public function a_candidate_preview_does_not_upgrade_an_exact_legacy_review(): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(500, 1200);
+        $sermon = $log->serviceSections()->sole();
+        $reading = $this->reading($log, 3, 100, 200);
+        $candidate = ChurchServiceTranscript::fromCues([], 2000, ChurchServiceTranscript::SOURCE_MOCK);
+        $log->putServiceTranscriptPath('temp/legacy-preview.json');
+        Storage::disk('local')->put('temp/legacy-preview.json', json_encode($candidate->toArray(), JSON_THROW_ON_ERROR));
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $this->resolver->compose($log)['input_identity'], 1);
+        $legacy = $this->makeLegacyReview($log);
+        $beforeRun = $log->fresh()->getRawOriginal();
+        $beforeSections = $log->serviceSections()->orderBy('id')->get()->map->getRawOriginal()->all();
+
+        $preview = $this->resolver->compose($log->fresh(), $candidate);
+
+        $this->assertSame('operator_review', $preview['selection_source']);
+        $this->assertSame($beforeRun, $log->fresh()->getRawOriginal());
+        $this->assertSame($beforeSections, $log->serviceSections()->orderBy('id')->get()->map->getRawOriginal()->all());
+        $this->assertSame($legacy, $log->fresh()->processing_metadata->raw['sermon_composition_review']);
+    }
+
+    #[Test]
+    public function an_exact_legacy_review_is_not_rejected_for_a_selected_sections_talk_type(): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(500, 1200);
+        $sermon = $log->serviceSections()->sole();
+        $sermon->update(['metadata' => ['talk_type' => ['reviewed' => ['value' => 'sermon']]]]);
+        $reading = $this->reading($log, 3, 100, 200);
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $this->resolver->compose($log)['input_identity'], 1);
+        $this->makeLegacyReview($log);
+
+        $this->assertSame('operator_review', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    #[Test]
+    #[TestWith(['title', 'A respelt reading title'])]
+    #[TestWith(['ai_notes', ['A fresh model description of the same reading.']])]
+    #[TestWith(['transcript', 'A refreshed derived section excerpt.'])]
+    #[TestWith(['source_segment_ids', [123456]])]
+    public function unbound_descriptive_fields_do_not_reopen_a_review(string $field, mixed $value): void
+    {
+        Storage::fake('local');
+        [$log, $reading] = $this->reviewedReadingSelection();
+        $before = $this->resolver->resolve($log->fresh());
+        $reading->update(in_array($field, ['title', 'source_segment_ids'], true)
+            ? [$field => $value]
+            : ['metadata' => [...$reading->metadata->toArray(), $field => $value]]);
+
+        $after = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('operator_review', $after['metadata']['selection_source']);
+        $this->assertSame($before['segments'], $after['segments']);
+    }
+
+    #[Test]
+    public function a_fresh_talk_type_proposal_does_not_change_the_confirmed_access_dependency(): void
+    {
+        Storage::fake('local');
+        [$log, $reading] = $this->reviewedReadingSelection();
+        $sermon = $log->serviceSections()->where('section_type', ServiceSectionType::Sermon)->sole();
+        $talk = $this->section($log, ServiceSectionType::ShortTalk, 4, 250, 350);
+        $talk->update(['metadata' => ['talk_type' => ['proposed' => 'childrens_talk', 'reviewed' => ['value' => 'testimony']]]]);
+        $this->resolver->reviewComposition($log->fresh(), [$reading->id, $sermon->id], $this->resolver->compose($log->fresh())['input_identity'], 1);
+        $talk->update(['metadata' => ['talk_type' => ['proposed' => 'partner_update', 'reviewed' => ['value' => 'testimony']]]]);
+
+        $this->assertSame('operator_review', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    /** The renewed 1148 answer selects seven parts and excludes both intervening readings. */
+    #[Test]
+    public function a_renewed_seven_part_legacy_selection_survives_new_ids_and_descriptions(): void
+    {
+        Storage::fake('local');
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 4000]);
+        $sermon = $this->sermon($log, 1, 688.029, 1721.5);
+        $this->reading($log, 2, 1965.24, 2159.71, reference: 'Genesis 44:18-34');
+        $this->section($log, ServiceSectionType::Song, 3, 2161.17, 2393.33);
+        $parts = [$sermon];
+        $evidence = 'Part of the main sermon, preached around an intervening item; the draw typed it a second sermon section, so the parts are joined (D21).';
+        foreach ([[2393.34, 2395.28], [2395.28, 3166.41], [3166.41, 3168.2], [3382.61, 3400.03], [3400.03, 3538.96], [3538.96, 3625.0]] as $index => [$start, $end]) {
+            $part = $this->section($log, ServiceSectionType::Other, $index + 4, $start, $end);
+            $part->update(['metadata' => ['ai_notes' => [$evidence]]]);
+            $parts[] = $part;
+        }
+        $this->reading($log, 10, 3168.2, 3382.61, reference: 'Revelation 5');
+        $selection = array_map(static fn (ServiceSection $part): int => $part->id, $parts);
+        $this->resolver->reviewComposition($log, $selection, $this->resolver->compose($log)['input_identity'], 1);
+        $this->makeLegacyReview($log);
+        $before = $this->resolver->resolve($log->fresh());
+        $this->assertCount(3, $before['segments']);
+
+        $replacements = $this->replaceSectionIds($log);
+        foreach ($replacements as $replacement) {
+            $replacement->update([
+                'title' => 'A fresh title for the same section',
+                'source_segment_ids' => [$replacement->id],
+                'metadata' => [...$replacement->metadata->toArray(), 'ai_notes' => [...($replacement->metadata->raw['ai_notes'] ?? []), 'A fresh descriptive note.']],
+            ]);
+        }
+        $after = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('operator_review', $after['metadata']['selection_source']);
+        $this->assertSame(array_map(fn (int $id): int => $replacements[$id]->id, $selection), $after['metadata']['selected_section_ids']);
+        $this->assertCount(7, $after['metadata']['selected_section_ids']);
+        $this->assertSame($before['segments'], $after['segments']);
+    }
+
+    /** The renewed 1197 answer takes Matthew 2:1–12, excluding the earlier subset reading. */
+    #[Test]
+    public function a_renewed_reading_choice_survives_new_ids_and_descriptions(): void
+    {
+        Storage::fake('local');
+        $log = MediaProcessingLog::factory()->livestream()->create(['duration' => 4300]);
+        $this->reading($log, 1, 235, 281.006, reference: 'Matthew 2:10-12');
+        $reading = $this->reading($log, 2, 1432.95, 1544.62, reference: 'Matthew 2:1-12');
+        $this->section($log, ServiceSectionType::Prayer, 3, 1546.2, 1930.34);
+        $this->section($log, ServiceSectionType::Song, 4, 1933.42, 2215.72);
+        $sermon = $this->sermon($log, 5, 2219.15, 3955, 'Matthew 2:1-12');
+        $selection = [$reading->id, $sermon->id];
+        $this->resolver->reviewComposition($log, $selection, $this->resolver->compose($log)['input_identity'], 1);
+        $this->makeLegacyReview($log);
+        $before = $this->resolver->resolve($log->fresh());
+
+        $replacements = $this->replaceSectionIds($log);
+        foreach ($replacements as $replacement) {
+            $replacement->update([
+                'title' => 'A fresh title for the same section',
+                'source_segment_ids' => [$replacement->id],
+                'metadata' => [...$replacement->metadata->toArray(), 'ai_notes' => ['A fresh description of the same content.']],
+            ]);
+        }
+        $after = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('operator_review', $after['metadata']['selection_source']);
+        $this->assertSame(array_map(fn (int $id): int => $replacements[$id]->id, $selection), $after['metadata']['selected_section_ids']);
+        $this->assertSame($before['segments'], $after['segments']);
+    }
+
+    #[Test]
+    public function replacement_ids_do_not_reorder_the_identity_of_sections_starting_together(): void
+    {
+        Storage::fake('local');
+        [$log, $reading] = $this->reviewedReadingSelection();
+        $sermon = $log->serviceSections()->where('section_type', ServiceSectionType::Sermon)->sole();
+        $this->section($log, ServiceSectionType::Other, 4, 100, 150);
+        $this->resolver->reviewComposition($log->fresh(), [$reading->id, $sermon->id], $this->resolver->compose($log->fresh())['input_identity'], 1);
+        $before = $this->resolver->resolve($log->fresh());
+
+        $this->replaceSectionIds($log, reverse: true);
+        $after = $this->resolver->resolve($log->fresh());
+
+        $this->assertSame('operator_review', $after['metadata']['selection_source']);
+        $this->assertSame($before['segments'], $after['segments']);
+    }
+
+    #[Test]
+    #[TestWith(['identity_version', 99])]
+    #[TestWith(['identity_version', null])]
+    #[TestWith(['selected_sections', []])]
+    #[TestWith(['semantic_input_identity', 'stale'])]
+    public function an_incomplete_or_unknown_review_format_fails_closed(string $key, mixed $value): void
+    {
+        Storage::fake('local');
+        [$log] = $this->reviewedReadingSelection();
+        $log->writeProcessingMetadata(static function (array $metadata) use ($key, $value): array {
+            $metadata['sermon_composition_review'][$key] = $value;
+
+            return $metadata;
+        });
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    #[Test]
+    public function a_review_never_keeps_reused_ids_that_now_name_dropout_fragments(): void
+    {
+        Storage::fake('local');
+        [$log] = $this->reviewedReadingSelection();
+        $sermon = $log->serviceSections()->where('section_type', ServiceSectionType::Sermon)->sole();
+        $sermon->update(['start_time' => 1198, 'duration' => 2]);
+        $this->section($log, ServiceSectionType::Other, 4, 500, 1198);
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
+    }
+
+    #[Test]
+    #[TestWith([false])]
+    #[TestWith([true])]
+    public function a_reviewed_question_whose_label_contains_a_section_id_survives_replacement_ids(bool $legacy): void
+    {
+        Storage::fake('local');
+        $log = $this->logWithSermon(500, 1200);
+        $sermon = $log->serviceSections()->sole();
+        $reading = $this->reading($log, 3, 100, 200);
+        $log->putServiceTranscriptPath('temp/reading-handover.json');
+        Storage::disk('local')->put('temp/reading-handover.json', json_encode(ChurchServiceTranscript::fromCues([
+            ['start' => 120, 'end' => 122, 'text' => 'Let us pray.'],
+        ], 2000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $composition = $this->resolver->compose($log);
+        $this->assertContains('sermon_reading_contains_prayer_handover', array_column($composition['risks'], 'kind'));
+        $this->resolver->reviewComposition($log, [$reading->id, $sermon->id], $composition['input_identity'], 1);
+        if ($legacy) {
+            $oldReview = $this->makeLegacyReview($log);
+            $this->resolver->compose($log->fresh());
+            $this->assertSame($oldReview['answered_risks'], $log->fresh()->processing_metadata->raw['sermon_composition_review']['answered_risks']);
+        }
+
+        $this->replaceSectionIds($log);
+        $composition = $this->resolver->compose($log->fresh());
+
+        $this->assertSame('operator_review', $composition['selection_source']);
+        $this->assertFalse($composition['requires_review']);
+        $this->assertContains('sermon_reading_contains_prayer_handover', array_column($composition['answered_risks'], 'kind'));
+    }
+
+    #[Test]
+    public function changed_section_type_invalidates_a_reviewed_selection(): void
+    {
+        Storage::fake('local');
+        [$log, $reading] = $this->reviewedReadingSelection();
+        $reading->update(['section_type' => ServiceSectionType::Other]);
+
+        $this->assertSame('rules', $this->resolver->compose($log->fresh())['selection_source']);
     }
 
     /**

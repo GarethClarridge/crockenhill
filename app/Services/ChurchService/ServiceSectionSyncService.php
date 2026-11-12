@@ -18,10 +18,12 @@ use App\Services\Song\SongVideoService;
 use App\Support\ServiceSectionConfidence;
 use App\Traits\SanitizesLogData;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Throwable;
 
 /**
  * Synchronizes classified section data with the persistent database state.
@@ -76,10 +78,28 @@ class ServiceSectionSyncService
      */
     public function removeSection(ServiceSection $section): void
     {
+        $this->bankLegacyReview($section->processingLog);
         $this->cleanupExtractedAssets($section);
         $this->notifyHandlerOfRemoval($section);
         $this->detachSongVideos($section);
         $section->delete();
+    }
+
+    /**
+     * Banking only spares the operator a repeated question, so a failure to bank must not stop
+     * sections being synced or removed: the review is then asked again, as it was before banking
+     * existed. A database failure is the exception. A deadlock has already rolled the surrounding
+     * transaction back, and carrying on would commit the rest of the sync outside it.
+     */
+    private function bankLegacyReview(MediaProcessingLog $processingLog): void
+    {
+        try {
+            app(SermonExtractionPlanResolver::class)->bankLegacyReview($processingLog);
+        } catch (QueryException $exception) {
+            throw $exception;
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 
     /**
@@ -98,6 +118,8 @@ class ServiceSectionSyncService
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('section_order');
+
+            $this->bankLegacyReview($processingLog);
 
             /*
              * Read before any row is rewritten: a held row can be refilled with other
@@ -250,11 +272,11 @@ class ServiceSectionSyncService
         $claimed = [];
 
         foreach ($classifiedSections as $index => $sectionData) {
-            $identity = $this->materialIdentity($this->buildSignatureFromPayload($sectionData));
+            $identity = self::materialIdentity($this->buildSignatureFromPayload($sectionData));
 
             foreach ($existing as $candidate) {
                 if (! isset($claimed[$candidate->id])
-                    && $this->materialIdentity($this->buildSignatureFromExisting($candidate)) === $identity) {
+                    && self::materialIdentity($this->buildSignatureFromExisting($candidate)) === $identity) {
                     $pairs[$index] = $candidate;
                     $claimed[$candidate->id] = true;
 
@@ -323,8 +345,8 @@ class ServiceSectionSyncService
      */
     private function hasMaterialSignatureChange(ServiceSection $existing, array $incomingPayload): bool
     {
-        return $this->materialIdentity($this->buildSignatureFromExisting($existing))
-            !== $this->materialIdentity($this->buildSignatureFromPayload($incomingPayload));
+        return self::materialIdentity($this->buildSignatureFromExisting($existing))
+            !== self::materialIdentity($this->buildSignatureFromPayload($incomingPayload));
     }
 
     /**
@@ -339,10 +361,12 @@ class ServiceSectionSyncService
      * deleted a published clip (canary 9, run 1221). Matching re-derives the song (`withoutSongBinding()`),
      * and the new title is still written.
      *
-     * @param  array{church_service_item_id: int|null, section_type: string, title: ?string, start_time: float, end_time: float}  $signature
+     * Shared with composition reviews so replacement rows name the same content as section sync.
+     *
+     * @param  array{section_type: string, start_time: float, end_time: float}  $signature
      * @return array{section_type: string, start_time: float, end_time: float}
      */
-    private function materialIdentity(array $signature): array
+    public static function materialIdentity(array $signature): array
     {
         return [
             'section_type' => $signature['section_type'],

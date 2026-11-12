@@ -24,11 +24,17 @@ use App\Models\User;
 use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\ServiceSectionSyncService;
 use App\Services\ChurchService\TalkReadingPairing;
+use App\Services\Sermon\SermonExtractionPlanResolver;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
+use RuntimeException;
 use Tests\TestCase;
 
 class ServiceSectionSyncServiceTest extends TestCase
@@ -581,6 +587,7 @@ class ServiceSectionSyncServiceTest extends TestCase
     #[Test]
     public function an_unchanged_section_keeps_its_media_when_an_earlier_section_is_inserted_or_removed(): void
     {
+        Storage::fake('local');
         Storage::fake('public');
         config(['media-processing.storage.sermon_disk' => 'public']);
 
@@ -610,21 +617,160 @@ class ServiceSectionSyncServiceTest extends TestCase
         $welcome = $this->sectionData(null, 1, ServiceSectionType::Welcome->value, 'Welcome', 0.0, 100.0, 100.0);
         $prayer = $this->sectionData(null, 2, ServiceSectionType::Prayer->value, 'Prayer', 100.0, 200.0, 100.0);
         $songAt = fn (int $order): array => $this->sectionData($item->id, $order, ServiceSectionType::Song->value, 'More About Jesus', 1753.0, 1937.24, 184.24);
+        $readingAt = fn (int $order): array => $this->sectionData(null, $order, ServiceSectionType::BibleReading->value, 'Reading', 2000, 2100, 100);
+        $sermonAt = fn (int $order): array => $this->sectionData(null, $order, ServiceSectionType::Sermon->value, 'Sermon', 2300, 3000, 700);
+        $reading = ServiceSection::factory()->create(['media_processing_log_id' => $processingLog->id, ...$readingAt(3)]);
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $processingLog->id, ...$sermonAt(4)]);
+        $resolver = app(SermonExtractionPlanResolver::class);
+        $resolver->reviewComposition($processingLog, [$reading->id, $sermon->id], $resolver->compose($processingLog)['input_identity'], 1);
 
-        $this->service->sync($processingLog, [$welcome, $prayer, $songAt(3)]);
+        $this->service->sync($processingLog, [$welcome, $prayer, $songAt(3), $readingAt(4), $sermonAt(5)]);
 
         $song->refresh();
         $this->assertSame(3, $song->section_order);
         $this->assertSame('section-publications/1398/video.mp4', $song->extracted_video_path);
-        $this->assertSame(3, ServiceSection::query()->where('media_processing_log_id', $processingLog->id)->count());
+        $this->assertSame(5, ServiceSection::query()->where('media_processing_log_id', $processingLog->id)->count());
+        $composition = $resolver->compose($processingLog->fresh());
+        $this->assertSame('operator_review', $composition['selection_source']);
+        $this->assertSame([$reading->id, $sermon->id], $composition['selected_section_ids']);
 
-        $this->service->sync($processingLog, [$songAt(1)]);
+        $this->service->sync($processingLog, [$songAt(1), $readingAt(2), $sermonAt(3)]);
 
         $song->refresh();
         $this->assertSame(1, $song->section_order);
         $this->assertSame('section-publications/1398/video.mp4', $song->extracted_video_path);
-        $this->assertSame(1, ServiceSection::query()->where('media_processing_log_id', $processingLog->id)->count());
+        $this->assertSame(3, ServiceSection::query()->where('media_processing_log_id', $processingLog->id)->count());
+        $composition = $resolver->compose($processingLog->fresh());
+        $this->assertSame('operator_review', $composition['selection_source']);
+        $this->assertSame([$reading->id, $sermon->id], $composition['selected_section_ids']);
         Storage::disk('public')->assertExists('section-publications/1398/video.mp4');
+    }
+
+    #[Test]
+    #[TestWith([false])]
+    #[TestWith([true])]
+    public function a_legacy_selection_is_banked_before_sections_are_removed_and_recreated(bool $stale): void
+    {
+        [$run, $reading, $sermon, $incoming, $segments, $legacy] = $this->legacyReviewedSections();
+        if ($stale) {
+            $reading->update(['end_time' => 210, 'duration' => 110]);
+            $incoming[0]['end_time'] = 210.0;
+            $incoming[0]['duration'] = 110.0;
+        }
+        $beforeComposition = $run->fresh()->processing_metadata->raw['sermon_composition'];
+        $beforeSermon = $sermon->fresh()->getRawOriginal();
+        $beforeStatus = $run->status;
+
+        $this->service->removeSection($reading);
+
+        $banked = $run->fresh()->processing_metadata->raw['sermon_composition_review'];
+        if ($stale) {
+            $this->assertSame($legacy, $banked);
+        } else {
+            $this->assertSame(2, $banked['identity_version'] ?? null);
+            $this->assertSame($legacy, array_intersect_key($banked, $legacy));
+        }
+        $this->assertSame($beforeComposition, $run->fresh()->processing_metadata->raw['sermon_composition']);
+        $this->assertSame($beforeSermon, $sermon->fresh()->getRawOriginal());
+        $this->assertSame($beforeStatus, $run->fresh()->status);
+
+        $this->service->removeSection($sermon);
+        $this->service->sync($run, $incoming);
+
+        $composition = $run->fresh()->processing_metadata->raw['sermon_composition'];
+        $newIds = $run->serviceSections()->orderBy('section_order')->pluck('id')->all();
+        $this->assertSame([], array_intersect($legacy['selected_section_ids'], $newIds));
+        $this->assertSame($stale ? 'rules' : 'operator_review', $composition['selection_source']);
+        $this->assertSame($stale, $composition['requires_review']);
+        if ($stale) {
+            $this->assertSame($legacy, $run->fresh()->processing_metadata->raw['sermon_composition_review']);
+        } else {
+            $this->assertSame($newIds, $composition['selected_section_ids']);
+            $this->assertSame($segments, app(SermonExtractionPlanResolver::class)->resolve($run->fresh())['segments']);
+        }
+        $this->assertSame($beforeStatus, $run->fresh()->status);
+    }
+
+    #[Test]
+    public function a_failure_to_bank_a_legacy_review_does_not_stop_a_section_being_removed(): void
+    {
+        [$run, $reading, , , , $legacy] = $this->legacyReviewedSections();
+        Exceptions::fake();
+        $this->mock(SermonExtractionPlanResolver::class)
+            ->shouldReceive('bankLegacyReview')
+            ->once()
+            ->andThrow(new RuntimeException('Evidence disk unreachable'));
+
+        $this->service->removeSection($reading);
+
+        $this->assertFalse(ServiceSection::query()->whereKey($reading->id)->exists());
+        $this->assertSame($legacy, $run->fresh()->processing_metadata->raw['sermon_composition_review']);
+        Exceptions::assertReported(RuntimeException::class);
+    }
+
+    #[Test]
+    public function a_database_failure_while_banking_a_legacy_review_stops_the_removal(): void
+    {
+        [, $reading] = $this->legacyReviewedSections();
+        $failure = new QueryException('mysql', 'select 1', [], new RuntimeException('Deadlock found when trying to get lock'));
+        $this->mock(SermonExtractionPlanResolver::class)
+            ->shouldReceive('bankLegacyReview')
+            ->once()
+            ->andThrow($failure);
+
+        try {
+            $this->service->removeSection($reading);
+            $this->fail('A database failure must not be swallowed.');
+        } catch (QueryException $exception) {
+            $this->assertSame($failure, $exception);
+        }
+
+        $this->assertTrue(ServiceSection::query()->whereKey($reading->id)->exists());
+    }
+
+    #[Test]
+    public function sync_banks_an_exact_legacy_review_before_its_first_section_write(): void
+    {
+        [$run, , , $incoming] = $this->legacyReviewedSections();
+        $versionsAtWrite = [];
+        $event = 'eloquent.updating: '.ServiceSection::class;
+        Event::listen($event, static function (ServiceSection $section) use (&$versionsAtWrite): void {
+            $versionsAtWrite[] = $section->processingLog->fresh()->processing_metadata->raw['sermon_composition_review']['identity_version'] ?? null;
+        });
+        try {
+            $this->service->sync($run, $incoming);
+        } finally {
+            Event::forget($event);
+        }
+
+        $this->assertNotEmpty($versionsAtWrite);
+        $this->assertSame([2], array_values(array_unique($versionsAtWrite)));
+    }
+
+    /** @return array{MediaProcessingLog, ServiceSection, ServiceSection, list<array<string, mixed>>, list<array{start_time: float, end_time: float}>, array<string, mixed>} */
+    private function legacyReviewedSections(): array
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        $run = MediaProcessingLog::factory()->livestream()->create(['duration' => 2000]);
+        $incoming = [
+            $this->sectionData(null, 1, ServiceSectionType::BibleReading->value, 'Reading', 100, 200, 100),
+            $this->sectionData(null, 2, ServiceSectionType::Sermon->value, 'Sermon', 500, 1200, 700),
+        ];
+        $reading = ServiceSection::factory()->create(['media_processing_log_id' => $run->id, ...$incoming[0]]);
+        $sermon = ServiceSection::factory()->create(['media_processing_log_id' => $run->id, ...$incoming[1]]);
+        $resolver = app(SermonExtractionPlanResolver::class);
+        $resolver->reviewComposition($run, [$reading->id, $sermon->id], $resolver->currentInputIdentity($run), 1);
+        $segments = $resolver->resolve($run)['segments'];
+        $legacy = $run->processing_metadata->raw['sermon_composition_review'];
+        unset($legacy['identity_version'], $legacy['semantic_input_identity'], $legacy['selected_sections']);
+        $run->writeProcessingMetadata(static fn (array $metadata): array => [...$metadata,
+            'sermon_composition_review' => $legacy,
+            'sermon_composition' => ['existing' => 'Must not be recomposed while banking'],
+        ]);
+        $sermon->refresh()->update(['metadata' => [...$sermon->metadata->toArray(), 'sermon_boundary' => ['existing' => 'Must not be rewritten while banking']]]);
+
+        return [$run, $reading, $sermon, $incoming, $segments, $legacy];
     }
 
     /**
