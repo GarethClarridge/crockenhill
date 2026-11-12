@@ -111,6 +111,7 @@ OOS PARSER D0-D5 deterministic build ──> D6 paid evaluation ──> D7 appro
 
 ARCHITECTURE AM1-AM5/AM11 safety ────────────────────────────────────────────> independent value
 ARCHITECTURE AM8-AM10 permanent processing ──> waits for historic closeout unless a gate requires it
+ARCHITECTURE AM15 cut planner ──> AM15.0 tests before the freeze ──> refactor after the last round closes
 
 SIMPLIFICATION R13 measurement ───────────────┐
 SIMPLIFICATION R14 test fold-ins ─────────────┴──> R15 archive
@@ -146,6 +147,11 @@ lists what must be done or disposed of before the freeze so the next round is th
 one (G13): edge evidence and a complete replay, moved acceptance checks, open cut-changing items,
 stopped runs, byte-changing fixes, the production census, talk-type detection for weekly and the repair route.
 
+**Cut-planner refactor (planned 2026-11-11):** [architecture AM15](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md#am15--cut-planner-ordered-typed-rules-over-evidence-loaded-once)
+owns the restructuring of the code that places each talk's and song's cut. It changes no cut and is
+not a prerequisite for the round. Its test-only plan snapshot may land before the freeze; the rest
+waits for the last round to close (AM-D5). Outputs may still overlap (E27, E28).
+
 The [post-round audit work package](HISTORIC-VIDEO-POST-ROUND-AUDIT-2026-10-22.md)
 records discovery stopped at 45 services on 11-05, supplemental review stopped after 100 services
 on 11-06, and a completed 2,127-file decode. Old October and November unfinished review batches
@@ -155,7 +161,7 @@ changed hashes invalidate dependent checks.
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
 | H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Programme authority; media worklists reconciled 11-06. November round closed, later fixes/acceptance still pending; weekly remains paused. | Video §4.1a–d: apply K19 (built 11-06), K20 introduction miss, review-automation RA1–RA6, measured routes and current-output verification; audit §7 before production convergence and signed release. |
-| M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated | Record D1-D4; AM2 timing and AM3 log-rotation tests can start independently |
+| M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated. **AM15 (cut planner) planned 2026-11-11** from a code review of how services are split into talks and songs; nothing built | Record D1-D6; AM2 timing and AM3 log-rotation tests can start independently; AM15.0's plan snapshot (tests only) can land before the last-round freeze |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |
 | M2 | [Simplification closeout](JULY-2026-SIMPLIFICATION-REMAINDER-2026-07-19.md) | Only R13/R14/R15 remain; R8/R12 delegated | Start R13 measurement and fold the five flat suites in parallel |
@@ -180,6 +186,8 @@ changed hashes invalidate dependent checks.
 | Architecture D2 normal rollback policy | Architecture AM4b only |
 | Architecture D3 supported PHP/Node/Playwright matrix | Architecture AM12 only |
 | Architecture D4 live Shadow-mode value | Architecture AM10 only |
+| Architecture D5 when the cut-planner refactor runs relative to the last round | Architecture AM15.1–AM15.7 only; AM15.0 is ungated |
+| Architecture D6 whether an operator-set song end keeps the planner's fade and voice removal | That behaviour change only (video §4.1f row 3 lists it) |
 | Code quality Q3 (`podcast.enabled`) and Q4 (level-9 config flip); approve removal of `spatie/laravel-data` | Respective code-quality slices only |
 | Provide/approve song scripture import columns, theme vocabulary and calibration reports | Corresponding song data/flag flips |
 | Fresh operational OpenLP database and manual installation of the verified corrected SQLite copy | Song title ST5 handoff; inventory and local rehearsal can proceed |

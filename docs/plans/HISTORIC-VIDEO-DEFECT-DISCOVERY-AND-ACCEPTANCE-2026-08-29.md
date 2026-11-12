@@ -102,7 +102,10 @@ start and closure. Do not reuse old
 
 §4.1a is the pre-freeze sequence; §4.1b separates remaining repairs from post-round verification.
 The outcome-review follow-up in §4.1c informs that work without making a broad architecture
-refactor a new prerequisite. §4.1e proposes speaker-identification repair and a bounded proposal
+refactor a new prerequisite. The cut-planner refactor from the 11-11 code review is
+[architecture AM15](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md#am15--cut-planner-ordered-typed-rules-over-evidence-loaded-once):
+only its test-only plan snapshot (AM15.0) may land before the freeze, and the rest follows the
+round. §4.1e proposes speaker-identification repair and a bounded proposal
 pass before the next run; execution and re-enabling remain undecided. §4.1f (11-10) orders all of
 this so that the next round can be the last corpus-wide one. Preserve accepted limitations
 and specific operator rulings.
@@ -166,7 +169,9 @@ and specific operator rulings.
    is about a third of the suite's test time: about 1,060 s of 3,069 s on 11-09. Each case rebuilds
    its run from a gzipped capture and re-plans it, and a run with several rulings is rebuilt once
    per entry. Candidates: rebuild once per capture, cache decoded fixtures per process, retire
-   superseded entries. Time each case before choosing. Measured 11-09:
+   superseded entries. Time each case before choosing. Architecture AM15.2 (planned 11-11) is the
+   route once the round has closed: each case plans from evidence built in memory, not from a
+   rebuilt run. Measured 11-09:
    - The suite was capped at 4 workers by `ParallelTestingProcessLimiter` and is now capped at 8
      (`a74cb355a`): 13:28 → 8:21–11:01.
    - Beyond the worker count, the limit is the project folder shared from the Mac (gRPC FUSE),
@@ -1636,14 +1641,14 @@ production. Each row below moves one of them ahead of the freeze.
 
 | # | Before the freeze | Done when | Owner |
 |---|---|---|---|
-| 1 | **Edge evidence for every member, then a complete replay.** Run `historic-import:prepare-output-edges` on every remaining member before the freeze, not as the round's first stage. It writes evidence only and never changes a run's status or cuts. 42 runs were prepared 11-07 and 91 more were timed 11-09 (`storage/scratch/edge-step-20261109/`); recount what is left. Run it after the last edge-moving change (row 3), because evidence is keyed by window, model and signature. Then rerun the replay and the inventory. | No sermon end is unassessable for missing evidence (430 on 11-07); stems exist at every fade cut; replay and inventory are rerun on the candidate revision with every moved edge accounted for. | §4.1a steps 2–3; runbook §4.2 |
+| 1 | **Edge evidence for every member, then a complete replay.** Run `historic-import:prepare-output-edges` on every remaining member before the freeze, not as the round's first stage. It writes evidence files and the run's and sermon's composition metadata (`compose()`; source read 11-11), and never changes a run's status or cuts. 42 runs were prepared 11-07 and 91 more were timed 11-09 (`storage/scratch/edge-step-20261109/`); recount what is left. Run it after the last edge-moving change (row 3), because evidence is keyed by window, model and signature. Then rerun the replay and the inventory. | No sermon end is unassessable for missing evidence (430 on 11-07); stems exist at every fade cut; replay and inventory are rerun on the candidate revision with every moved edge accounted for. | §4.1a steps 2–3; runbook §4.2 |
 | 2 | **Acceptance checks whose failure means reprocessing.** Run them now on current outputs and the replay's planned cuts, with rendered audio where the question is audible: source-first completeness on a fresh declared sample (omitted talks, readings, songs and long `other` sections); the transcription-gap follow-up and H10's transcript-negative runs (a failure needs re-transcription); every assembled sermon join; the detector/transcript evaluation; song protocol stage 2/M2/M4. Checks that need the final bytes (full decode, hashes, delivery, thumbnails, editorial fields) stay after the round. | Each lane reports checked/unassessable counts and findings. Every finding is fixed and measured, held, or recorded as residue before the freeze. The post-round audit then confirms; it should not be the first look. | Audit §0 "Before the freeze" and §7 |
 | 3 | **Every open cut-changing item gets one of two answers: built and measured, or left as it is and named.** No item stays "pending" at the freeze. The list is below. | Each item below carries a build commit and measurement, or a recorded disposition (held, soft miss under E23, named residue). | §§4.1a–4.1d |
 | 4 | **Stopped runs.** 15 historic-era runs are stopped and not excluded (1145 is excluded). 11 are parked on a sermon content hold: 1003, 1019, 1039, 1084, 1095, 1107, 1121, 1176, 1187, 1373, 1380. Four failed for their own reason: 882 (no RMS data for a song period), 904 (transcription interrupted by a host shutdown), 945 (structure failed validation, sections cover 64%), 1143 (several speech blocks over the sermon threshold). | Each has a route written down (held-section cut and release page, retry through its own failure, or exclusion with a reason) and is either a round member or explicitly out. | RA1 routes; runbook §4.2 |
-| 5 | **Anything that changes encoded bytes or file tags.** Diagnose 1055's +5.6 dBTP video peak and scan the corpus for the same cause. Build and test P5's partial-recording wording in MP3 tags and the podcast summary (the 10-29 code review found the summary wording absent and the tags unchecked). Check which outputs bake in the speaker's name (MP3 tags, thumbnails), so §4.1e's late names are known to need only those artefacts regenerated, not a cut. | The peak has a cause and a corpus count, fixed or accepted; P5 wording is built and tested; the list of name-bearing artefacts and their regeneration route is recorded. | Audit §7 "Thumbnails and partial recordings"; sound treatment stage |
+| 5 | **Anything that changes encoded bytes or file tags.** Diagnose 1055's +5.6 dBTP video peak and scan the corpus for the same cause. **Diagnosed 11-12** (`storage/scratch/peak-1055-20261112/`): the treatment reaches the encoder at −1.5 dBTP; the video's audio is one channel duplicated to stereo, and FFmpeg's AAC decoder reconstructs the encoder's noise-substitution (PNS) bands with a right-channel transient of +5.6 in the first second. Apple's decoder gives +0.1 on the same file. `-aac_pns 0` removes it in both decoders (−1.1/−1.1) with no change in loudness and 0.03% in size; mid/side and intensity stereo are not the cause. The reproduction's first 47 packets match the delivered file byte for byte. Stored reports: 57 videos over the peak target, 55 on this dual-mono speech path (parts by excess: 33 under 1 dB, 18 at 1–3, 7 at 3–6, 1 over 6). **Measured on all 57 failing parts in current runs, 11-12** (each part's audio encoded alone, with and without PNS; `pns-results.jsonl`, 119 min): with PNS off 51 of 57 meet the −0.5 target against 23 as encoded alone; a left/right difference over 0.5 dB appears in 21 baselines and in none with PNS off; loudness moves by at most 0.1 LU; PNS off is never worse by more than 0.2 dB. Six stay above target: 1346 part 2 at +3.2 on both channels and 1341 part 2 at +0.4 (a second cause, not PNS), and four within 0.2 dB of target. **Limit of this measurement:** only 20 baselines reproduce their recorded peak, because a later part of a joined output is encoded after the parts before it; a faithful check of those encodes the whole joined output. No cut position is involved. **Fix not built:** the flag belongs in the shared video audio encode (`VideoExtractionService`), and the encode recipe is also described in `MediaProcessingVersion`, so adding it raises which existing outputs count as stale and how the round re-encodes them (391 runs are routed to the edge step only). `HistoricVideoReencodeConcatenator` encodes AAC too and has not been checked. **Ruled 11-12 (register A5):** build the option for every new encode, keep it out of the processing signature (edge words, stems, sentence checks and song-introduction checks are all keyed by that signature, so adding it there would discard every banked window), and re-encode only the affected outputs in the round. To build after the edge pass. P5's partial-recording wording: the podcast summary is built and tested (`5f816aa63`); the downloadable MP3's tags are not, and no tag-writing path exists. Read 11-12: the flag is set by hand on the sermon (`SaveSermonDetails`) after the MP3 is encoded on every path, and a direct audio upload is published as uploaded, so tagging cannot ride on the existing encode. It needs either a new finalisation step before publication or a rewrite of a published file when the flag changes. Three local recordings are flagged, all livestream. The public page and the feed already say it; the API resource does not carry the flag. **Ruled 11-12 (register P6): named residue; the tags are not built.** The API response is to carry the flag (to build after the edge pass). Speaker's name, read from code 11-11: branded thumbnails bake it in and can be rebuilt from the retained frame; feeds read current data; MP3s carry no speaker tag. So §4.1e's late names need thumbnails regenerated and feeds refreshed, not a cut; recheck once MP3 tagging lands. | The peak has a cause and a corpus count, fixed or accepted; P5 wording is built and tested; the list of name-bearing artefacts and their regeneration route is recorded. | Audit §7 "Thumbnails and partial recordings"; sound treatment stage |
 | 6 | **Production census and one small era rehearsal.** Run programme §0.4 step 0 on the server (read-only) and compare identities with the local graph. Rehearse export and quarantined apply of one small era, with media, on a production copy. Check the song catalogue: clips bind local song IDs, and an OpenLP merge re-binds nothing. | Create/enrich/leave-alone dispositions exist for every production row in the historic range; membership changes are fed into row 1's recount; the rehearsal applied media end to end; catalogue differences are listed with their relink route. | Programme §0.4, IC5, §7 |
-| 7 | **Talk-type detection for the weekly pipeline.** See "Talk-type detection" below. Type does not change a cut, so the work must be shaped so that it needs no round: a step of its own over finished sections, not a change to the structure prompt. Speaker identification is §4.1e's and is not repeated here. | The design below is accepted or changed by the operator; the type step is confirmed to run on existing sections without re-detection; the ground-truth page is built. Measurement and any ruling on automatic confirmation can follow the round. | Register T1, T2, G10; RA6 |
-| 8 | **Repair route after the round.** Decide §4.6's route now: keep the masters, promotion tooling and single-run commands working after closeout, or record that released outputs are final. | Decision recorded in the register; if kept, one named run is taken through each single-run route as a test before the freeze. | §4.6; programme IC8 |
+| 7 | **Talk-type detection for the weekly pipeline.** See "Talk-type detection" below. Type does not change a cut, so the work must be shaped so that it needs no round: a step of its own over finished sections, not a change to the structure prompt. Speaker identification is §4.1e's and is not repeated here. | **Design accepted 11-11 with one amendment (register T8).** **Ground-truth page published 11-11** (334 pending talks; `storage/scratch/talk-type-truth-20261111/`; answers in the page's `rulings` collection, keyed by section id; no answers yet). Still to do: the type step is confirmed to run on existing sections without re-detection. Measurement and any ruling on automatic confirmation can follow the round. | Register T1, T2, G10; RA6 |
+| 8 | **Repair route after the round.** **Decided 11-11 (register C7): the route is kept.** Masters on the Sonnics archive, a database dump at closeout and the promotion tooling outlive IC8. | One named run is taken through each single-run route as a test before the freeze (processing; not yet authorised). | §4.6; programme IC8 |
 
 **Row 3: the open cut-changing items (state on 11-10).**
 
@@ -1655,16 +1660,49 @@ production. Each row below moves one of them ahead of the freeze.
 - Class B, speech inside a fade end (94692, 2303, 3666 bad; 3628 soft): no design. Stems cover
   132 of 1,175 ends, so its size is unknown until row 1 has run. Design it after row 1, or record
   the class as named residue with its hold kept.
-- Still listed open under RA3: the planner missing speech inside the section, music under a
-  prayer, the lyric protection check, under-speech endings.
-- K21's banked-vote inventory, the 956 reading-join fix and the completed local 1140 repair
-  are recorded in §4.1c. The recount after edge evidence is open. E27 overlap and 1233's start
-  are pending. 954's approved join stays, with the dropout recorded in §4.1b.
-  K20's run 1301 omission is fixed in the resolver. The other four no-passage stretches
-  listed under §4.1b still need disposition.
-- RA4 (173 records on 11-07), RA5 (331, 49 of them unassessable) and RA6: no build status. RA6's
-  answer preservation (the 1148/1197 renumbering cases) matters most here: a recompose that re-asks
-  settled questions is manual work the round would create.
+- Still listed open under RA3: the planner missing speech inside the section (the onset rule is
+  built, `5d8db2cf8`; the surviving mixed-music cases need the replay), music under a prayer (E29
+  sets the default; whether cuts find the prayer onset needs the replay) and the lyric protection
+  check (no check over rendered outputs exists). Under-speech endings are disposed of by E30: the
+  cut stands, the audible residue stays named, and it reopens only on new separating evidence.
+- Done, with application left to the round: K21's first banked-vote inventory and the local 1140
+  repair (`52906772a`), the 956 reading-join guard (`82e980be4`), 954's approved join with its
+  dropout recorded (§4.1b), and K20's run 1301 omission (`15abead41`; R10's recompose still applies).
+  Open: K21's recount after edge evidence, E27 overlap on rendered transitions (needs listening),
+  1233's start (needs a wider decode) and the other four no-passage stretches under §4.1b
+  (1044, 1258, 960, 1163).
+- RA4 (173 records on 11-07) and RA5 (331, 49 of them unassessable): no build; both wait for the
+  inventory after the replay. RA6's answer preservation (the 1148/1197 renumbering cases) matters
+  most here: a recompose that re-asks settled questions is manual work the round would create.
+  **RA6 answer preservation built 11-11, uncommitted:** composition approval hashed numeric
+  section ids, so equivalent sections with new ids re-asked. A review now records a content
+  identity for each selected section (type, span, references, continuation, talk type and
+  access; not title or model notes), and an existing approval gains it the next time a
+  persisting `compose()` finds it still valid exactly (`upgraded_from: exact_legacy_match`).
+  All 18 local reviewed runs hold the old form, so they are upgraded by the edge step's
+  `compose()` before any recompose. A changed span, reference, membership or access still
+  re-asks. Full suite 11,191 tests with no failure, PHPStan and Pint clean. Audit 11-12 (pure
+  identity calls, no `compose()` on real runs): 17 of the 18 validate under both the old and the
+  new gate; 1250's approval is already stale and re-asks either way. Section sync and section
+  removal now bank a still-valid approval before they replace any row (built 11-12), so the 17
+  are preserved with no prior manual step. Banking writes the review record only; if it fails
+  for any reason but a database error it is reported and the sync carries on. The 1148 case was not harmless renumbering: its old sections became
+  short dropout fragments and sermon material moved into new rows, so re-asking it was right.
+  1197 kept its ids and was invalidated by rewritten wider dependencies.
+- **Added 11-11, read from code and not reproduced:** a song end the operator sets by ear keeps
+  the planner's fade and voice removal (`CueSafeExtractionPlan::withOperatorEdges()`). An end set
+  later than the separated-audio window (the cut + 16 s) would leave the clip's tail silent. Local
+  count 11-11: two songs have an operator-set end; both have a fade recorded, neither a voice
+  removal, though their cuts may predate E29. Architecture AM15.0 step 3 writes the test and AM-D6
+  holds the options. **Ruled 11-11 (register E31):** the fade and voice removal are kept and an end outside
+  the window is refused. **Built 11-12, uncommitted:** the planner refuses such an end through the
+  refused-edge route, reading the window stored beside the instrument track (no fixed duration);
+  a fade alone needs no separated track and is never refused for this. Reproduced first: an end
+  at 4507.36 s was accepted with coverage ending at 4507.11 s. Extraction also rejects voice
+  removal that outruns its track, allowing 1 ms because the windows are recorded to the
+  millisecond. Measured 11-12: no stored cut carries voice removal yet; the 43 planner captures
+  of 11-09 clear their tracks by 8.4–16.6 s; 137 banked tracks are sample-exact FLAC and one
+  window differs from its file by 2 µs. 3803 and 3922 are unchanged.
 - Built but unapplied work is not on this list. The round applies it: K18/K19/K20 starts, split-song
   snap, the ten stale generations, the 33 Scripture refreshes, the song-end rules through `741918dbd`.
 
@@ -1699,16 +1737,57 @@ sections:
 
 Planned work, in order:
 
-1. **Ground truth.** One page on which the operator confirms the type of the pending talks (type
+1. **Ground truth.** One published review page (ruled 11-11: an artefact, not an admin screen) on
+   which the operator confirms the type of the pending talks (type
    only; transcript opening, the bound item's title, the proposal). "None of the four" is an
    allowed answer. These are the first confirmed types and the only measure available.
+   **Built 11-11:** <https://claude.ai/artifact/VympHgFStUNCyG59j8NTBr>. 334 talks, not the 355
+   counted on 11-10: 20 belong to superseded runs and one to an excluded run. Proposals among the
+   334: 116 children's talk, 43 partner update, 18 testimony, 157 none. The page shows the proposal
+   beside each talk, as planned here, so the answers may lean towards it.
+   **Changed by the operator 11-11, after seeing the page:** confirming every talk by hand is not
+   sensible ("I'm not really doing anything you can't do"); the proposals seen so far looked right.
+   The talks are read by agents, blind to the proposal, rules are derived from the readings and
+   applied automatically, and the operator sees only the talks where rule, reading and proposal
+   disagree. The rules must handle two cases the operator named: speech that is not a talk in its
+   own right (a comment on a reading or song, an extended introduction, a link), and family
+   services, where a children's talk and a sermon are told apart by whether the same service has
+   a full-length sermon. Study in `storage/scratch/talk-type-rules-20261111/` (started 11-11).
+   Automatic confirmation still needs step 5's ruling on the numbers.
+   **Study run 11-11/12** (evidence and rules by Sol, blind reading by Luna, tables by Claude):
+   nine ordered rules, frozen before the held-out half was run, decide 93 of 167 held-out talks
+   with a reading agreeing on 88, and 99 of 167 derivation talks with 98 agreeing. "Full-length
+   sermon" measures at about 16 minutes: the longest sermon per service has a gap between 825 s
+   and 1,100 s. All 334 now carry a type: children's talk 228, partner update 41, not a talk 33,
+   testimony 14, sermon 7, could not tell 11. The operator's seven answers on the first page all
+   match. Luna agreed with Sol on 121 of the 166 talks both read and over-called sermons (10).
+   Sol's assessment after seeing the held-out half: keep the T7 item rule, the declared-series
+   rule, the testimony frame, the family main-address rule and direct address to children;
+   leave partner updates, links and the three memorised recurring series to the model step.
+   **Open for the operator (page republished with these 15):** an address to adults in a service
+   that also has a full sermon (11), a member's report on a conference or event (3), a
+   remembrance of church members (1). 4775 is typed not a talk: its video was not captured (66
+   words in 3 minutes). Files: `final-labels.json`, `results.json`, `rule-changes.md`,
+   `residue-final.json` in the study folder.
+   **The operator answered all 15 on 11-12 (register T9;** `operator-answers-20261112.json`**).**
+   Ten are family talks: nine of the eleven addresses to adults in a morning service that has a
+   full sermon, and the remembrance. Four are none of the four: the three event reports and
+   "Making Bible reading profitable", with the note that a type for general short talks is
+   wanted. One is open: 190427 (evening, 12 May 2024, run 944) was answered none of the four with
+   a question. Its recording is 56 minutes with no songs: a reading of Psalm 77, this 13-minute
+   talk on Psalm 77, then a 39-minute sermon on another text. That fits the operator's guess
+   that two recordings are joined, in which case this is a sermon.
+   **Owed from T9:** the new type's name and who may see it; then the type in code, the rule
+   "morning family slot means family talk", and "evening services have no children's talks".
 2. **Apply T7 and record the series.** A talk in a catechism, hero-of-faith or Bible-character
    series is proposed as a children's talk, and the series is proposed beside the type and
    published in the talk's `series` field. Any other kind that step 1 answers "none of the four"
    is grouped and put to the operator; nothing further is assumed.
 3. **Make type detection its own step.** A classifier over a finished short-talk section: its
    transcript, its bound order-of-service item, its recurring title or series and its place in the
-   service. It records the proposed type, the proposed series, a confidence and the reasons. It does not touch the structure
+   service. It records the proposed type, the proposed series, a confidence and the reasons. T7's
+   series rule is applied from the bound item's title before the model is asked, and which of the
+   two decided is recorded (amendment accepted 11-11, T8). It does not touch the structure
    prompt, so it moves no section and can be rerun on existing sections at any time. The same step
    runs for weekly uploads; nothing is historic-only.
 4. **Measure by type against step 1.** A confusion table, with testimony errors and "typed when
@@ -1739,6 +1818,9 @@ in the [record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-1
   held-sermon recuts and talk–reading answers. Carry Q1's shared review-question/consequence pattern,
   durable answers and common publication predicate; talks stay ask-only. Verify implementation before
   assuming the old “not built” status still holds.
+- [ ] Land architecture AM15 (cut planner) between the last round's close and the take-over check
+  below, if AM-D5 is answered that way, so the check runs on the planner weekly will use. AM15
+  changes no cut; its acceptance is the round's recorded cuts replayed unchanged.
 - [ ] Run two recent services through the production weekly path at take-over, measuring time,
   CPU and cost, with all questions answerable and outputs accepted under the audit procedure.
 - [ ] Preserve originals for the backlog from 2026-08-30 onward and process oldest first after take-over.
@@ -1799,8 +1881,8 @@ excluded; retained assets were not deleted. The run-to-service mapping is 1120�
 - [ ] A second copy of source masters remains **operator-deferred** until a destination is available
   (likely the staging drive after processing). Do not confuse this with C2's deliberate single-copy
   quarantine/staging outputs. Retain C6 until processing/custody permits cleanup to resume.
-- [ ] **Before the freeze (moved from "before IC8" on 11-10, §4.1f row 8):** decide and retain a
-  maintained media repair route, or explicitly record that released outputs are final. The
+- [ ] **Before the freeze (moved from "before IC8" on 11-10, §4.1f row 8):** the repair route is
+  kept (decided 11-11, register C7); the test of each single-run route on a named run is owed. The
   masters/promotion tooling currently live locally. After the last round, a finding is repaired on
   the named run through the existing single-run routes, not by another corpus-wide dispatch.
 
@@ -1814,7 +1896,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Recorded status / next evidence |
 |---|---|
-| Last-round readiness | §4.1f, added 11-10: eight rows open. No freeze until each is done or disposed of. |
+| Last-round readiness | §4.1f, added 11-10: eight rows open. Reconciled against the code 11-11/12: rows 7 and 8 have their decisions (T8, T9, C7); row 5 is ruled (A5, P6) with two small builds owed; row 3's answer preservation and operator-end guard are built and committed (`a6abce118`, `8f523439f`). **The operator authorised the edge evidence pass on 11-12 if it takes under eight hours.** Most of the rest of row 3 waits on it. No freeze until each is done or disposed of. |
 | Processing | November round and named repairs closed. K19 reach-back built and ruled 11-06, not yet applied; it and the other later built fixes need the measured routes and output checks above. No new dispatch authority. |
 | Content acceptance | Incomplete. Ten stale main generations require verified recovery; other coverage, content and editorial obligations are in the audit ledger. The old 21-container-path incident is resolved, not an outstanding loss. |
 | Production convergence and delivery | Fresh programme census, rehearsal and destination verification still required. |

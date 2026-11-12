@@ -12,6 +12,13 @@
 > "G9" or "G9/WP10", read its **historic closeout / IC8**; "the window" means the first
 > production apply round (RG-B). FR-D7 and every AM dependency below are otherwise unchanged.
 >
+> **AM15 added 2026-11-11** (verified against `52906772a`): the cut planner that turns a service's
+> sections into talk and song outputs, from the code review the maintainer asked for that day.
+> AM15.0 is tests only and may land before the last corpus-wide round's freeze; AM15.1–AM15.7 wait
+> for that round to close (AM-D5). AM15 is not a prerequisite for the round
+> ([video plan §4.1](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md#41-current-processing-work)).
+> It needs AM-D5 and AM-D6 from the maintainer.
+>
 > **AM3 Delivery 1 blocks the first historic production round.** Historic FR-D7
 > accepted rotating logs as the operation record in place of Sentry, but AM3's finding is that
 > `storage/logs/laravel.log` does not rotate at all. The rounds' only accepted monitoring control
@@ -93,6 +100,11 @@ Every implementation PR must state which invariant it makes true.
     song is independently renderable from shared source/detection evidence. Unrelated sermon
     enrichment must not gate song preparation. Per-output acceptance/publication requirements,
     provenance and custody remain explicit. AM8 owns the pending orchestration work.
+11. **A cut is planned from evidence already gathered (added 2026-11-11):** planning an output's
+    cut reads one loaded set of evidence, writes nothing and calls no provider. Each edge rule is
+    one named step in a declared order. What a rule needs that is not yet gathered is reported, not
+    guessed. Outputs may overlap (register E27, E28): each keeps its own edge, and what they share
+    is the measurement, not the cut. AM15 owns this.
 
 ## Maintainer decisions
 
@@ -105,6 +117,8 @@ default, not permission to assume an answer.
 | AM-D2 | What may the normal rollback workflow deploy? | Only the immediately previous successful release; anything older is a database/object restore procedure | AM4b |
 | AM-D3 | Which runtime/build matrix is supported? | PHP 8.4 remains the tested minimum/local runtime, PHP 8.5 the production runtime with production-image smoke coverage, and Node 22 the single frontend build version; pin exact Playwright package/image versions | AM12 |
 | AM-D4 | Is live production `ServiceStructureMode::Shadow` still used for model/prompt promotion? | Delete runtime Shadow if offline corpus evaluation has replaced it; otherwise retain it with an owner and a named reconsideration *event* (not a calendar date) | AM10 |
+| AM-D5 | When does the cut-planner refactor run relative to the last corpus-wide round (G13)? | AM15.0 (tests only) before the freeze. AM15.1–AM15.7 after the round closes and before weekly take-over, so the round runs on the code its rulings were heard on and weekly starts on the simpler planner | AM15.1–AM15.7 |
+| AM-D6 | When the operator sets a song's end by ear, does the planner's fade and voice removal still apply? | Keep both, and refuse an end that falls outside the separated-audio window, through the existing refused-edge route. See AM15 "Operator-set song ends". **Answered 2026-11-11: adopted as recommended (register E31).** | The behaviour change only; AM15's refactor keeps whatever is current |
 
 Calendar partial failure has a plan default: one skipped upstream event makes the command return
 non-zero after completing safe work. A different tolerance requires a maintainer decision recorded in
@@ -138,6 +152,7 @@ a soak, observation window or waiting period that silently blocks everything dow
 | AM12 | Runtime/build versions are explicit and enforced | M | AM-D3 |
 | AM13 | Container startup cost is independent of retained data size | M | AM3; preferably AM12 |
 | AM14 | Low-priority residue is deleted, fixed or explicitly kept | S slices | Per slice |
+| AM15 | The cut planner is ordered, typed rules over evidence loaded once, with no change to any cut | S + L slices | AM15.0: none. AM15.1–AM15.7: last corpus-wide round closed (AM-D5) |
 | EX-H | Historic hooks/compatibility architecture retire | L | External G9/WP10 owner |
 | EX-J | July R13–R15 close and agent guidance is current | M | External July owner |
 
@@ -165,6 +180,16 @@ Historic readiness/rehearsal ─> production apply ─> G9
                                             └─ AM-D4 ─> AM10 structure-job split
 
 AM7 upload ownership and independent AM14 slices may run when they do not overlap an active UI PR.
+
+AM15.0 plan snapshot (tests only) ─> last-round freeze ─> round closes
+                                                            └─ AM-D5 ─> AM15.1 read-only planning
+                                                                        ─> AM15.2 evidence loaded once
+                                                                        ─> AM15.3 typed decisions
+                                                                        ─> AM15.4 four edge planners
+                                                                        ─> AM15.5 one song-ending measurement
+                                                                        ─> AM15.6 declared evidence needs
+                                                                        ─> AM15.7 layer ownership
+                                                                        ─> weekly take-over check (video §4.2)
 ```
 
 Do not combine infrastructure packages merely because they touch Docker/workflow files. AM3 changes
@@ -843,6 +868,296 @@ If AM2 does not settle this, either delete unsupported database/Beanstalkd async
 prove the strict timeout/retry invariant for each. Configuration advertised as supported must have a
 worker and test; otherwise remove the surface.
 
+## AM15 — Cut planner: ordered, typed rules over evidence loaded once
+
+**Added 2026-11-11 from a code review of how a service is split into talks and songs.** Verified
+against `52906772a`. Re-check every figure and line reference before coding.
+
+**Gate:** AM15.0 has none. AM15.1–AM15.7 wait until the last corpus-wide round is closed (AM-D5).
+This is earlier than the IC8 gate on AM8–AM10. The reason is that the round's close is when the cut
+rules stop changing, and the first consumers are the single-run repair routes and weekly take-over,
+both of which come before IC8. AM15 is not a prerequisite for the round, and the open cut-changing
+items in [video §4.1f row 3](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md#41f-making-the-next-round-the-last-review-2026-11-10)
+are built in the planner as it stands.
+
+**Who benefits:** whoever adds or changes a cut rule, and the operator who waits for the suite.
+**Observable improvement:** a new edge rule is one class, one line in an ordered list and its test.
+Planning a cut writes nothing, so a replay needs no rollback guard. The ruled-endings set no longer
+rebuilds a database run per case.
+
+### What the review found
+
+The detection stage is in reasonable shape and is out of scope: `Structure/SoundStage` already runs
+six rules in one declared order, each its own class. The cut-time planner has not kept that shape.
+
+| Finding | Evidence at `52906772a` | Package |
+|---|---|---|
+| Planning a sermon's cut writes | `SermonExtractionPlanResolver::resolve()` calls `compose()`, which persists `sermon_composition` and saves the sermon section unless a candidate transcript is passed. `hasAutoExtractableSermonSection()` therefore writes. The 11-07 replay leaked exactly these fields (`introduction: null`, `updated_at`) on runs 983 and 1042 | AM15.1 |
+| Rules do their own reading | `CueSafeExtractionPlan` has 29 `app()` lookups and queries sections inside rules. `timeline()` re-reads and re-parses the timeline JSON on every call. The ruled-endings set rebuilds a run in the database per case and is about a third of suite test time (video §4.1a step 5) | AM15.2 |
+| Decisions are untyped arrays keyed by strings | Audit reasons are part constants, part literals (`'song_end_speech'` in four places). The find-and-amend of an audit entry is copied four times, with a fifth variant in `withOperatorEdges()` | AM15.3 |
+| One method plans four kinds of edge | `forSpans()` is about 220 lines. Two booleans select song start, song end, spoken start and spoken end. Rule order is implied by call nesting and three `continue` exits | AM15.4 |
+| A song's ending is measured up to three times | In the song's own plan; again by the spoken part after it (`afterSongSound()`, with `requireSustainedReturn: false`); and again by the next song, which re-plans the whole previous song (`atSongChangeDip()` calls `forSection()`). `cutBeforeTheMove()` and the repeated reason lists keep the copies in step | AM15.5 |
+| Evidence gathering mirrors the planner by hand | `PrepareOutputEdgeEvidence::prepare()` runs the planner speculatively in about six passes to learn which windows it will read. A rule that reads a new window needs a matching edit there, in the right order | AM15.6 |
+| Three layers move a song's bounds, with no stated ownership | Detection (`SoundStage`), then jobs that edit section rows (`MergeSongContinuations`, `ExtendSongsOverOwnLyrics`), then the planner. After the second layer the banked `service_structure` no longer matches the rows | AM15.7 |
+| An operator-set song end keeps the planner's fade and voice removal | `withOperatorEdges()` merges into the planner's audit entry, so `fade_out` and `voice_removal` survive the move. Read from code, not reproduced. `OperatorOutputEdgeTest` has no fade or voice-removal case | AM15.0 step 3, AM-D6 |
+
+### Constraints on every AM15 package
+
+1. **No cut changes.** Each package's acceptance is a plan snapshot with no difference. A wanted
+   change to a cut is a separate commit with its own ruling and measurement, never part of a
+   refactor commit.
+2. **Rulings are untouched, and overlap stays.** Outputs may overlap (register E27, E28): a talk may
+   start over a song's outro. Nothing here makes neighbouring edges meet.
+3. **Threshold records move verbatim.** Every constant's docblock, with its runs and measurements,
+   moves with the constant. The record of why a number is what it is must survive.
+4. **Do not edit the ten files `EnsembleEvidenceVersion` fingerprints:**
+   `OpenAiServiceStructureService`, `ServiceStructureDrawExecutor`, `ServiceStructureValidator`,
+   `SilenceSnapService`, `TranscriptCueBoundaries`, `SoundStage`, `ServiceStructureEnsembleComposer`,
+   `ServiceStructureEnsembleRulingApplier`, `ScriptureReferenceResolver`, `SongTitleHygiene`. Banked
+   draws are bound to their file hashes, so even a comment edit changes the binding.
+5. **Banked evidence identities do not change.** Word windows, stems windows, and the K16 and
+   sentence-check prompts stay byte-identical. `media_processing_version` is not bumped.
+6. **No flag and no second planner.** The old and new shapes never run side by side. The snapshot is
+   the safety, and each commit replaces what it moves.
+7. **Nothing historic-only.** Weekly and historic share the planner and continue to.
+8. **Tests never run in the round clone, nor during a data pass** (runbook; PHPUnit flushes the
+   worker cache and any commit restarts workers).
+9. New classes go under `app/Services/ChurchService/OutputEdges/`, a sub-namespace beside
+   `Structure/` and `SectionPublication/`. No new base folder, no new dependency.
+
+### AM15.0 — Plan snapshot and gap tests (tests only; may precede the freeze)
+
+**Size: S. No production code changes.**
+
+1. **Fixture snapshot.** For each ruled-endings capture, after the rebuild the shard tests already
+   do, serialise the whole plan of every output: `forSection()` for each song, talk and reading that
+   has a publication handler, and `resolve()` for the sermon. Keep segments, every
+   `cue_edge_widening` entry as it is (reason, times, windows, `replaced`, `fade_out`,
+   `voice_removal`), `ended_before`, `audio_fade_out` and `audio_voice_removal`, with floats rounded
+   to the millisecond. Store the snapshots beside the captures and assert equality in the same shard
+   tests, so the suite gains no second rebuild.
+2. **Prove the snapshot bites.** Repeat the regression set's mutation check: `SONG_END_REACH` 30 → 5
+   and `ANCHOR_REACH` 2 → 0.2 must fail it. Then list every audit reason with the number of
+   snapshots that reach it. A reason no snapshot reaches gets a focused test before AM15.4 moves its
+   rule.
+3. **Characterise the operator-set song end.** A test that sets a song's end by ear where the planner
+   had a fade and a voice removal, earlier and later than the planner's end, and one later than the
+   separated-audio window (`SongEndStems`: the cut − 8 s to the cut + 16 s). It records what happens
+   today. AM-D6 decides what should.
+4. **Corpus baseline.** Keep the per-run planned cuts from the complete pre-freeze replay
+   (video §4.1f row 1) as AM15's corpus baseline. This needs no extra machine time. After the round,
+   the baseline is the round's recorded executed cuts, fades and voice removals.
+
+**Before the freeze this also helps the round.** Video §4.1f row 1 is done when "every moved edge
+[is] accounted for"; the snapshot shows each row 3 rule change as an exact list of moved edges.
+Update the snapshot in the same commit as a deliberate rule change, with the moved edges named in
+the commit message.
+
+**Acceptance:** snapshot test green on the current planner; mutation check fails it; reason coverage
+listed; operator-set-end test records present behaviour; ruled endings unchanged (659/659 at the
+last recorded count).
+
+### AM15.1 — Planning a sermon's cut writes nothing
+
+**Size: M. Live path: `ExtractSermon`, `SaveServiceSection`, `ServiceSectionSyncService`.**
+
+1. Split `SermonExtractionPlanResolver::compose()` into a pure composition and an explicit
+   `persistComposition()`. `resolve()` and `hasAutoExtractableSermonSection()` become read-only.
+2. The three callers that call `compose()` directly keep the write, by name:
+   `ServiceSectionSyncService` (after sync), `SaveServiceSection` (after an operator edit) and
+   `PrepareOutputEdgeEvidence` (start and end of the edge step). Inventory the `resolve()` callers
+   before coding: `ExtractSermon`, `FlagSermonPartsNotExtracted`, `RecordDeferredCorpusRerunMedia`,
+   `ReconcileStaleSermonReview`, `ReExtractSermonCommand`, `OutputEdgeCheck`, `SermonCutProbe`,
+   `HistoricFailedTranscriptRepair`. For each, decide from its tests whether it needs the persisted
+   composition or only the answer. Something downstream may read the stored `sermon_composition`
+   that today is refreshed only as a side effect; find those readers first.
+3. The candidate-transcript argument stops doubling as a dry-run switch. It only says which
+   transcript to read.
+4. Remove inspection wrappers that exist only to undo this write, where a test shows they are no
+   longer needed. Keep read-only disk wrappers on any replay: a rollback never covered files.
+
+**Acceptance:** a test asserts `resolve()` and `hasAutoExtractableSermonSection()` issue no
+`insert`, `update` or `delete`; snapshot unchanged; a replay of the corpus with the transaction
+guard still on commits nothing and its binlog check is clean.
+
+### AM15.2 — Evidence loaded once
+
+**Size: L. Touches every rule's inputs, none of its logic.**
+
+1. One immutable evidence object per run, built by a loader that does all the reading: transcript
+   cues, sound levels with their threshold, the classifier timeline, the run's sections with types,
+   bounds and holds, the recording's duration, operator edge answers, refused-edge answers, the
+   unresolved intervals and recovery attempts, and accessors for banked word windows, heard words,
+   song-end stems, K16 answers and sentence-check answers. Accessors read lazily and memoise.
+2. A candidate transcript is a second way to build the evidence, replacing the
+   `?ChurchServiceTranscript` argument threaded through the planner's signatures.
+3. Rules and collaborators take the evidence and stop resolving services and querying:
+   `CueSafeExtractionPlan`, `SongEndSpeechOnset`, `SongTailSpeechOnset`, `DependentSongOpening`,
+   `DeadFeedExcision::apply()`, and the read sides of `SermonSongIntroductionCheck` and
+   `SpokenEdgeSentenceCheck`. `SongEndOutro` is already pure.
+4. Missing evidence still raises `OutputEdgeTimingsMissing` with the same message and window.
+5. Sound-level helpers (`silenceOnset`, `firstQuiet`, `quietBetween`, `heardRuns`, `deadSeconds`,
+   `quietestSecond`) move onto a levels value object. The planner-side copies of `median()` and the
+   timeline loader collapse into it. Loaders outside the planner keep their own failure behaviour:
+   detection throws on a missing timeline, the planner returns null.
+6. **Ruled endings from evidence, not a database run.** Build each capture's evidence in memory and
+   plan from it. Keep a small named subset that still rebuilds a run, to prove the loader reads what
+   the capture holds. This is the planned route for "speed the ruled-endings set"
+   (video §4.1a step 5). Time the set before and after and record both; no target is promised.
+
+**Acceptance:** fixture snapshot and corpus baseline unchanged; no `app()` call or query remains
+inside a rule; ruled-endings time recorded before and after.
+
+### AM15.3 — Typed decisions and one way to amend the audit
+
+**Size: M. The stored `cue_edge_widening` shape is read by the review screens and commands.**
+
+1. A read-only `EdgeDecision` (time, reason, chosen pause, words either side, fade, voice removal,
+   what it replaced, extra evidence) whose `toArray()` yields exactly today's entry. The array stays
+   the stored contract; nothing persisted changes shape.
+2. A backed `EdgeReason` enum whose values are today's strings. Every literal goes.
+3. The reason sets become methods on it and replace the copied lists: refused edges
+   (`withAnswerIdentity()`, `withAnsweredEdges()`, `ExportUnresolvedEdgeExcerptsCommand`), ends moved
+   past the cut (`SONG_END_PAST_THE_CUT`), ends that place the next item (`afterSongSound()`), and
+   fade cuts (`PrepareOutputEdgeEvidence::fadeCuts()`).
+4. One `amend()` on the audit replaces the four copied find-and-merge blocks and the variant in
+   `withOperatorEdges()`.
+
+**Acceptance:** snapshot unchanged, byte for byte in the stored arrays; Dusk for the service review
+screens, since they read these entries.
+
+### AM15.4 — Four edge planners, each an ordered list of rules
+
+**Size: L. The largest review surface; done one rule family per commit.**
+
+1. `forSpans()` becomes four planners: song start, song end, spoken start, spoken end. A sermon's
+   end beside a song (K16) is a rule in the spoken-end list, active when the end is beside a song.
+2. Each rule is one class with one method that takes the evidence, the edge's context and the
+   decision so far, and returns a decision. Its docblock is the present method's docblock, verbatim.
+3. The order lives in one place per planner, written as `SoundStage` writes it: the list, and why
+   each rule sits where it does (for example, operator edges last, E18's order).
+4. The output-level passes keep their present order and become a second declared list: after-song
+   sound, dead feed, song-change dip, dependent opening, dead-feed opening check, answer identity,
+   answered edges, unresolved intervals, operator edges, merge.
+5. `CueSafeExtractionPlan` stays as the entry point with its public methods and the two booleans, so
+   its callers do not change in this package.
+6. Commit order, each with an unchanged snapshot: output-level passes; the song-end family
+   (`songEnd()` through `beforeVoiceTrackTalking()`, `singingStops()`, `speechAfterSong()`); spoken
+   ends; starts; the shared word-pause helpers last.
+
+**Acceptance:** fixture snapshot and corpus baseline unchanged after each commit; `forSpans()` holds
+no rule logic; every rule has a test that names it.
+
+### AM15.5 — One measurement of each song's ending, read by every output beside it
+
+**Size: M. This is a simplification, not a correctness fix: the outputs already agree in practice.**
+
+Overlap is not the problem and stays. The problem is that the same measurement is taken again by
+each output that needs it, through a partial re-run of the song's rules, so every new song-end rule
+has to be taught to the neighbours.
+
+1. One song-ending result per song, computed once per evidence and memoised. It names three things
+   that today are derived at separate call sites:
+   - where the song's own clip ends, with its fade and voice removal;
+   - the cut before a rule moved the end past it, which is where the next item is still judged from
+     (E27; today `cutBeforeTheMove()`);
+   - where the song's sound ends for the item after it, the measure `afterSongSound()` takes without
+     requiring a sustained return of music, because noise in the gap belongs to neither output.
+2. Its readers: the song's own plan; a spoken start after a song; the next song's start at a
+   song-change dip, which no longer re-plans the previous song; the fade-cut and speech-edge lists
+   the edge step asks for.
+3. Each output still places its own edge. A talk's start and the song's end are not made equal.
+4. **Measure before deleting the variant.** On the corpus baseline, count the spoken starts that
+   differ between the two measures of where the sound ends. If none do, delete the variant in its
+   own commit and say so. If some do, keep both and list the runs.
+
+**Acceptance:** snapshot and corpus baseline unchanged; no rule re-runs another output's plan; the
+variant count is recorded.
+
+### AM15.6 — Rules say what evidence they need
+
+**Size: L. This is the code that decides which decodes and model questions are paid for.**
+
+1. In a collecting mode, the evidence object records each thing a rule asked for and did not find
+   (a word window, a stems window, a K16 question, a sentence-check question) instead of raising.
+2. The edge step becomes a loop: plan, gather what was recorded, plan again, until nothing new is
+   asked. It stops with the outstanding list if it has not settled within a fixed number of passes.
+3. Delete the mirrors this replaces: `songEndSpeechEdges()`, `spokenEndsBesideSongs()`, `fadeCuts()`
+   and the tail-window and dependent-opening passes in `PrepareOutputEdgeEvidence`.
+4. Order that matters today falls out of the loop: a sentence check cannot be asked until its words
+   exist, and K16 is asked before its end is decoded. Assert both in tests rather than by sequence.
+5. Exact float equality on window bounds in evidence identity stays as it is. Changing it would
+   orphan every banked window. Record it as a named residue, to be fixed only at a
+   `media_processing_version` bump that already re-gathers evidence.
+
+**Acceptance:** on the captures and on a corpus sample, the set of evidence identities the loop
+asks for equals the set the present passes ask for, with no extra and none missing. A second run of
+the edge step on a prepared run gathers nothing and makes no provider call.
+
+### AM15.7 — Say which layer owns a song's bounds
+
+**Size: S. Docblocks and one audit; no behaviour.**
+
+1. On the livestream chain in `ProcessingPipelineBuilder`, record the three layers, the evidence each
+   reads, and what each may move: detection decides which stretch is which item; the post-sync jobs
+   correct a song's extent from lyrics and music; the planner places the exact cut.
+2. Check each reader of the banked `service_structure` after the post-sync jobs have run
+   (`SectionStructureFlagRederiver`, `LivestreamChurchServiceProjectionService`, `BankedRunInputs`,
+   `RedetectHistoricServiceStructure`) and confirm it tolerates rows that have moved since. A reader
+   that does not goes to `docs/issues/README.md`.
+3. Record, without changing them, the planner rules that act like detection corrections: the
+   song-change dip (moves an edge by 5 s or more) and a K16 end that drops a trailing part. Whether
+   either belongs earlier is a question for a later ruling, not this package.
+
+**Acceptance:** the ownership note is in code beside the chain; the reader check has a result for
+each reader.
+
+### Operator-set song ends (AM-D6)
+
+Today the operator's end replaces the time and keeps the planner's fade length and voice removal.
+The fade is then the last seconds before the operator's end, which matches E7. Voice removal still
+starts at the planner's last sung word and runs to the new end. If that end is later than the
+separated-audio window, the instrument track runs out and the clip's tail would be silent.
+
+Local count on 2026-11-11 (this machine, not production): two song sections have an operator-set
+end. Both have a fade recorded and neither has a voice removal recorded, though their recorded cuts
+may predate E29.
+
+| Option | Effect |
+|---|---|
+| Keep as now | Nothing changes; the silent-tail case stays possible |
+| Keep the fade, drop voice removal when the operator sets the end | The operator's end plays the recording as it is, talking included |
+| **Keep both; refuse an end outside the separated-audio window** (recommended) | Same treatment as the planner's own end. An end the treatment cannot cover is refused with a reason, as other operator edges are, so nothing is dropped silently |
+
+The decision is a cut-changing item and is listed in video §4.1f row 3. It is built, if at all, as
+its own commit with the AM15.0 test turned from "records" to "requires".
+
+### Out of scope
+
+- The detection stage: the structure prompt, the ensemble composer, the validator and `SoundStage`.
+  AM10 keeps `DetectServiceStructure`.
+- Any threshold, any ruling, and any new rule. Video §4.1f row 3 owns the open cut-changing items.
+- Publication handlers and review policy, talk-type detection (video §4.1f row 7) and speaker
+  identification (video §4.1e).
+
+### Machine and operator time
+
+- Each corpus comparison is one replay: 44 minutes for 452 runs on 11-07. AM15.1, AM15.2, AM15.4,
+  AM15.5 and AM15.6 each need one, so about four hours unattended in total, never during a data pass.
+- The operator's time is AM-D5, AM-D6 and reviewing each package. No listening is needed: a package
+  that moves an edge has failed.
+
+### AM15 stop conditions
+
+Stop and return to the maintainer when:
+
+- a snapshot differs and the difference cannot be traced to a mistake in the move;
+- a package would change a banked evidence identity or a prompt's bytes;
+- a fingerprinted file (constraint 4) would have to change;
+- a caller turns out to depend on a write or a re-plan that the package removes, and no test says
+  which behaviour is wanted; or
+- the last round is not closed and the work is past AM15.0.
+
 ## External closeout outcomes
 
 ### EX-H — Historic G9/WP10 contraction and one canonical writer
@@ -913,12 +1228,17 @@ The plan is complete only when all applicable rows are evidenced, not merely cod
 | Data-size-dependent startup traversal | Every start | One-time initialisation; bounded steady-state |
 | Historic-only permanent hooks after WP10 | Boot/model/queue/scheduler/Horizon | Zero unless retained with explicit permanent owner |
 | R14 flat suites | Five / 2,992 lines at review baseline | Zero |
+| Writes made while planning a cut | `resolve()` persists the composition | Zero |
+| Service lookups and queries inside cut rules | 29 `app()` calls plus section queries in `CueSafeExtractionPlan` | Zero |
+| Places a song's ending is measured for one run | Up to three per song | One |
+| Hand-written evidence passes mirroring the planner | About six in `PrepareOutputEdgeEvidence` | Zero; one loop over declared needs |
+| Cuts changed by AM15 | — | Zero against the fixture snapshot and the round's recorded cuts |
 
 ## Stop conditions
 
 Stop the current package and return to the maintainer when:
 
-- AM-D1–AM-D4 is unanswered and different answers materially change implementation;
+- AM-D1–AM-D6 is unanswered and different answers materially change implementation;
 - a proposed “cleanup” is required by an open historic G2–G9 gate;
 - a characterisation test reveals the target boundary does not preserve public/admin behaviour;
 - an infrastructure change would remove or overwrite an unarchived volume/log/source;
