@@ -319,7 +319,7 @@ PHP;
 
         $argv = file_get_contents($argvLog);
         $this->assertStringContainsString('trim=duration=', $argv);
-        $this->assertStringContainsString('-c:a aac', $argv);
+        $this->assertStringContainsString('-c:a aac -aac_pns 0 -ar 48000 -b:a 128k', $argv);
         $this->assertTrue(Storage::disk('local')->exists($relativePath));
     }
 
@@ -491,7 +491,7 @@ PHP;
         $argv = file_get_contents($argvLog);
         $this->assertStringContainsString('-ss 2400 -t 300 -i ', $argv);
         $this->assertStringContainsString('concat=n=1:v=1:a=1', $argv);
-        $this->assertStringContainsString('-c:a aac', $argv);
+        $this->assertStringContainsString('-c:a aac -aac_pns 0 -ar 48000 -b:a 128k', $argv);
     }
 
     #[Test]
@@ -617,7 +617,7 @@ PHP;
         // of lossy compression for no gain in size or compatibility.
         $argv = file_get_contents($argvLog);
         $this->assertStringNotContainsString('-c:a copy', $argv);
-        $this->assertStringContainsString('-c:a aac', $argv);
+        $this->assertStringContainsString('-c:a aac -aac_pns 0 -ar 48000 -b:a 128k', $argv);
     }
 
     #[Test]
@@ -633,7 +633,7 @@ PHP;
         // Opus is ordinary in a webm and does not mux into .mp4; copying it
         // through would fail the extraction outright.
         $argv = file_get_contents($argvLog);
-        $this->assertStringContainsString('-c:a aac', $argv);
+        $this->assertStringContainsString('-c:a aac -aac_pns 0 -ar 48000 -b:a 128k', $argv);
         $this->assertStringNotContainsString('-c:a copy', $argv);
     }
 }

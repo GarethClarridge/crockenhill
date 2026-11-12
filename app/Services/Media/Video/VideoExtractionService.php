@@ -184,7 +184,7 @@ class VideoExtractionService
                 '-map', '[v]', '-map', '[a]',
                 ...$this->videoEncoderArguments(),
                 '-pix_fmt', 'yuv420p', '-fps_mode', 'vfr',
-                '-c:a', 'aac', '-ar', '48000', '-b:a', '128k',
+                '-c:a', 'aac', '-aac_pns', '0', '-ar', '48000', '-b:a', '128k',
                 '-movflags', '+faststart', '-y', $outputPath,
                 ...($audioRelativePath !== null ? $this->publicAudioArguments($disk->path($audioRelativePath), $settings) : []),
             ], 'paired section encode');
@@ -233,6 +233,8 @@ class VideoExtractionService
         }
 
         return [
+            // Output provenance, deliberately outside the signature that binds banked edge evidence (A5).
+            'video_encoding' => ['codec' => 'aac', 'sample_rate' => 48000, 'bitrate' => 128000, 'aac_pns' => false],
             'settings' => $settings->toArray(),
             'loudness_misses' => $misses,
             'parts' => array_map(static fn (PartLoudness $part, int $index): array => [

@@ -12,6 +12,27 @@ use Tests\TestCase;
 class MediaProcessingVersionTest extends TestCase
 {
     #[Test]
+    public function disabling_aac_noise_substitution_keeps_the_entire_banked_evidence_signature(): void
+    {
+        $this->assertSame(16, config('media-processing.media_processing_version'));
+        config([
+            'media-processing.media_processing_version' => 16,
+            'media-processing.video_extraction.encoder' => 'libx264',
+            'media-processing.video_extraction.reencode_crf' => 23,
+            'media-processing.video_extraction.reencode_preset' => 'faster',
+            'media-processing.audio_enhancement' => ['enabled' => true],
+            'media-processing.audio_treatment' => ['speech' => ['target_lufs' => -16]],
+        ]);
+
+        $this->assertSame([
+            'version' => 16,
+            'video' => ['codec' => 'libx264', 'audio_codec' => 'aac', 'sample_rate' => 48000, 'audio_bitrate' => 128000, 'crf' => 23, 'preset' => 'faster'],
+            'enhancement' => ['enabled' => true],
+            'audio_treatment' => ['speech' => ['target_lufs' => -16]],
+        ], MediaProcessingVersion::signature());
+    }
+
+    #[Test]
     public function libx264_cuts_keep_the_video_stamp_they_were_given_before_videotoolbox(): void
     {
         Config::set('media-processing.video_extraction.encoder', 'libx264');

@@ -66,6 +66,8 @@ class SectionAudioTreatmentTest extends TestCase
         $this->assertGreaterThan(15.0, $this->integrated($source, 16.0, 23.0) - $this->integrated($source, 0.5, 14.0), 'The fixture must reproduce a 1292-sized spread.');
 
         $media = $this->service->extractMedia($source, [self::READING, self::SERMON], AudioProfile::Speech, withPublicAudio: true);
+
+        $this->assertSame(['codec' => 'aac', 'sample_rate' => 48000, 'bitrate' => 128000, 'aac_pns' => false], $media->audio['video_encoding']);
         $video = Storage::disk('local')->path($media->videoPath);
 
         $this->assertEqualsWithDelta(-16.0, $this->integrated($video, 0.0, 14.0), 1.0);
