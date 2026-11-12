@@ -2123,6 +2123,9 @@ class CueSafeExtractionPlan
                 : $others);
             $entryKey = array_key_first(array_filter($audit, static fn (array $entry): bool => $entry['span_index'] === $index
                 && $entry['edge'] === $edge && ($entry['reason'] ?? null) !== self::UNRESOLVED_INTERVAL));
+            if ($refusal === null && $ownerIsSong && $edge === 'end' && $entryKey !== null) {
+                $refusal = $this->operatorSongEndRefusal($log, $time, $audit[$entryKey]);
+            }
             $original = $entryKey === null ? (float) ($sectionSpans[$index][$key] ?? $planned) : (float) $audit[$entryKey]['original_time'];
 
             if ($refusal !== null) {
@@ -2148,6 +2151,28 @@ class CueSafeExtractionPlan
         }
 
         return $spans;
+    }
+
+    /** @param array<string, mixed> $entry */
+    private function operatorSongEndRefusal(MediaProcessingLog $log, float $time, array $entry): ?string
+    {
+        $removal = $entry['voice_removal'] ?? null;
+        if (! is_array($removal)) {
+            return null;
+        }
+        $instruments = $removal['instruments'] ?? null;
+        $window = is_array($instruments) && is_string($instruments['disk'] ?? null) && is_string($instruments['path'] ?? null)
+            ? app(SongEndStems::class)->instrumentsWindow($log, ['disk' => $instruments['disk'], 'path' => $instruments['path']])
+            : null;
+        if ($window === null) {
+            return 'The song end cannot be checked because the separated-audio window is missing. Restore its evidence before setting the end.';
+        }
+        if ($time < $window['start'] || $time > $window['end']) {
+            return sprintf('The song end at %s is outside the separated-audio window (%s–%s). Choose an end inside that window so voice removal cannot leave a silent tail.',
+                ServiceTimestamp::format($time), ServiceTimestamp::format($window['start']), ServiceTimestamp::format($window['end']));
+        }
+
+        return null;
     }
 
     /**

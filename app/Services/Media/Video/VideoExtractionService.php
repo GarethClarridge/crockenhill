@@ -26,6 +26,13 @@ class VideoExtractionService
     /** The recording gives way to the separated instruments over this long (rendered and heard 11-08). */
     private const VOICE_REMOVAL_CROSSFADE = 0.15;
 
+    /**
+     * The separated tracks' windows are recorded to the millisecond (`separate_song_end.py`), so a
+     * cut may sit up to that far past a track's measured length without any sound being missing.
+     * This is how finely the evidence is written, not a limit on where a cut may fall.
+     */
+    private const STEM_WINDOW_RESOLUTION = 0.001;
+
     use RequiresFfmpeg;
 
     private string $tempDisk;
@@ -113,6 +120,16 @@ class VideoExtractionService
     ): ExtractedMedia {
         $checker = $this->timingChecker;
         $checker->validateSpans($inputPath, $segments);
+        $lastSpan = $segments[array_key_last($segments)] ?? null;
+        if ($voiceRemoval !== null && $lastSpan !== null && $voiceRemoval['from'] < $lastSpan['end_time']) {
+            $start = $voiceRemoval['instruments_start'];
+            $end = $start + $checker->duration($voiceRemoval['instruments_path']);
+            if (! is_finite($start) || ! is_finite($end)
+                || max($lastSpan['start_time'], $voiceRemoval['from']) < $start - self::STEM_WINDOW_RESOLUTION
+                || $lastSpan['end_time'] > $end + self::STEM_WINDOW_RESOLUTION) {
+                throw new VideoProcessingException('Voice removal falls outside the separated-audio window; the instrument track must cover the treated sound.');
+            }
+        }
         $disk = Storage::disk($this->tempDisk);
         $relativePath = 'temp/'.($outputFilename ?? Str::uuid().'.mp4');
         $audioRelativePath = $withPublicAudio ? preg_replace('/\.mp4$/', '', $relativePath).'.mp3' : null;

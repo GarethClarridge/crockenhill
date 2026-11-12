@@ -6,11 +6,13 @@ namespace Tests\Unit\Services;
 
 use App\Exceptions\VideoProcessingException;
 use App\Services\Media\Audio\AudioCompressionService;
+use App\Services\Media\Video\SourceAwareMediaTimingChecker;
 use App\Services\Media\Video\VideoExtractionService;
 use App\Services\Processing\StorageAdapterHelper;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class VideoExtractionServiceTest extends TestCase
@@ -57,6 +59,47 @@ class VideoExtractionServiceTest extends TestCase
     public function it_can_be_instantiated_in_test_environment(): void
     {
         $this->assertInstanceOf(VideoExtractionService::class, $this->service);
+    }
+
+    #[Test]
+    #[TestWith([102.0, 109.0])]
+    #[TestWith([99.0, 108.0])]
+    #[TestWith([102.0, 108.502])]
+    public function voice_removal_cannot_outrun_its_instrument_track_even_without_an_operator_plan(float $from, float $end): void
+    {
+        $this->stubFfmpegAndFfprobe(2_600_000);
+        $checker = $this->mock(SourceAwareMediaTimingChecker::class);
+        $checker->shouldReceive('validateSpans')->once();
+        $checker->shouldReceive('duration')->with('/tmp/instruments.flac')->andReturn(8.5);
+        $checker->shouldReceive('check')->andReturn(['passed' => true, 'expected_duration' => 19.0, 'checked_frames' => 1, 'source_anomalies' => 0]);
+        $service = new VideoExtractionService(app(AudioCompressionService::class), $this->storageHelper);
+
+        $this->expectException(VideoProcessingException::class);
+        $this->expectExceptionMessage('Voice removal falls outside the separated-audio window');
+
+        $service->extractMedia('/tmp/input.mp4', [['start_time' => 90.0, 'end_time' => $end]], null,
+            voiceRemoval: ['from' => $from, 'instruments_start' => 100.0, 'instruments_path' => '/tmp/instruments.flac']);
+    }
+
+    #[Test]
+    #[TestWith([102.0, 108.0])]
+    #[TestWith([100.0, 108.5])]
+    #[TestWith([110.0, 109.0])]
+    #[TestWith([102.0, 108.5005])]
+    #[TestWith([99.9995, 108.0])]
+    public function voice_removal_inside_its_track_or_after_the_cut_does_not_block_extraction(float $from, float $end): void
+    {
+        $this->stubFfmpegAndFfprobe(2_600_000);
+        $checker = $this->mock(SourceAwareMediaTimingChecker::class);
+        $checker->shouldReceive('validateSpans')->once();
+        $checker->shouldReceive('duration')->with('/tmp/instruments.flac')->andReturn(8.5);
+        $checker->shouldReceive('check')->andReturn(['passed' => true, 'expected_duration' => $end - 90.0, 'checked_frames' => 1, 'source_anomalies' => 0]);
+        $service = new VideoExtractionService(app(AudioCompressionService::class), $this->storageHelper);
+
+        $media = $service->extractMedia('/tmp/input.mp4', [['start_time' => 90.0, 'end_time' => $end]], null,
+            voiceRemoval: ['from' => $from, 'instruments_start' => 100.0, 'instruments_path' => '/tmp/instruments.flac']);
+
+        $this->assertSame('fake-video', Storage::disk('local')->get($media->videoPath));
     }
 
     // ---- extractSegment routing tests ----

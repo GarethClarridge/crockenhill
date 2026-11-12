@@ -96,6 +96,41 @@ class SongEndStems
     }
 
     /**
+     * The actual window stored beside this instrument track, rather than the requested window.
+     *
+     * @param  array{disk: string, path: string}  $instruments
+     * @return array{start: float, end: float}|null
+     */
+    public function instrumentsWindow(MediaProcessingLog $log, array $instruments): ?array
+    {
+        $entries = ServiceArtifactStorage::recordedFor($log);
+        $track = array_values(array_filter($entries, static fn (array $entry): bool => $entry['disk'] === $instruments['disk']
+            && $entry['path'] === $instruments['path'] && str_starts_with($entry['kind'], 'song-end-stems-')
+            && str_ends_with($entry['kind'], '-instruments')))[0] ?? null;
+        if ($track === null) {
+            return null;
+        }
+        $kind = substr($track['kind'], 0, -strlen('-instruments'));
+        $levels = array_values(array_filter($entries, static fn (array $entry): bool => $entry['kind'] === $kind))[0] ?? null;
+        if ($levels === null) {
+            return null;
+        }
+        try {
+            $raw = Storage::disk($levels['disk'])->get($levels['path']);
+        } catch (\Throwable) {
+            return null;
+        }
+        $payload = is_string($raw) ? json_decode($raw, true) : null;
+        if (! is_array($payload) || ! is_numeric($payload['start'] ?? null) || ! is_numeric($payload['end'] ?? null)) {
+            return null;
+        }
+        $start = (float) $payload['start'];
+        $end = (float) $payload['end'];
+
+        return is_finite($start) && is_finite($end) && $start >= 0.0 && $end > $start ? ['start' => $start, 'end' => $end] : null;
+    }
+
+    /**
      * Separate and bank the audio around each cut not already banked.
      *
      * @param  list<float>  $cuts

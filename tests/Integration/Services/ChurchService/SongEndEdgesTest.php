@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\ChurchService;
 
 use App\Data\ChurchServiceTranscript;
+use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
+use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\OutputEdgeWordTimings;
+use App\Services\ChurchService\PublicationPlanValidator;
 use App\Services\ChurchService\SongEndOutro;
 use App\Services\ChurchService\SongEndSpeechOnset;
 use App\Services\ChurchService\SongEndStems;
@@ -1005,6 +1008,132 @@ class SongEndEdgesTest extends TestCase
         $this->assertNotNull($plan['audio_voice_removal'] ?? null);
         $this->assertEqualsWithDelta($cut + 0.2, $plan['audio_voice_removal']['from'], 0.001);
         $this->assertSame($cut - 8.0, $plan['audio_voice_removal']['instruments_start']);
+    }
+
+    #[Test]
+    #[TestWith([11.5])]
+    #[TestWith([-8.25])]
+    public function an_operator_song_end_outside_its_stored_separation_window_is_refused(float $offset): void
+    {
+        [$section, $cut] = $this->songWithVoiceRemoval();
+        $planner = app(CueSafeExtractionPlan::class);
+        $planned = $planner->forSection($section);
+        $this->assertNotNull($planned['audio_voice_removal']);
+        $this->setSongEnd($section, $cut + $offset);
+
+        $answered = $planner->forSection($section->fresh());
+
+        $refused = CueSafeExtractionPlan::refusedOperatorEdges($answered['cue_edge_widening']);
+        $this->assertCount(1, $refused, 'An operator end outside the stored separated-audio window must be refused: '.json_encode($answered, JSON_THROW_ON_ERROR));
+        $this->assertStringContainsString('outside the separated-audio window', $refused[0]['refusal']);
+        $this->assertSame($planned['segments'], $answered['segments']);
+        $this->assertSame($planned['audio_fade_out'], $answered['audio_fade_out']);
+        $this->assertSame($planned['audio_voice_removal'], $answered['audio_voice_removal']);
+        $this->assertContains(['kind' => 'operator_edge_refused', 'section_ids' => [$section->id]],
+            app(PublicationPlanValidator::class)->validate($section->processingLog, [$section], $answered['segments'], $answered['cue_edge_widening']));
+    }
+
+    #[Test]
+    #[TestWith([-1.0])]
+    #[TestWith([5.0])]
+    #[TestWith([11.25])]
+    public function an_operator_song_end_inside_its_stored_separation_window_keeps_fade_and_voice_removal(float $offset): void
+    {
+        [$section, $cut] = $this->songWithVoiceRemoval();
+        $planner = app(CueSafeExtractionPlan::class);
+        $planned = $planner->forSection($section);
+        $this->setSongEnd($section, $cut + $offset);
+
+        $answered = $planner->forSection($section->fresh());
+
+        $this->assertSame([], CueSafeExtractionPlan::refusedOperatorEdges($answered['cue_edge_widening']));
+        $this->assertSame($cut + $offset, $answered['segments'][0]['end_time']);
+        $this->assertSame($planned['audio_fade_out'], $answered['audio_fade_out']);
+        $this->assertSame($planned['audio_voice_removal'], $answered['audio_voice_removal']);
+        $this->assertSame(CueSafeExtractionPlan::OPERATOR_SET_EDGE, $this->endEdge($answered)['reason']);
+    }
+
+    #[Test]
+    public function an_operator_song_end_with_only_a_fade_does_not_need_a_separated_track(): void
+    {
+        $section = $this->outroIntoPrayer();
+        $planner = app(CueSafeExtractionPlan::class);
+        $planned = $planner->forSection($section);
+        $this->assertNotNull($planned['audio_fade_out']);
+        $this->assertNull($planned['audio_voice_removal']);
+        $end = $planned['segments'][0]['end_time'] + 20.0;
+        $this->setSongEnd($section, $end);
+
+        $answered = $planner->forSection($section->fresh());
+
+        $this->assertSame([], CueSafeExtractionPlan::refusedOperatorEdges($answered['cue_edge_widening']));
+        $this->assertSame($end, $answered['segments'][0]['end_time']);
+        $this->assertSame($planned['audio_fade_out'], $answered['audio_fade_out']);
+        $this->assertNull($answered['audio_voice_removal']);
+    }
+
+    #[Test]
+    public function an_operator_song_end_with_voice_removal_is_refused_when_its_window_is_missing(): void
+    {
+        [$section, $cut] = $this->songWithVoiceRemoval();
+        $log = $section->processingLog->fresh();
+        $stems = app(SongEndStems::class);
+        $kind = $stems->kind($stems->identity($log, $cut));
+        $entry = collect(ServiceArtifactStorage::recordedFor($log))->firstWhere('kind', $kind);
+        $payload = json_decode(Storage::disk($entry['disk'])->get($entry['path']), true, flags: JSON_THROW_ON_ERROR);
+        unset($payload['end']);
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $kind, $payload);
+        $this->setSongEnd($section, $cut + 5.0);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $refused = CueSafeExtractionPlan::refusedOperatorEdges($plan['cue_edge_widening']);
+        $this->assertCount(1, $refused);
+        $this->assertStringContainsString('separated-audio window is missing', $refused[0]['refusal']);
+    }
+
+    #[Test]
+    public function a_song_without_an_operator_edge_keeps_its_planned_treatment(): void
+    {
+        [$section, $cut] = $this->songWithVoiceRemoval();
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertSame([], CueSafeExtractionPlan::refusedOperatorEdges($plan['cue_edge_widening']));
+        $this->assertEqualsWithDelta($cut + 4.0, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertEqualsWithDelta(3.8, $plan['audio_fade_out'], 0.001);
+        $this->assertEqualsWithDelta($cut + 0.2, $plan['audio_voice_removal']['from'], 0.001);
+        $this->assertSame($cut - 8.0, $plan['audio_voice_removal']['instruments_start']);
+        $this->assertSame(SongEndSpeechOnset::REASON, $this->endEdge($plan)['reason']);
+    }
+
+    /** @return array{ServiceSection, float} */
+    private function songWithVoiceRemoval(): array
+    {
+        $section = $this->outroIntoPrayer();
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankCut($section, $cut, [['start' => $cut + 0.06, 'end' => $cut + 1.3, 'word' => ' Lord', 'aligned_end' => $cut - 0.2],
+            ...$this->spokenWords($cut + 1.85, ['God,', 'we', 'thank', 'you', 'for', 'fellowship'])]);
+        $this->bankStems($section, $cut, voice: [[-8, 0.2, -24.0], [0.2, 1.4, -70.0], [1.4, 16, -40.0]],
+            instruments: [[-8, 2.0, -20.0], [2.0, 4.5, -33.0], [4.5, 16, -62.0]]);
+        $log = $section->processingLog->fresh();
+        $stems = app(SongEndStems::class);
+        $kind = $stems->kind($stems->identity($log, $cut));
+        $entry = collect(ServiceArtifactStorage::recordedFor($log))->firstWhere('kind', $kind);
+        $payload = json_decode(Storage::disk($entry['disk'])->get($entry['path']), true, flags: JSON_THROW_ON_ERROR);
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $kind, [...$payload, 'end' => $cut + 11.25]);
+        $section->unsetRelation('processingLog');
+
+        return [$section, $cut];
+    }
+
+    private function setSongEnd(ServiceSection $section, float $time): void
+    {
+        $metadata = $section->metadata?->toArray() ?? [];
+        $metadata[OutputEdgeAnswers::METADATA_KEY]['end'] = ['time' => $time, 'set_by_user_id' => 1,
+            'set_at' => now()->toIso8601String(), 'from_time' => (float) $section->end_time,
+            'section_span' => ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]];
+        $section->forceFill(['metadata' => ServiceSectionMetadata::fromArray($metadata)])->save();
     }
 
     /** E29 (828): an outro that dies away before the talking ends the song at the silence, nothing taken out. */

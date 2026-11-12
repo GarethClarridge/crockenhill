@@ -13,6 +13,7 @@ use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Process;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -74,6 +75,38 @@ class SongEndStemsTest extends TestCase
 
         $this->assertSame(['start' => 0.0, 'end' => 20.0], $stems->window(4.0, 5000.0));
         $this->assertSame(['start' => 4982.0, 'end' => 5000.0], $stems->window(4990.0, 5000.0));
+    }
+
+    #[Test]
+    public function an_instrument_tracks_window_comes_from_its_paired_stored_evidence(): void
+    {
+        $log = $this->log();
+        $stems = app(SongEndStems::class);
+        $kind = $stems->kind($stems->identity($log, 100.0));
+        $artifacts = app(ServiceArtifactStorage::class);
+        $artifacts->putJson($log->processing_id, $kind, ['start' => 92.0, 'end' => 109.375]);
+        $path = $artifacts->putJson($log->processing_id, $kind.'-instruments', []);
+
+        $this->assertSame(['start' => 92.0, 'end' => 109.375], $stems->instrumentsWindow($log->fresh(), ['disk' => 'local', 'path' => $path]));
+        $this->assertNull($stems->instrumentsWindow($log->fresh(), ['disk' => 'public', 'path' => $path]));
+        $this->assertNull($stems->instrumentsWindow($log->fresh(), ['disk' => 'local', 'path' => 'another-track.flac']));
+    }
+
+    #[Test]
+    #[TestWith([[]])]
+    #[TestWith([['start' => 92.0]])]
+    #[TestWith([['start' => 92.0, 'end' => 'unknown']])]
+    #[TestWith([['start' => 92.0, 'end' => 91.0]])]
+    public function an_instrument_track_without_a_valid_stored_window_has_no_known_coverage(array $payload): void
+    {
+        $log = $this->log();
+        $stems = app(SongEndStems::class);
+        $kind = $stems->kind($stems->identity($log, 100.0));
+        $artifacts = app(ServiceArtifactStorage::class);
+        $artifacts->putJson($log->processing_id, $kind, $payload);
+        $path = $artifacts->putJson($log->processing_id, $kind.'-instruments', []);
+
+        $this->assertNull($stems->instrumentsWindow($log->fresh(), ['disk' => 'local', 'path' => $path]));
     }
 
     private function log(): MediaProcessingLog
