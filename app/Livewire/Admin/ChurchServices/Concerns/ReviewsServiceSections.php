@@ -616,7 +616,7 @@ trait ReviewsServiceSections
             'section_type' => $section->section_type->value,
             'title' => (string) ($section->title ?? ''),
             'end_time' => (string) $section->end_time,
-            'talk_type' => $section->publicationTalkType()->value ?? '',
+            'talk_type' => $section->metadata?->talkType?->reviewed['value'] ?? '',
             'church_service_item_id' => (string) ($section->church_service_item_id ?? ''),
         ];
         if ($section->section_type === ServiceSectionType::Sermon && is_array($section->metadata?->raw['sermon_boundary'] ?? null)) {

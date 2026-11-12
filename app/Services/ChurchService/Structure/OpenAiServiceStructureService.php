@@ -367,7 +367,8 @@ TEXT;
                                     'talk_type' => [
                                         'type' => ['string', 'null'],
                                         'enum' => [
-                                            ...array_map(static fn (TalkType $type): string => $type->value, TalkType::nonSermon()),
+                                            // Church updates are confirmed by review; this structure detector's proposals stay unchanged.
+                                            TalkType::ChildrensTalk->value, TalkType::PartnerUpdate->value, TalkType::Testimony->value,
                                             null,
                                         ],
                                     ],

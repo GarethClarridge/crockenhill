@@ -507,7 +507,7 @@ class SermonViewPresenterTest extends TestCase
         ]);
 
         $this->assertSame(
-            "Children's Talk: The Lost Sheep by Jane Doe",
+            'Family Talk: The Lost Sheep by Jane Doe',
             $this->presenter->talkImageAlt($sermon),
         );
     }

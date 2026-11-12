@@ -9,11 +9,25 @@ use App\Models\Sermon;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTruncation;
 use Laravel\Dusk\Browser;
+use PHPUnit\Framework\Attributes\Test;
 use Tests\DuskTestCase;
 
 class TalksPageTest extends DuskTestCase
 {
     use DatabaseTruncation;
+
+    #[Test]
+    public function a_verified_member_can_switch_to_church_updates(): void
+    {
+        $user = User::factory()->create();
+        Sermon::factory()->create(['title' => 'Dusk Church Update', 'content_type' => TalkType::ChurchUpdate]);
+        $this->browse(function (Browser $browser) use ($user): void {
+            $browser->loginAs($user)->visit('/christ/talks')
+                ->click('@talk-type-church_update')
+                ->waitForText('Dusk Church Update')
+                ->assertQueryStringHas('type', 'church_update');
+        });
+    }
 
     public function test_a_member_switches_to_childrens_talks_on_the_same_page(): void
     {
@@ -65,10 +79,10 @@ class TalksPageTest extends DuskTestCase
             $browser->loginAs($user)
                 ->visit('/christ/talks/'.$sermon->date->format('Y/m').'/'.$sermon->slug)
                 ->assertSee('Dusk Rich Sermon')
-                ->assertDontSee("Back to Children's Talks")
+                ->assertDontSee('Back to Family Talks')
                 ->visit('/christ/talks/'.$talk->date->format('Y/m').'/'.$talk->slug)
                 ->assertSee('Dusk Simple Talk')
-                ->assertSee("Back to Children's Talks");
+                ->assertSee('Back to Family Talks');
         });
     }
 }

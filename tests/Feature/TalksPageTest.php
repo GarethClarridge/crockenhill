@@ -86,7 +86,7 @@ class TalksPageTest extends TestCase
         $response->assertOk();
         $response->assertSee("Children's Talk One");
         $response->assertDontSee('Sunday Sermon');
-        $response->assertSee('Children&#039;s Talks | Crockenhill Baptist Church', false);
+        $response->assertSee('Family Talks | Crockenhill Baptist Church', false);
         $response->assertSee('<meta name="robots" content="noindex">', false);
         $response->assertSee('"@type": "ItemList"', false);
     }
@@ -95,7 +95,7 @@ class TalksPageTest extends TestCase
     public function the_type_switch_shows_only_types_the_viewer_may_access(): void
     {
         Livewire::test(BrowseSermons::class)
-            ->assertDontSee('Children&#039;s Talks', false)
+            ->assertDontSee('Family Talks', false)
             ->assertViewHas('typeOptions', [TalkType::Sermon]);
 
         $this->actingAs(User::factory()->create());
@@ -180,7 +180,7 @@ class TalksPageTest extends TestCase
         $response->assertSee('Watch');
         $response->assertSee('Listen');
         $response->assertDontSee('Summary');
-        $response->assertSee('Back to Children&#039;s Talks', false);
+        $response->assertSee('Back to Family Talks', false);
         $response->assertSee(route('sermons.index', ['type' => 'childrens_talk']), false);
         $response->assertSee('<meta name="robots" content="noindex">', false);
 
@@ -319,7 +319,7 @@ class TalksPageTest extends TestCase
             'slug' => 'partly-recorded-talk', 'audio_file_path' => 'sermons/audio/partly-recorded-talk.mp3', 'partial_recording' => true,
         ]);
 
-        $this->get($this->datedUrl($talk))->assertOk()->assertSee('Only part of this children&#039;s talk was recorded.', false);
+        $this->get($this->datedUrl($talk))->assertOk()->assertSee('Only part of this family talk was recorded.', false);
     }
 
     private function childrensTalk(array $attributes = []): Sermon

@@ -80,6 +80,6 @@ class SermonAnalyticsTrackingTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('data-ga-content-type="childrens_talk"', false);
-        $response->assertSee('data-ga-content-group="Children&#039;s Talks"', false);
+        $response->assertSee('data-ga-content-group="Family Talks"', false);
     }
 }

@@ -88,9 +88,9 @@
     </x-card>
 
     @if($isTalk)
-        <x-card heading="Children's talk notes">
+        <x-card :heading="ucfirst(strtolower($contentTypeLabel)).' notes'">
             <p class="text-sm text-gray-600">
-                Passage references, AI summaries, and sermon outline points are hidden here because Children's Corner uses a simplified public presentation.
+                Passage references, AI summaries, and sermon outline points are hidden here because talks use a simpler presentation.
             </p>
         </x-card>
     @else

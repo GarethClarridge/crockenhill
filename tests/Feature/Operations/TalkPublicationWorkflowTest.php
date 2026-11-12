@@ -178,6 +178,9 @@ class TalkPublicationWorkflowTest extends TestCase
         $this->assertNotNull($section->published_at);
         $this->assertNull($section->unpublished_expires_at);
         $this->assertSame($talkType, $sermon->content_type);
+        if ($talkType === TalkType::ChurchUpdate) {
+            config(['church.talks.public_types' => ['sermon', 'church_update']]);
+        }
         $this->assertSame($preacher->id, $sermon->preacher_id);
         // Media stays on the ordinary sermon disk under an ordinary sermon key.
         // It used to be relocated to the local `private/` disk, which production

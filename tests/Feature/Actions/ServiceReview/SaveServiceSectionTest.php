@@ -46,6 +46,36 @@ class SaveServiceSectionTest extends TestCase
     }
 
     #[Test]
+    public function church_update_can_be_confirmed_without_becoming_the_default_for_unresolved_talks(): void
+    {
+        $section = $this->shortTalk();
+        $this->assertNull($section->publicationTalkType());
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => 'short_talk', 'title' => 'Conference report', 'talk_type' => 'church_update']],
+            speakerEdits: [],
+            userId: $this->admin->id,
+        );
+        $this->assertSame(TalkType::ChurchUpdate, $section->refresh()->publicationTalkType());
+    }
+
+    #[Test]
+    public function none_of_the_types_is_a_separate_unpublished_review_answer(): void
+    {
+        $section = $this->shortTalk(['talk_type' => ['reviewed' => ['value' => 'testimony']]]);
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => 'short_talk', 'title' => 'Undecided talk', 'talk_type' => 'none']],
+            speakerEdits: [],
+            userId: $this->admin->id,
+        );
+        $section->refresh();
+        $this->assertSame('none', $section->metadata?->talkType?->reviewed['value']);
+        $this->assertNull($section->publicationTalkType());
+        $this->assertFalse($section->hasResolvedTalkType());
+    }
+
+    #[Test]
     public function it_persists_corrected_section_type_and_title(): void
     {
         $run = MediaProcessingLog::factory()->livestream()->create([

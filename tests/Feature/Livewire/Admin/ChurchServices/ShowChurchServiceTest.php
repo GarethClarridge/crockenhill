@@ -57,6 +57,22 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
+    public function none_of_the_talk_types_remains_selected_as_a_review_answer(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ShortTalk,
+            'metadata' => ['talk_type' => ['reviewed' => ['value' => 'none']]],
+        ]);
+
+        Livewire::actingAs($this->admin)
+            ->test(ShowChurchService::class, ['churchService' => $service])
+            ->assertSet('sectionEdits.'.$section->id.'.talk_type', 'none');
+        $this->assertFalse($section->hasResolvedTalkType());
+    }
+
+    #[Test]
     public function it_presents_one_unified_service_record(): void
     {
         [$service] = $this->workbenchServiceWithRun();
@@ -644,6 +660,8 @@ class ShowChurchServiceTest extends TestCase
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->assertSee('Talk type review')
+            ->assertSee('Church Update')
+            ->assertSee('None of these types (do not publish)')
             ->assertSee('Detector proposed:')
             ->assertSee('Not confirmed yet; choose the type to confirm it.')
             ->assertSet('sectionEdits.'.$section->id.'.talk_type', '');

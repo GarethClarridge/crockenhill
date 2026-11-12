@@ -31,14 +31,16 @@
             :section="$sermon->content_type->pluralLabel()"
         />
 
-        <x-schema.sermon :$sermon :$sermonView :$metaDescription />
-        <x-schema.webpage
-            :heading="$fullTitle"
-            :description="$metaDescription ?: $sermon->title"
-            :image="$sermonView['thumbnail_url']"
-            :datePublished="$sermon->date"
-            :dateModified="$sermon->updated_at"
-        />
+        @if (app(\App\Services\Sermon\SermonExposurePolicy::class)->isTypePublic($sermon->content_type))
+            <x-schema.sermon :$sermon :$sermonView :$metaDescription />
+            <x-schema.webpage
+                :heading="$fullTitle"
+                :description="$metaDescription ?: $sermon->title"
+                :image="$sermonView['thumbnail_url']"
+                :datePublished="$sermon->date"
+                :dateModified="$sermon->updated_at"
+            />
+        @endif
     @endpush
 
     @php

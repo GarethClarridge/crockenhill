@@ -18,14 +18,17 @@ enum TalkType: string
     case ChildrensTalk = 'childrens_talk';
     case PartnerUpdate = 'partner_update';
     case Testimony = 'testimony';
+    /** A conference or event report, brief encouragement, or general short talk for the church. */
+    case ChurchUpdate = 'church_update';
 
     public function label(): string
     {
         return match ($this) {
             self::Sermon => 'Sermon',
-            self::ChildrensTalk => "Children's Talk",
+            self::ChildrensTalk => 'Family Talk',
             self::PartnerUpdate => 'Partner Update',
             self::Testimony => 'Testimony',
+            self::ChurchUpdate => 'Church Update',
         };
     }
 
@@ -33,9 +36,10 @@ enum TalkType: string
     {
         return match ($this) {
             self::Sermon => 'Sermons',
-            self::ChildrensTalk => "Children's Talks",
+            self::ChildrensTalk => 'Family Talks',
             self::PartnerUpdate => 'Partner Updates',
             self::Testimony => 'Testimonies',
+            self::ChurchUpdate => 'Church Updates',
         };
     }
 

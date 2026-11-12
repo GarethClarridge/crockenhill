@@ -60,7 +60,7 @@ class SaveServiceSection
             'end_time' => (string) $section->end_time,
             'preacher_id' => '',
             'speaker_name' => '',
-            'talk_type' => $section->publicationTalkType()->value ?? '',
+            'talk_type' => $section->metadata?->talkType?->reviewed['value'] ?? '',
             'sermon_section_ids' => null,
             'sermon_composition_identity' => null,
             'church_service_item_id' => (string) ($section->church_service_item_id ?? ''),
@@ -85,10 +85,10 @@ class SaveServiceSection
                 'end_time' => ['required', 'numeric', 'min:0', 'max:9999999.999'],
                 'preacher_id' => ['nullable', 'integer', 'exists:preachers,id'],
                 'speaker_name' => ['nullable', 'string', 'max:255'],
-                'talk_type' => ['nullable', Rule::in(array_map(
-                    static fn (TalkType $type): string => $type->value,
-                    TalkType::nonSermon()
-                ))],
+                'talk_type' => ['nullable', Rule::in([
+                    ...array_map(static fn (TalkType $type): string => $type->value, TalkType::nonSermon()),
+                    'none',
+                ])],
                 'church_service_item_id' => $itemChanged
                     ? ['nullable', 'integer', Rule::exists('church_service_items', 'id')->where('church_service_id', $churchServiceId ?? 0)]
                     : ['nullable'],

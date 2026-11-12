@@ -15,7 +15,7 @@ class TalkTypeTest extends TestCase
     {
         $this->assertTrue(TalkType::Sermon->isSermon());
         $this->assertSame(
-            [TalkType::ChildrensTalk, TalkType::PartnerUpdate, TalkType::Testimony],
+            [TalkType::ChildrensTalk, TalkType::PartnerUpdate, TalkType::Testimony, TalkType::ChurchUpdate],
             TalkType::nonSermon(),
         );
     }
@@ -23,8 +23,12 @@ class TalkTypeTest extends TestCase
     #[Test]
     public function every_type_has_singular_and_plural_labels(): void
     {
+        $this->assertSame('Church Update', TalkType::ChurchUpdate->label());
+        $this->assertSame('Church Updates', TalkType::ChurchUpdate->pluralLabel());
+        $this->assertSame('Family Talk', TalkType::ChildrensTalk->label());
+        $this->assertNull(TalkType::tryFrom('none'));
         $this->assertSame('Testimony', TalkType::Testimony->label());
         $this->assertSame('Testimonies', TalkType::Testimony->pluralLabel());
-        $this->assertSame("Children's Talks", TalkType::ChildrensTalk->pluralLabel());
+        $this->assertSame('Family Talks', TalkType::ChildrensTalk->pluralLabel());
     }
 }

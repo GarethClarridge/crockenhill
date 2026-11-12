@@ -192,7 +192,7 @@
             <x-select
                 label="Talk type"
                 wire:model.blur="sectionEdits.{{ $section->id }}.talk_type"
-                :options="collect(\App\Enums\TalkType::nonSermon())->map(fn ($type) => ['id' => $type->value, 'name' => $type->label()])->all()"
+                :options="collect(\App\Enums\TalkType::nonSermon())->map(fn ($type) => ['id' => $type->value, 'name' => $type->label()])->push(['id' => 'none', 'name' => 'None of these types (do not publish)'])->all()"
                 placeholder="Choose the talk type..."
                 :hint="$section->publicationTalkType() ? 'Confirmed: '.$section->publicationTalkType()->label() : 'Not confirmed yet; choose the type to confirm it.'"
                 dusk="talk-type-{{ $section->id }}"

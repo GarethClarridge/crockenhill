@@ -6,6 +6,7 @@ namespace App\Seo;
 
 use App\Models\Sermon;
 use App\Presenters\SermonViewPresenter;
+use App\Services\Sermon\SermonExposurePolicy;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
@@ -28,7 +29,9 @@ class SermonItemListPresenter
     public function toItemList(Collection $sermons): array
     {
         /** @var Collection<int, Sermon> $flatSermons */
-        $flatSermons = $sermons->flatten(1);
+        $flatSermons = $sermons->flatten(1)->filter(
+            fn (Sermon $sermon): bool => app(SermonExposurePolicy::class)->isTypePublic($sermon->content_type),
+        );
 
         $orgName = (string) config('church.name');
         $logoUrl = asset('images/Primary.png');

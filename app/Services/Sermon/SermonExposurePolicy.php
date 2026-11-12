@@ -43,10 +43,15 @@ class SermonExposurePolicy
      *
      * Sermons are always public; every other type is members-only unless it is
      * listed in `church.talks.public_types`, protecting content intended for the
-     * church family.
+     * church family. Church updates always remain members-only under T9.
      */
     public function isTypePublic(TalkType $type): bool
     {
+        // T9: church updates stay members-only even if the public-type configuration includes them.
+        if ($type === TalkType::ChurchUpdate) {
+            return false;
+        }
+
         return $type->isSermon()
             || in_array($type->value, array_map(trim(...), (array) config('church.talks.public_types', [])), true);
     }

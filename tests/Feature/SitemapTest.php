@@ -44,6 +44,17 @@ class SitemapTest extends TestCase
     }
 
     #[Test]
+    public function church_updates_are_absent_even_when_configuration_lists_the_type_as_public(): void
+    {
+        config(['church.talks.public_types' => ['sermon', 'church_update']]);
+        $talk = Sermon::factory()->create(['content_type' => TalkType::ChurchUpdate, 'slug' => 'private-church-update']);
+
+        $this->get('/sitemap.xml')->assertOk()
+            ->assertDontSee($talk->slug)
+            ->assertDontSee('type=church_update');
+    }
+
+    #[Test]
     public function it_generates_sitemap_xml_successfully(): void
     {
         $response = $this->get('/sitemap.xml');

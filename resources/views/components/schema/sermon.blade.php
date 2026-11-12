@@ -154,6 +154,8 @@
     }
 @endphp
 
+@if (app(\App\Services\Sermon\SermonExposurePolicy::class)->isTypePublic($sermon->content_type))
 <script type="application/ld+json">
     {!! json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}
 </script>
+@endif
