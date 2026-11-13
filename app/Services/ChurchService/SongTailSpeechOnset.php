@@ -93,7 +93,7 @@ class SongTailSpeechOnset
      * The song's cut where its tail holds speech, from the banked decodes; null when the rule does
      * not apply or a decode is not banked, which leaves the planned cut.
      */
-    public function cut(MediaProcessingLog $log, float $end, float $planned, ?AudioTimeline $timeline): ?float
+    public function cut(MediaProcessingLog $log, float $end, float $planned, ?AudioTimeline $timeline, float $start = 0.0): ?float
     {
         if ($timeline === null) {
             return null;
@@ -110,15 +110,17 @@ class SongTailSpeechOnset
             return null;
         }
 
-        return $this->cutFrom($words, $end, $planned, $timeline, $log->duration);
+        return $this->cutFrom($words, $end, $planned, $timeline, $log->duration, $start);
     }
 
     /**
      * @param  array<string, list<array{start: float, end: float, word: string}>>  $words  Each window's decoder tokens, by window name: unjoined, since joining punctuation stretches a word
      */
-    public function cutFrom(array $words, float $end, float $planned, AudioTimeline $timeline, ?float $duration = 5000.0): ?float
+    public function cutFrom(array $words, float $end, float $planned, AudioTimeline $timeline, ?float $duration = 5000.0, float $start = 0.0): ?float
     {
         $windows = $this->windows($end, $duration);
+        $words = array_map(static fn (array $tokens): array => array_values(array_filter($tokens,
+            static fn (array $word): bool => $word['start'] >= $start)), $words);
         $agreed = $this->agreedOnset($words, $windows, $end, $timeline);
         $cut = $agreed !== null ? $agreed - self::AGREED_MARGIN : null;
 
@@ -127,7 +129,7 @@ class SongTailSpeechOnset
             $cut = $wide !== null ? $wide - self::WIDE_MARGIN : null;
         }
 
-        if ($cut === null) {
+        if ($cut === null || $cut <= $start) {
             return null;
         }
 

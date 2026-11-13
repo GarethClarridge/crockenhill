@@ -31,6 +31,9 @@ class CueSafeExtractionPlan
     /** Seconds within which an output edge counts as sitting on a cue's boundary. */
     private const CUE_BOUNDARY_TOLERANCE = 0.05;
 
+    /** The same source-end rounding allowance used by SermonExtractionPlanResolver. */
+    private const SOURCE_END_OVERRUN_SECONDS = 1.0;
+
     /**
      * An opening invitation or a reading's announcement (K19, T4): "do have your Bibles open at Luke
      * chapter 13", "Will you turn with me", "Deuteronomy chapter 24, verses 1-4". The singular "Bible"
@@ -443,7 +446,8 @@ class CueSafeExtractionPlan
                 $time = $original;
                 $window = $evidence->timingWindow($cues, $original, $log->duration);
                 if ($songEnds && $edge === 'end') {
-                    $decision = $this->songEnd($log, $cues, $window, $original, $levels, $timeline);
+                    $decision = $this->songEnd($log, $cues, $window, $original, $levels, $timeline,
+                        start: max((float) $sectionSpans[$index]['start_time'], (float) $span['start_time']));
                     if ($decision !== null) {
                         $span[$key] = $decision['time'];
                         $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $original,
@@ -579,6 +583,16 @@ class CueSafeExtractionPlan
         $spans = $this->withAnsweredEdges($log, $spans, $audit);
         $spans = $this->withUnresolvedIntervals($log, $sectionSpans, $spans, $audit);
         $spans = $this->withOperatorEdges($log, $sectionSpans, $spans, $audit, $edgeAnswers);
+        foreach ($spans as $index => &$span) {
+            if ($log->duration !== null && $span['end_time'] > $log->duration
+                && $span['end_time'] <= $log->duration + self::SOURCE_END_OVERRUN_SECONDS) {
+                $audit[] = ['span_index' => $index, 'edge' => 'end', 'original_time' => $span['end_time'],
+                    'time' => (float) $log->duration, 'seconds_added' => $span['end_time'] - $log->duration,
+                    'seconds_moved' => $log->duration - $span['end_time'], 'reason' => 'source_end', 'text_disagreement' => false];
+                $span['end_time'] = (float) $log->duration;
+            }
+        }
+        unset($span);
         $lastSpan = $last;
         $merged = [];
         foreach ($spans as $span) {
@@ -1013,7 +1027,8 @@ class CueSafeExtractionPlan
             $songEnd = (float) $song->end_time;
             $window = app(OutputEdgeWordTimings::class)->timingWindow($cues, $songEnd, $log->duration);
             // The gap after a song cut may contain noise that belongs to neither output.
-            $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log), requireSustainedReturn: false);
+            $decision = $this->songEnd($log, $cues, $window, $songEnd, $this->levels($log), $this->timeline($log), requireSustainedReturn: false,
+                start: (float) $song->start_time);
             // The song keeps its last note up to the agreed speech, but agreement can miss the
             // speech's first word (796's "Would you"), so the next item still starts at the cut before it.
             if ($decision !== null) {
@@ -2539,10 +2554,10 @@ class CueSafeExtractionPlan
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
      * @return array<string, mixed>|null
      */
-    private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline, bool $requireSustainedReturn = true): ?array
+    private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline, bool $requireSustainedReturn = true, float $start = 0.0): ?array
     {
         $decision = $this->songEndByCues($log, $cues, $window, $end, $levels, $timeline, $requireSustainedReturn);
-        $tail = app(SongTailSpeechOnset::class)->cut($log, $end, $decision['time'] ?? $end, $timeline);
+        $tail = app(SongTailSpeechOnset::class)->cut($log, $end, $decision['time'] ?? $end, $timeline, $start);
 
         if ($tail === null) {
             return $this->beforeAgreedSpeech($log, $decision, $timeline);

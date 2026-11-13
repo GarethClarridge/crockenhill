@@ -138,6 +138,24 @@ class SongTailSpeechOnsetTest extends TestCase
         $this->assertNull((new SongTailSpeechOnset)->cutFrom($words, self::END, 1000.0, $timeline));
     }
 
+    #[Test]
+    public function a_tail_search_can_still_find_speech_inside_a_short_song(): void
+    {
+        $timeline = $this->timeline([[970, 990, 0.01, 0.8], [990, 995, 0.8, 0.01], [995, 1010, 0.01, 0.8]]);
+        $words = $this->decodes([...$this->spoken(982.0, ['Let', 'us', 'sing']), ...$this->spoken(996.0, ['Now', 'let', 'us', 'pray'])]);
+
+        $this->assertEqualsWithDelta(994.5, (new SongTailSpeechOnset)->cutFrom($words, self::END, 1000.0, $timeline, start: 990.0), 0.001);
+    }
+
+    #[Test]
+    public function a_tail_speech_margin_cannot_reach_before_the_songs_start(): void
+    {
+        $timeline = $this->timeline([[970, 1010, 0.01, 0.8]]);
+        $words = $this->decodes($this->spoken(990.5, ['Now', 'let', 'us', 'pray']));
+
+        $this->assertNull((new SongTailSpeechOnset)->cutFrom($words, self::END, 1000.0, $timeline, start: 990.0));
+    }
+
     /**
      * Every window's decode of the words it covers, as a decoder that hears them cleanly would give.
      *

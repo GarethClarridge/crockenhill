@@ -1095,7 +1095,7 @@ CREATE TABLE `scripture_passages` (
   `display_reference` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `html_content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `copyright` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `fums_token` text COLLATE utf8mb4_unicode_ci,
+  `fums_token` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
   `fetched_at` timestamp NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -1166,7 +1166,7 @@ CREATE TABLE `sermons` (
   `livestream_processing_id` char(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `date` date NOT NULL,
   `service` enum('morning','evening','other') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `content_type` enum('sermon','childrens_talk','partner_update','testimony') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'sermon',
+  `content_type` enum('sermon','childrens_talk','partner_update','testimony','church_update') CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'sermon',
   `publication_state` varchar(24) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'published',
   `asset_disk` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `historic_import_operation_id` bigint unsigned DEFAULT NULL,
@@ -1861,3 +1861,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_25_222923_add_a
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_10_22_120331_add_partial_recording_to_sermons_table',106);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_01_222802_add_quiet_recording_to_song_videos_table',107);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_05_184631_widen_fums_token_on_scripture_passages_table',108);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_12_100000_add_church_update_talk_type',109);

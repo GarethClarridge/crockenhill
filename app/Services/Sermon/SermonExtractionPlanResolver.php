@@ -776,10 +776,7 @@ class SermonExtractionPlanResolver
             }
             $spans[] = ['start_time' => $start, 'end_time' => $end];
         }
-        $introduction = $composition['introduction'] ?? null;
-        if (is_array($introduction) && ($selectedSections[0] ?? null)?->id === $introduction['reading_section_id']) {
-            $spans[0] = ['start_time' => (float) $introduction['start_time'], 'end_time' => $spans[0]['end_time']];
-        }
+        $spans = $this->withIntroduction($spans, $selectedSections, $composition['introduction'] ?? null);
         $spans = $this->throughSilentGaps($spans, $sections, $selectedSections);
         $structureSpans = $spans;
 
@@ -858,6 +855,23 @@ class SermonExtractionPlanResolver
         $plan = $this->resolve($processingLog);
 
         return $plan['segments'] !== [] && ($plan['metadata']['requires_review'] ?? true) === false;
+    }
+
+    /**
+     * Apply the composed opening both when planning the cut and when enumerating its edge evidence.
+     *
+     * @param  list<array{start_time: float, end_time: float}>  $spans
+     * @param  list<ServiceSection>  $selectedSections
+     * @param  array{reading_section_id: int, start_time: float, end_time: float}|null  $introduction
+     * @return list<array{start_time: float, end_time: float}>
+     */
+    public function withIntroduction(array $spans, array $selectedSections, ?array $introduction): array
+    {
+        if ($introduction !== null && ($selectedSections[0] ?? null)?->id === $introduction['reading_section_id']) {
+            $spans[0] = ['start_time' => (float) $introduction['start_time'], 'end_time' => $spans[0]['end_time']];
+        }
+
+        return $spans;
     }
 
     /**

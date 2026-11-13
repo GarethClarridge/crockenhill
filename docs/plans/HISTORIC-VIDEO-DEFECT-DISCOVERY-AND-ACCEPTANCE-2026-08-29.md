@@ -145,6 +145,46 @@ and specific operator rulings.
    (`storage/scratch/held-crossing-20261107/`).
    The first replay pass's four leaked rows were restored 11-07 to their binlog before-images (JSON and
    `updated_at` verified identical).
+   **Replay continuation 11-12** (`storage/scratch/final-replay-20261112/`): the first edge pass's
+   route-derived list omitted 17 completed runs. Both extra preparation processes completed (17/17,
+   exit 0), bringing coverage to all 440 completed replay candidates; the other 12 candidates are
+   failed runs. The extra logs add three unchecked sentence edges to the original 107 (110 total);
+   these are unresolved placements, not positive sentence-completeness evidence. Initial preflight
+   stopped on MySQL's `Out of sort memory` before writing a baseline; no replay or inventory ran.
+   Retried with `SET SESSION sort_buffer_size = 67108864` on the flight connection, retaining the
+   unchanged ordered SHA-256 query and audited harness. Preflight passed and bound two shards;
+   the 452-run replay is in progress. Postflight must use the same session buffer setting and pass
+   before inventory. No source changes, tests, commits or migration during this replay.
+   **Early findings, not final results:** run 938 has invalid song plans (including §627:
+   start 1827, proposed end 1819.49). The tail-speech search reaches before a short section's
+   start and picks up its introduction; the publication validator correctly rejects the interval.
+   Preserve this replay before adding a start-bound regression/fix. Static unchecked-edge accounting
+   (`unchecked-sentence-analysis.json` in the replay folder) identifies 61 of 110 as lacking a timing
+   window; 49 remain unknown. This is a conservative current-evidence reconciliation, not a
+   preparation-time snapshot or acceptance of those cuts. Replay/postflight results remain pending.
+   **Completed replay/postflight:** all 452 runs are journalled and both shards exited 0.
+   Pre/post snapshots match for binlog, every table's rows/checksum, local disk listings,
+   server, source hashes, membership and shard count. Postflight nevertheless correctly **FAILS**
+   on replay errors: invalid section plans on 14 runs (15 section errors), and missing edge timings
+   in the fallback sermon plan on 13 runs. `postflight-differences.json` contains only these errors;
+   there is no `postflight-pass.json`, and inventory was withheld. These final counts supersede
+   the partial counts above. Repair/re-evidence and a new clean replay are required before inventory.
+   **Repairs built 11-13 (WP10, WP12):** fourteen of the fifteen section errors were one mechanism
+   from `5d8db2cf8` (11-07, after that day's replay): the song tail-speech search read words before
+   the section's own start, so on short songs it took the spoken introduction as the cut. It now
+   ignores pre-section words and hands back to the existing song-end rules when nothing usable is
+   left. 1339 was a section end rounded 5 ms past the source (from `b8dbf24fc`); ends within the
+   sermon planner's existing one-second overrun allowance now stop at the measured source end. The
+   thirteen missing-timing runs were an evidence gap: preparation did not enumerate the composed
+   introduction opening (1027, 1053, 1072; now taken from the resolver's own rule), and ten failed
+   runs were outside the 11-12 preparation list. No ruled ending moved (596 captures); suite 11,278
+   green. The first replay's analysis (`final-replay-20261112/analysis/WP11-report.md`) is
+   provisional: 430 unassessable sermon ends fall to one (1019, no banked K16 answer) plus the
+   error runs. Still to do: evidence on the 27 affected runs, a fresh source-bound 452-run replay,
+   post-flight and inventory. Reported, not fixed: three further places where preparation and
+   planning derive windows separately (duration-normalised section ends, dependent-song review
+   before edge overrides, exposed-edge follow-up from raw section bounds); no local case found.
+   The church update migration was applied to the working database and the schema dump regenerated.
 3. **Record the required routes.** 942/974/1363 retain X7's hand-edited structures (`reExtract`, no
    recompose). 1295 remains held under S10. Split-song fixes need recompose; 1120's lyric extension
    cannot be reached by extraction alone. K18's extraction-plan fix reaches 942 without structural

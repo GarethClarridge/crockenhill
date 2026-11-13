@@ -49,8 +49,9 @@ class PrepareOutputEdgeEvidence
                 }
             }
         }
-        $sermonSpans = array_values($run->serviceSections()->whereIn('id', $composition['selected_section_ids'])->orderBy('start_time')->get()
-            ->map(static fn (ServiceSection $section): array => ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time])->all());
+        $sermonSections = array_values($run->serviceSections()->whereIn('id', $composition['selected_section_ids'])->orderBy('start_time')->get()->all());
+        $sermonSpans = array_map(static fn (ServiceSection $section): array => ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time], $sermonSections);
+        $spans = [...$spans, ...$this->resolver->withIntroduction($sermonSpans, $sermonSections, $composition['introduction'] ?? null)];
         // Where the sermon ends beside a song (K16) is answered first, so its words are decoded.
         $introduction = $this->introductionCheck->prepare($run, $sermonSpans);
         $run->refresh();

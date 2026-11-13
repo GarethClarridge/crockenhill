@@ -939,6 +939,66 @@ class SongEndEdgesTest extends TestCase
         $this->assertNotSame(SongTailSpeechOnset::REASON, $this->endEdge($plan)['reason'] ?? null);
     }
 
+    /** Short sections must not mistake their preceding announcement for speech after the song. */
+    #[Test]
+    #[TestWith([false])]
+    #[TestWith([true])]
+    public function a_short_songs_tail_search_excludes_speech_before_its_start(bool $wideOnly): void
+    {
+        $section = $this->song(990.0, 1000.0, [], [[970, 1010, self::LOUD]],
+            timeline: [[970, 990, 0.01, 0.8], [990, 1010, 0.8, 0.01]]);
+        $this->bankTail($section, 1000.0, $this->spokenWords(982.0, ['Let', 'us', 'sing', 'together']));
+        if ($wideOnly) {
+            $log = $section->processingLog->fresh();
+            $evidence = app(OutputEdgeWordTimings::class);
+            foreach (app(SongTailSpeechOnset::class)->windows(1000.0, $log->duration) as $name => $window) {
+                if ($name !== 'before') {
+                    app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
+                        'identity' => $evidence->identity($log, $window), 'words' => [], 'compute_seconds' => 1.0,
+                    ]);
+                }
+            }
+            $section->unsetRelation('processingLog');
+        }
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertSame(1000.0, $plan['segments'][0]['end_time']);
+        $this->assertSame([], app(PublicationPlanValidator::class)->validate($section->processingLog, [$section], $plan['segments'], $plan['cue_edge_widening']));
+    }
+
+    /** A section's rounded end can lie milliseconds beyond the measured recording. */
+    #[Test]
+    public function a_section_ending_just_past_the_source_is_planned_to_the_source_end(): void
+    {
+        $section = $this->song(3670.98, 3785.02, [], [[3670, 3786, self::LOUD]]);
+        $section->processingLog->update(['duration' => 3785.015011]);
+        $section->unsetRelation('processingLog');
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertSame(3785.015011, $plan['segments'][0]['end_time']);
+        $this->assertSame([], app(PublicationPlanValidator::class)->validate($section->processingLog, [$section], $plan['segments'], $plan['cue_edge_widening']));
+    }
+
+    #[Test]
+    #[TestWith([null])]
+    #[TestWith([3780.0])]
+    public function an_unknown_source_end_or_a_large_overrun_is_not_silently_repaired(?float $duration): void
+    {
+        $section = $this->song(3670.98, 3785.02, [], [[3670, 3786, self::LOUD]]);
+        $section->processingLog->update(['duration' => $duration]);
+        $section->unsetRelation('processingLog');
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertSame(3785.02, $plan['segments'][0]['end_time']);
+        if ($duration !== null) {
+            $this->expectException(\InvalidArgumentException::class);
+        }
+        $this->assertSame([], app(PublicationPlanValidator::class)->validate($section->processingLog, [$section], $plan['segments'], $plan['cue_edge_widening']));
+    }
+
     /**
      * Heard 11-07 (RA3, song-end listening and A/B pages): the edge decode stretches the prayer's
      * first word back over the outro's last note, so the cut before it faded the note out. The
