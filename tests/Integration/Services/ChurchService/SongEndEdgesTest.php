@@ -9,6 +9,7 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\OutputEdgeWordTimings;
@@ -922,6 +923,105 @@ class SongEndEdgesTest extends TestCase
         $this->assertEqualsWithDelta(1.5, $plan['audio_fade_out'], 0.001);
     }
 
+    /**
+     * 1268 §4731 (WP15 D4, 11-13): the tail's decodes agree on "Please sit down" from 498.91, so the
+     * tail rule cut at 497.41 and faded from 495.91, inside the held last word of "Our sacrifice of
+     * praise" (decoded "grace", heard to 498.17 and 498.27 by two windows). The lyrics place that word,
+     * so the song ends in the pause after it and fades only from its end. The words are 1268's own
+     * tail decodes, from 487 s on.
+     */
+    #[Test]
+    public function tail_cut_and_fade_keep_the_complete_final_lyric(): void
+    {
+        $section = $this->sacrificeOfPraise();
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $end = $plan['segments'][0]['end_time'];
+        $this->assertSame(SongTailSpeechOnset::REASON, $this->endEdge($plan)['reason']);
+        $this->assertGreaterThanOrEqual(498.27, $end, 'The cut must keep the last sung word.');
+        $this->assertLessThan(498.81, $end, 'The song must not take in the "Please" that follows the lyric.');
+        $this->assertGreaterThanOrEqual(498.27, $end - $plan['audio_fade_out'], 'The fade must start after the last sung word.');
+        $this->assertEqualsWithDelta(498.54, $end, 0.001);
+        $this->assertEqualsWithDelta(497.41, $this->endEdge($plan)['tail_cut'], 0.001);
+        $this->assertSame('grace', $this->endEdge($plan)['last_lyric']['word']);
+    }
+
+    /**
+     * 1180 §2371 (WP15 D4, 11-13): "Praise with us the God of grace!" is held to 304.30 (decoded by two
+     * windows), past the tail cut at 303.36 before "Please remain standing". A third window hears
+     * "Lord of grace", which the lyrics do not hold, and the wide decode smears the instruction early.
+     */
+    #[Test]
+    public function tail_cut_keeps_a_final_lyric_held_over_the_cut(): void
+    {
+        $song = Song::factory()->create(['lyrics_plain' => "All who dwell in time and space.\nPraise Him! Praise Him!\nPraise Him! Praise Him!\nPraise with us the God of grace!"]);
+        $section = $this->song(144.668, 305.002, [
+            ['start' => 298.78, 'end' => 304.02, 'text' => 'praise Him, praise Him, praise Him, praise Him.'],
+            ['start' => 305.02, 'end' => 306.8, 'text' => 'Please remain standing if you can.'],
+        ], [[140, 320, self::LOUD]], timeline: [[100, 305, 0.64, 0.03], [305, 310, 0.26, 0.7], [310, 330, 0.01, 0.8]]);
+        $this->bindSong($section, $song);
+        $remain = [['Please', 304.862, 304.862], ['remain', 305.012, 305.242], ['standing', 305.242, 305.882], ['if', 305.882, 306.042], ['you', 306.042, 306.282], ['can', 306.282, 306.522], ['.', 306.522, 306.782]];
+        $this->bankTailWindows($section, 305.002, [
+            'slide-16' => [['praise', 295.042, 295.732], ['him', 295.732, 296.072], ['praise', 296.342, 297.732], ['him', 297.732, 298.422], ['praise', 298.882, 300.272], ['him', 300.272, 300.992]],
+            'slide-13' => [['praise', 292.142, 303.972]],
+            'slide-10' => [['praise', 298.832, 299.542], ['Him', 299.542, 299.922], ['us', 299.922, 300.002], [',', 300.002, 300.502], ['the', 300.502, 301.252],
+                ['Lord', 301.252, 302.242], ['of', 302.242, 302.742], ['grace', 302.742, 304.002], ['.', 304.002, 304.272], ...$remain],
+            'slide-7' => [['Praise', 298.142, 299.492], ['be', 299.492, 300.002], [',', 300.002, 300.152], ['master', 300.152, 300.642], [',', 300.642, 301.242],
+                ['God', 301.242, 302.152], ['of', 302.152, 302.752], ['grace', 302.752, 304.272], ['.', 304.272, 304.302], ['Please', 304.942, 304.942],
+                ['remain', 305.082, 305.262], ['standing', 305.262, 305.902], ['if', 305.902, 306.062], ['you', 306.062, 306.302], ['can', 306.302, 306.542], ['.', 306.542, 306.802], ['When', 307.542, 307.542]],
+            'slide-4' => [['God', 301.142, 301.902], ['of', 301.902, 302.502], ['grace', 302.502, 304.002], ['.', 304.002, 304.002], ['Please', 304.862, 304.862],
+                ['remain', 305.002, 305.402], ['standing', 305.402, 306.362], ['if', 306.362, 306.442], ['you', 306.442, 306.562], ['can', 306.562, 306.682], ['.', 306.682, 306.802], ['When', 307.542, 307.542]],
+            'before' => [['praise', 298.122, 299.402], ['the', 299.532, 299.762], ['Lord', 299.762, 300.242], ['of', 300.242, 300.482], ['grace', 300.482, 301.082], ['.', 301.082, 301.442],
+                ['Please', 301.442, 302.162], ['remain', 302.162, 302.882], ['standing', 302.882, 303.842], ['if', 303.842, 304.082], ['you', 304.082, 304.442], ['can', 304.442, 304.802], ['.', 304.802, 305.162]],
+        ]);
+        $heard = array_map(static fn (array $word): array => ['start' => $word[1], 'end' => $word[2], 'word' => ' '.$word[0]],
+            [['God', 301.142, 301.902], ['of', 301.902, 302.502], ['grace', 302.502, 304.002], ...$remain]);
+        $this->bank($section, 305.002, $heard);
+        $this->bank($section, 305.02, $heard);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $end = $plan['segments'][0]['end_time'];
+        $this->assertSame(SongTailSpeechOnset::REASON, $this->endEdge($plan)['reason']);
+        $this->assertGreaterThanOrEqual(304.302, $end, 'The cut must keep the last sung word.');
+        $this->assertLessThan(304.862, $end);
+        $this->assertGreaterThanOrEqual(304.302, $end - $plan['audio_fade_out'], 'The fade must start after the last sung word.');
+        $this->assertEqualsWithDelta(304.582, $end, 0.001);
+        $this->assertEqualsWithDelta(303.362, $this->endEdge($plan)['tail_cut'], 0.001);
+    }
+
+    /**
+     * A spoken word after the lyric is never protected, even where two decodes hear it in the music
+     * straight after the last sung word: "grace. Please" is no phrase of the song.
+     */
+    #[Test]
+    public function a_spoken_word_after_the_last_lyric_is_not_protected(): void
+    {
+        $section = $this->sacrificeOfPraise(clearPlease: true);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta(498.54, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame('grace', $this->endEdge($plan)['last_lyric']['word']);
+    }
+
+    /** With no lyrics, or with only one decode hearing the word, the tail cut and its fade stand. */
+    #[Test]
+    #[TestWith([false, false])]
+    #[TestWith([true, true])]
+    public function without_lyrics_or_a_second_decode_the_tail_cut_stands(bool $withLyrics, bool $oneDecode): void
+    {
+        $section = $this->sacrificeOfPraise(withLyrics: $withLyrics, oneDecode: $oneDecode);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertSame(SongTailSpeechOnset::REASON, $this->endEdge($plan)['reason']);
+        $this->assertEqualsWithDelta(497.41, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertEqualsWithDelta(1.5, $plan['audio_fade_out'], 0.001);
+        $this->assertArrayNotHasKey('last_lyric', $this->endEdge($plan));
+    }
+
     /** Without its decodes banked, the tail rule leaves the song's end to the rules before it. */
     #[Test]
     public function a_song_whose_tail_decodes_are_not_banked_keeps_its_end(): void
@@ -1234,6 +1334,32 @@ class SongEndEdgesTest extends TestCase
         $this->assertNull($plan['audio_voice_removal'] ?? null);
     }
 
+    /**
+     * 1138 §2124 (WP15 D2, 11-13): "Phil is going to come and bring our Bible reading to us." starts at
+     * the cut (1751.50), but the cut's decodes agree only from "Bible reading", 2.5 s in, and moving the
+     * end to just before that agreement kept the reader's introduction in the song (1753.74). The
+     * separated tracks find no outro ending: the voice is the reader's from the cut, and the
+     * instruments fall about 20 dB but stay just above the line for an outro that has died away. Agreement
+     * on later words is no evidence that the earlier ones were not said, so the song keeps the cut before
+     * them. The levels approximate 1138's banked stems (outro −53 dB, −68 to −72 dB under the reading).
+     */
+    #[Test]
+    public function later_agreed_reading_words_do_not_extend_a_song_without_an_outro(): void
+    {
+        $section = $this->outroIntoPrayer();
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankCut($section, $cut, $this->spokenWords($cut + 2.9, ['Bible', 'reading', 'to', 'us.', 'Thank', 'you,', 'Phil.']),
+            onlyInLastWindow: $this->spokenWords($cut + 0.1, ['Phil', 'is', 'going', 'to', 'come', 'and', 'bring', 'our']));
+        $this->bankStems($section, $cut, voice: [[-8, -2.5, -107.0], [-2.5, -0.2, -58.0], [-0.2, 4.0, -36.0], [4.0, 16, -55.0]],
+            instruments: [[-8, -2.7, -89.0], [-2.7, -0.8, -50.0], [-0.8, 4.0, -69.0], [4.0, 16, -55.0]]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta($cut, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame('song_end_speech', $this->endEdge($plan)['reason']);
+        $this->assertNull($plan['audio_voice_removal'] ?? null);
+    }
+
     /** Without its decodes banked, the song's end stays where the rules before it put it. */
     #[Test]
     public function a_song_whose_cut_decodes_are_not_banked_keeps_its_cut(): void
@@ -1328,13 +1454,18 @@ class SongEndEdgesTest extends TestCase
         return $section;
     }
 
-    /** @param list<array{start: float, end: float, word: string}> $words */
-    private function bankCut(ServiceSection $section, float $cut, array $words): void
+    /**
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @param  list<array{start: float, end: float, word: string}>  $onlyInLastWindow  Words only the latest window heard, so none agree on them
+     */
+    private function bankCut(ServiceSection $section, float $cut, array $words, array $onlyInLastWindow = []): void
     {
         $log = $section->processingLog->fresh();
         $evidence = app(OutputEdgeWordTimings::class);
-        foreach (app(SongEndSpeechOnset::class)->windows($cut, $log->duration) as $window) {
-            $inside = array_values(array_filter($words, static fn (array $word): bool => $word['start'] >= $window['start'] && $word['end'] <= $window['end']));
+        $windows = app(SongEndSpeechOnset::class)->windows($cut, $log->duration);
+        foreach ($windows as $name => $window) {
+            $heard = $name === array_key_last($windows) ? [...$onlyInLastWindow, ...$words] : $words;
+            $inside = array_values(array_filter($heard, static fn (array $word): bool => $word['start'] >= $window['start'] && $word['end'] <= $window['end']));
             // An aligned decode: a clearly spoken word's aligned end is its own end.
             $inside = array_map(static fn (array $word): array => $word + ['aligned_end' => $word['end']], $inside);
             app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
@@ -1370,6 +1501,78 @@ class SongEndEdgesTest extends TestCase
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $stems->kind($identity), ['identity' => $identity,
             'start' => $identity['start'], 'frame_seconds' => 0.1, 'voice_db' => $frames($voice), 'instruments_db' => $frames($instruments)]);
         unlink($track);
+        $section->unsetRelation('processingLog');
+    }
+
+    /**
+     * 1268 §4731 "O God Beyond All Praising": its last line, the tail decodes from 487 s, and the
+     * classifier's windows (music under the held last word, speech alone from 500 s).
+     */
+    private function sacrificeOfPraise(bool $withLyrics = true, bool $oneDecode = false, bool $clearPlease = false): ServiceSection
+    {
+        $section = $this->song(383.36, 503.17, [
+            ['start' => 489.06, 'end' => 497.36, 'text' => 'And make a joyful duty of sacrifice or praise.'],
+            ['start' => 498.82, 'end' => 503.17, 'text' => "We'll sit down and we'll continue in worship as we pray."],
+            ['start' => 503.17, 'end' => 503.8, 'text' => "Let's pray."],
+        ], [[380, 510, self::LOUD]], timeline: [[300, 495, 0.83, 0.02], [495, 500, 0.81, 0.78], [500, 520, 0.03, 0.72]]);
+        if ($withLyrics) {
+            $this->bindSong($section, Song::factory()->create(['lyrics_plain' => "To marvel at Your beauty\nAnd glory in Your ways,\nAnd make a joyful duty\nOur sacrifice of praise."]));
+        }
+        $sitDown = [['sit', 499.16, 499.39], ['down', 499.39, 499.91], ['and', 499.91, 500.04], ['we', 500.04, 500.12], ["'ll", 500.12, 500.25], ['continue', 500.25, 500.61],
+            ['in', 500.61, 500.83], ['worship', 500.83, 501.61], ['as', 501.61, 501.88], ['we', 501.88, 502.15], ['pray', 502.15, 502.7], ['.', 502.7, 503.13],
+            ['Let', 503.29, 503.29], ["'s", 503.39, 503.39], ['pray', 503.42, 503.61], ['.', 503.61, 503.79]];
+        $slideTen = [['The', 493.32, 493.97], ['sacrifice', 493.97, 496.36], ['of', 496.36, 496.9],
+            ...($oneDecode ? [] : [['grace', 496.9, 498.24], ['.', 498.25, 498.27]]), ['Please', 499.01, 499.02], ...$sitDown];
+        $this->bankTailWindows($section, 503.17, [
+            'slide-19' => array_map(static fn (string $word): array => [$word, 496.16, 496.16], ['glory', 'in', 'your', 'ways', ',', 'and', 'make', 'a', 'tri', 'but', 'ary', 'of', 'sacrifice', 'of', 'praise', '.']),
+            'slide-16' => [['the', 487.3, 497.49]],
+            'slide-13' => [['Make', 490.32, 490.67], ['a', 490.67, 490.78], ['joyful', 490.78, 491.53], ['today', 491.53, 492.17], [',', 492.17, 492.8], ['a', 492.8, 493.11],
+                ['sacrifice', 493.11, 495.94], ['of', 495.94, 496.57], ['grace', 496.57, 498.17], ['.', 498.17, 498.17], ['Please', 498.81, $clearPlease ? 499.0 : 498.81],
+                ['sit', 498.96, 498.97], ['down', 498.97, 499.33], ['and', 499.33, 499.6], ['we', 499.6, 499.78], ["'ll", 499.78, 500.04], ['continue', 500.04, 500.75],
+                ['in', 500.75, 500.93], ['worship', 500.93, 501.59], ['as', 501.59, 502.17], ['we', 502.17, 502.17], ['...', 502.17, 502.17]],
+            'slide-10' => $slideTen,
+            'slide-7' => [['do', 496.29, 496.66], ['please', 496.66, 498.14], ['sit', 498.14, 498.89], ['down', 498.89, 499.91], ['and', 499.91, 500.0], ['we', 500.0, 500.06],
+                ["'ll", 500.06, 500.16], ['continue', 500.17, 500.59], ['in', 500.59, 500.8], ['worship', 501.09, 501.59], ['as', 501.59, 502.23], ['we', 502.23, 502.5],
+                ['we', 502.6, 502.75], ['pray', 502.75, 503.15], ['let', 503.15, 503.35], ["'s", 503.36, 503.47], ['pray', 503.51, 503.82]],
+            'slide-4' => [['sit', 499.28, 499.35], ['down', 499.35, 499.6], ['and', 499.6, 499.78], ['we', 499.78, 499.9], ["'ll", 499.9, 500.08], ['continue', 500.08, 500.61],
+                ['in', 500.61, 500.81], ['worship', 501.09, 501.59], ['as', 501.59, 502.07], ['we', 502.07, 502.5], ['we', 502.6, 502.75], ['pray', 502.75, 503.15],
+                ['let', 503.15, 503.35], ["'s", 503.36, 503.47], ['pray', 503.51, 503.82]],
+            'before' => [['and', 489.2, 489.43], ['make', 489.43, 490.34], ['a', 490.34, 490.56], ['joyful', 490.56, 491.92], ['duty', 491.92, 492.83], ['of', 492.83, 493.28],
+                ['sacrifice', 493.28, 495.33], ['of', 495.33, 495.78], ['grace', 495.78, 496.92], ['.', 496.92, 497.65], ['Please', 498.83, 498.83], ['sit', 498.83, 498.83],
+                ['down', 498.97, 498.99], ['and', 498.99, 499.3], ['we', 499.3, 499.5], ["'ll", 499.5, 499.81], ['continue', 499.81, 500.63], ['in', 500.63, 500.83],
+                ['worship', 500.83, 501.59], ['as', 501.59, 501.87], ['we', 501.87, 502.15], ['pray', 502.15, 502.7], ['.', 502.7, 503.13], ['Let', 503.13, 503.3],
+                ["'s", 503.3, 503.41], ['pray', 503.41, 503.63], ['.', 503.63, 503.81]],
+        ]);
+        $heard = array_map(static fn (array $word): array => ['start' => $word[1], 'end' => $word[2], 'word' => ' '.$word[0]], $slideTen);
+        $this->bank($section, 503.17, $heard);
+        $this->bank($section, 498.82, $heard);
+
+        return $section;
+    }
+
+    private function bindSong(ServiceSection $section, Song $song): void
+    {
+        $section->forceFill(['metadata' => ServiceSectionMetadata::fromArray(['transcript_song_match' => ['song_id' => $song->id, 'title' => $song->title]])])->save();
+    }
+
+    /**
+     * Every tail window ({@see SongTailSpeechOnset::windows()}) banked with its own decode; a window
+     * not named heard nothing. Words are [text, start, end]; a token is a word's continuation, as
+     * whisper.cpp writes it, when its text has no letter or starts with an apostrophe.
+     *
+     * @param  array<string, list<array{0: string, 1: float, 2: float}>>  $byWindow
+     */
+    private function bankTailWindows(ServiceSection $section, float $end, array $byWindow): void
+    {
+        $log = $section->processingLog->fresh();
+        $evidence = app(OutputEdgeWordTimings::class);
+        foreach (app(SongTailSpeechOnset::class)->windows($end, $log->duration) as $name => $window) {
+            $words = array_map(static fn (array $word): array => ['start' => $word[1], 'end' => $word[2],
+                'word' => preg_match('/^[\\p{L}\\p{N}]/u', $word[0]) === 1 ? ' '.$word[0] : $word[0]], $byWindow[$name] ?? []);
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
+                'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
+            ]);
+        }
         $section->unsetRelation('processingLog');
     }
 

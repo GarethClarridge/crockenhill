@@ -11,6 +11,7 @@ use App\Enums\SoundClass;
 use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Services\ChurchService\Structure\DeadFeedInsideSection;
 use App\Services\ChurchService\Structure\ServiceStructureValidator;
 use App\Services\ChurchService\Structure\SongMusicalIntroduction;
@@ -340,6 +341,7 @@ class CueSafeExtractionPlan
             songEnds: $section->section_type === ServiceSectionType::Song,
             edgeAnswers: in_array($section->section_type, [ServiceSectionType::ShortTalk, ServiceSectionType::Song], true) ? OutputEdgeAnswers::of($section, $sections) : null,
             transcript: $transcript,
+            songLyrics: $section->section_type === ServiceSectionType::Song ? $this->lyricsOf($section) : null,
         );
         if (! in_array($section->section_type, [ServiceSectionType::Sermon, ServiceSectionType::ShortTalk], true)) {
             return $plan;
@@ -382,9 +384,10 @@ class CueSafeExtractionPlan
      * @param  bool  $sermonEnd  The last span ends a sermon output: beside a song it ends where the banked introduction answer says (K16, {@see SermonSongIntroductionCheck})
      * @param  OutputEdgeAnswers|null  $edgeAnswers  The operator's start and end for this output, applied after every edge rule
      * @param  ChurchServiceTranscript|null  $transcript  Read-only candidate evidence; never installs a transcript on the run
+     * @param  string|null  $songLyrics  The song's own lyrics, which protect its last sung word from the tail cut ({@see SongTailLastLyric})
      * @return array{segments: list<array{start_time: float, end_time: float}>, cue_edge_widening: list<array<string, mixed>>, audio_fade_out: float|null, audio_voice_removal?: array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}|null, ended_before: list<array{start_time: float, end_time: float}>} `ended_before`: the trailing parts a K16 end falls before, left out of the output; `audio_voice_removal`: where the song's voice gives way to its separated instruments (E29)
      */
-    public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false, bool $sermonEnd = false, ?OutputEdgeAnswers $edgeAnswers = null, ?ChurchServiceTranscript $transcript = null): array
+    public function forSpans(MediaProcessingLog $log, array $spans, bool $songEnds = false, bool $sermonEnd = false, ?OutputEdgeAnswers $edgeAnswers = null, ?ChurchServiceTranscript $transcript = null, ?string $songLyrics = null): array
     {
         $evidence = app(OutputEdgeWordTimings::class);
         $cues = $transcript->cues ?? $evidence->cues($log);
@@ -447,7 +450,7 @@ class CueSafeExtractionPlan
                 $window = $evidence->timingWindow($cues, $original, $log->duration);
                 if ($songEnds && $edge === 'end') {
                     $decision = $this->songEnd($log, $cues, $window, $original, $levels, $timeline,
-                        start: max((float) $sectionSpans[$index]['start_time'], (float) $span['start_time']));
+                        start: max((float) $sectionSpans[$index]['start_time'], (float) $span['start_time']), lyrics: $songLyrics);
                     if ($decision !== null) {
                         $span[$key] = $decision['time'];
                         $audit[] = ['span_index' => $index, 'edge' => $edge, 'original_time' => $original,
@@ -2554,7 +2557,7 @@ class CueSafeExtractionPlan
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
      * @return array<string, mixed>|null
      */
-    private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline, bool $requireSustainedReturn = true, float $start = 0.0): ?array
+    private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline, bool $requireSustainedReturn = true, float $start = 0.0, ?string $lyrics = null): ?array
     {
         $decision = $this->songEndByCues($log, $cues, $window, $end, $levels, $timeline, $requireSustainedReturn);
         $tail = app(SongTailSpeechOnset::class)->cut($log, $end, $decision['time'] ?? $end, $timeline, $start);
@@ -2562,11 +2565,23 @@ class CueSafeExtractionPlan
         if ($tail === null) {
             return $this->beforeAgreedSpeech($log, $decision, $timeline);
         }
+        // The fixed margin and fade can cross a held last sung word (E28): its lyric keeps it.
+        $lyric = app(SongTailLastLyric::class)->protect($log, $end, $tail, self::SONG_END_FADE_MIN, $lyrics,
+            $decision['speech_cue']['text'] ?? null, $timeline, $start);
 
-        return ['time' => $tail, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
+        return ['time' => $lyric['time'] ?? $tail, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
             'reason' => SongTailSpeechOnset::REASON, 'speech_cue' => $decision['speech_cue'] ?? null,
             'replaced' => $decision === null ? null : ['time' => $decision['time'], 'reason' => $decision['reason']],
-            'fade_out' => self::SONG_END_FADE_MIN];
+            'fade_out' => $lyric['fade_out'] ?? self::SONG_END_FADE_MIN,
+            ...($lyric === null ? [] : ['last_lyric' => $lyric['last_lyric'], 'tail_cut' => $tail])];
+    }
+
+    /** The lyrics of the song a section is bound to, if any. */
+    private function lyricsOf(ServiceSection $section): ?string
+    {
+        $songId = $section->resolvedSongId();
+
+        return $songId === null ? null : Song::query()->whereKey($songId)->value('lyrics_plain');
     }
 
     /**
@@ -2590,6 +2605,9 @@ class CueSafeExtractionPlan
      * With the cut's separated voice and instruments banked, the song ends as its outro does
      * ({@see SongEndOutro}, E29): at a silence before the talking, or, with talking over the outro,
      * when the outro has died away, the talking taken out and the sound faded from the last sung word.
+     * Where they find no such ending, the cut stands: agreement can start on a later part of the next
+     * item, and agreed words alone do not show that its first ones were not said (1138 §2124, 11-13:
+     * the move kept "Phil is going to come and bring our Bible reading"; E24).
      * Without them, the song ends just before the speech, fading from the last sung sound (E7).
      *
      * With no speech agreed, the song may still carry on past the cut (1780, heard 11-09): while the
@@ -2615,6 +2633,9 @@ class CueSafeExtractionPlan
         $ending = $stems === null ? null : app(SongEndOutro::class)->ending($stems, $onset, $decision['time']);
         if ($ending !== null) {
             return [...$decision, ...$ending, ...$replaced];
+        }
+        if ($stems !== null) {
+            return $decision;
         }
         $later = $onset - SongEndSpeechOnset::LEAD;
 
