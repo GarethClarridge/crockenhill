@@ -180,11 +180,27 @@ and specific operator rulings.
    runs were outside the 11-12 preparation list. No ruled ending moved (596 captures); suite 11,278
    green. The first replay's analysis (`final-replay-20261112/analysis/WP11-report.md`) is
    provisional: 430 unassessable sermon ends fall to one (1019, no banked K16 answer) plus the
-   error runs. Still to do: evidence on the 27 affected runs, a fresh source-bound 452-run replay,
-   post-flight and inventory. Reported, not fixed: three further places where preparation and
+   error runs. Reported, not fixed: three further places where preparation and
    planning derive windows separately (duration-normalised section ends, dependent-song review
    before edge overrides, exposed-edge follow-up from raw section bounds); no local case found.
    The church update migration was applied to the working database and the schema dump regenerated.
+   **Completed 11-13 on `46fa18690`** (`storage/scratch/final-replay-20261113/`; evidence top-up in
+   `edge-step-20261113/`, 27/27 prepared): fresh guarded 452-run replay, post-flight PASS, inventory
+   run. Pre/post database, binlog, disk and source snapshots match; zero execution errors, zero
+   unexpected holds; 1019/1335 remains the named K16 content hold (no banked ending answer).
+   Analysis in `final-replay-20261113/analysis/WP14-report.md`: 573 outer edges move against stored
+   cuts (40 starts, 533 ends); 117 unchecked sentence edges (40 internal joins, 77 exposed), all
+   stopped by the absent timing window beside a cue gap, none unidentified; unassessable sermon
+   ends 430 (11-07) to 1. Of the 425 runs clean on 11-12, only 1172/2324 changes (the same
+   tail-search correction; its end returns to the stored 2072.36). Thirteen of the fourteen repaired
+   song ends return to their 11-07 plan; 938/627 ends 2.35 s earlier on a valid in-section onset.
+   Inventory: 1,037 sections / 2,209 records, 377 processing-human sections, 0 unassessable
+   (11-07: 1,062 / 2,268, 375, 39). The human sections are 335 talk-type/speaker (whole classes
+   owned by T8 / §4.1f row 7 and §4.1e) plus 42 others; about 34 are potential sound or ending
+   questions. **Owed before §4.1f row 1 can close:** 59 moved ends miss their latest banked ruling
+   time; later hearings settle nine, leaving **50 needing a Q13 disposition** (listed with both
+   times and the ruling wording in WP14 §5), and 1019's held disposition must be carried into the
+   freeze record or answered. Harness note: `run-shards.sh` needs `rg` on the path.
 3. **Record the required routes.** 942/974/1363 retain X7's hand-edited structures (`reExtract`, no
    recompose). 1295 remains held under S10. Split-song fixes need recompose; 1120's lyric extension
    cannot be reached by extraction alone. K18's extraction-plan fix reaches 942 without structural
