@@ -230,7 +230,17 @@ and specific operator rulings.
    the earlier end when the extension crosses a speech-only window; 51 moves, agrees with every
    answered case it touches, 41 without a banked time) and the spoken-as-sung mechanism (no valid
    design; the rollback variant was measured and rejected). 979, 1267 and 1304 are not covered by
-   either built fix. 1019/1335 stays the named K16 content hold and is to be listed as held in
+   either built fix. **Later 11-13:** the tail-speech change is built as measured (an earlier end
+   stands when the tail's move crosses a speech-only window, unless that end cuts a lyric-placed
+   last sung word; the all-windows veto is kept; offline re-measure reproduces the 51 moves
+   exactly; none heard). A study of the six rejected ends and the spoken-as-sung mechanism
+   (`storage/scratch/end-defects-20261113-wp19/WP19-report.md`) proposes four rules, none built:
+   keep a lone Amen after a kept line (979; 1 move); never split a spoken line two windows hear
+   starting (1200; 9 moves, none away); tell spoken from sung words in the last voiced run (10
+   moves, fixes 1245/964/1069/1174, two away: 1267/3353 by 0.14 s, 1304/3875 by 0.30 s); let
+   tail ends take the E29 outro treatment (1304/3870, 1307) — unmeasured, because `songEnd()`
+   returns before E29 and no tail cut has separated stems (0 of 284). Seven operator questions
+   are put in that report and are unanswered. 1019/1335 stays the named K16 content hold and is to be listed as held in
    the freeze record.
 3. **Record the required routes.** 942/974/1363 retain X7's hand-edited structures (`reExtract`, no
    recompose). 1295 remains held under S10. Split-song fixes need recompose; 1120's lyric extension
