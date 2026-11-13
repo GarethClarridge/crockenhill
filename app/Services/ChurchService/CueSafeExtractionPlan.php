@@ -2552,6 +2552,11 @@ class CueSafeExtractionPlan
      * (1216 §2655's opens 6.5 s before it is said), so the end rule below stands; nor has a line
      * with no music near it (992 §163678's "together." ends a spoken sentence).
      *
+     * The tail's agreed speech moves an end later only while no window between hears speech alone
+     * ({@see SongTailSpeechOnset::crossesSpeech()}): one that does means the next item began before
+     * the words agreed on, so the end before it stands as it was decided, not passed on to the rules
+     * after the cut (1007 §1261, 1314 §3989; WP16 P1, 11-13).
+     *
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}|null  $window  The window around the song's end
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
@@ -2560,10 +2565,18 @@ class CueSafeExtractionPlan
     private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline, bool $requireSustainedReturn = true, float $start = 0.0, ?string $lyrics = null): ?array
     {
         $decision = $this->songEndByCues($log, $cues, $window, $end, $levels, $timeline, $requireSustainedReturn);
-        $tail = app(SongTailSpeechOnset::class)->cut($log, $end, $decision['time'] ?? $end, $timeline, $start);
+        $onset = app(SongTailSpeechOnset::class);
+        $tail = $onset->cut($log, $end, $decision['time'] ?? $end, $timeline, $start);
 
         if ($tail === null) {
             return $this->beforeAgreedSpeech($log, $decision, $timeline);
+        }
+        // Speech alone before the agreed words: the next item has begun, so the end before it stands
+        // (WP16 P1) — unless that end would cut a held last sung word its lyrics place (E28).
+        if ($decision !== null && $timeline !== null && $onset->crossesSpeech($timeline, (float) $decision['time'], $tail)
+            && app(SongTailLastLyric::class)->protect($log, $end, (float) $decision['time'], 0.0, $lyrics,
+                $decision['speech_cue']['text'] ?? null, $timeline, $start) === null) {
+            return $decision;
         }
         // The fixed margin and fade can cross a held last sung word (E28): its lyric keeps it.
         $lyric = app(SongTailLastLyric::class)->protect($log, $end, $tail, self::SONG_END_FADE_MIN, $lyrics,

@@ -134,12 +134,29 @@ class SongTailSpeechOnset
         }
 
         // Moved later only to keep singing: through speech alone the earlier cut is as right.
-        $between = array_filter($timeline->windows, static fn (array $window): bool => $window['end'] > $planned && $window['start'] < $cut);
+        $between = $this->between($timeline, $planned, $cut);
         if ($cut > $planned && $between !== [] && array_all($between, fn (array $window): bool => $this->isSpeechAlone($window))) {
             return null;
         }
 
         return $cut;
+    }
+
+    /**
+     * Whether moving a song's end from $from on to $to crosses a classifier window of speech
+     * without music: the next item has already begun there, so its later agreed words are no reason
+     * to move the end (WP16 P1, 11-13: 1007 §1261's "Praise be to the Lord" and 1314 §3989's "Over
+     * the last few weeks" start before the words the decodes agree on).
+     */
+    public function crossesSpeech(AudioTimeline $timeline, float $from, float $to): bool
+    {
+        return $to > $from && array_any($this->between($timeline, $from, $to), fn (array $window): bool => $this->isSpeechAlone($window));
+    }
+
+    /** @return array<int, array{start: float, end: float, music: float, speech: float, singing: float}> */
+    private function between(AudioTimeline $timeline, float $from, float $to): array
+    {
+        return array_filter($timeline->windows, static fn (array $window): bool => $window['end'] > $from && $window['start'] < $to);
     }
 
     /**

@@ -1039,6 +1039,76 @@ class SongEndEdgesTest extends TestCase
         $this->assertNotSame(SongTailSpeechOnset::REASON, $this->endEdge($plan)['reason'] ?? null);
     }
 
+    /**
+     * 1007 §1261 (heard right at 4744.64, 10-20) and 1314 §3989 (heard right at 1055.30, 11-10; WP16
+     * D1, 11-13): the song ends at the silence before the next item, but the tail's decodes agree on
+     * that item's speech only from a later word, so the tail rule moved the end on to 4747.14 and
+     * 1061.82, into "Praise be to the Lord" and "Over the last few weeks". The classifier already
+     * hears speech without music in between: the next item has begun, and the earlier end stands.
+     * The words and classifier windows are those runs' own.
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $heard  The decode at the section's end
+     * @param  list<string>  $spoken  The words the tail's decodes agree on, from $agreedFrom
+     */
+    #[Test]
+    #[TestWith([4580.0, 4754.08, 4744.14, 'Praise be to the Lord the God of Israel from everlasting to everlasting Let all the', 'people say Amen',
+        4744.28, 4746.3, 4745.0, 4748.64, 4744.64, 4747.14,
+        [['start' => 4743.28, 'end' => 4746.21, 'word' => ' Praise'], ['start' => 4746.93, 'end' => 4747.62, 'word' => ' be'], ['start' => 4747.62, 'end' => 4747.83, 'word' => ' to'],
+            ['start' => 4747.98, 'end' => 4748.3, 'word' => ' the'], ['start' => 4748.3, 'end' => 4748.74, 'word' => ' Lord,'], ['start' => 4748.85, 'end' => 4749.01, 'word' => ' the'],
+            ['start' => 4749.01, 'end' => 4749.23, 'word' => ' God']],
+        ['the', 'God', 'of', 'Israel', 'from', 'everlasting', 'to', 'everlasting']], '1007 §1261 blessing')]
+    #[TestWith([875.006, 1065.38, 1048.16, "Over the last few weeks, there's somebody that I've wanted", 'to come up to the front and share a little bit of testimony',
+        1054.94, 1060.0, 1060.0, 1063.32, 1055.3, 1061.82,
+        [['start' => 1052.3, 'end' => 1054.91, 'word' => ' the'], ['start' => 1057.23, 'end' => 1061.31, 'word' => ' last'], ['start' => 1061.33, 'end' => 1062.06, 'word' => ' few'],
+            ['start' => 1062.16, 'end' => 1063.47, 'word' => ' weeks,'], ['start' => 1063.52, 'end' => 1063.97, 'word' => " there's"]],
+        ["there's", 'somebody', 'that', "I've", 'wanted', 'to', 'come', 'up']], '1314 §3989 testimony')]
+    public function tail_does_not_extend_a_silence_into_an_existing_blessing(float $start, float $end, float $cueFrom, string $nextText, string $afterText,
+        float $silenceFrom, float $speechFrom, float $speechWindowFrom, float $agreedFrom, float $expected, float $tailCut, array $heard, array $spoken): void
+    {
+        $sung = ['start' => $cueFrom - 8.0, 'end' => $cueFrom, 'text' => 'Lord Lord Lord Lord Lord Lord'];
+        $section = $this->song($start, $end, [$sung, ['start' => $cueFrom, 'end' => $end, 'text' => $nextText], ['start' => $end, 'end' => $end + 3.0, 'text' => $afterText]],
+            [[$start, $silenceFrom, self::LOUD], [$silenceFrom, $speechFrom, self::SILENT], [$speechFrom, $end + 20, -30.0]],
+            timeline: [[$start, $speechWindowFrom - 5.0, 0.7, 0.02], [$speechWindowFrom - 5.0, $speechWindowFrom, 0.7, 0.01],
+                [$speechWindowFrom, $end + 20, 0.01, 0.79]]);
+        $this->bank($section, $end, $heard);
+        $this->bankTail($section, $end, $this->spokenWords($agreedFrom, $spoken));
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $edge = $this->endEdge($plan);
+        $this->assertEqualsWithDelta($expected, $plan['segments'][0]['end_time'], 0.05,
+            "The tail cut at {$tailCut} takes in the next item's speech.");
+        $this->assertSame('song_end_silence', $edge['reason']);
+        $this->assertGreaterThanOrEqual($sung['end'], $plan['segments'][0]['end_time'], 'The song keeps its last sung line.');
+    }
+
+    /**
+     * The earlier end gives way only to the song itself (E28): where its lyrics place a held last
+     * sung word past that end, heard by two of the tail's decodes in the music, the earlier end does
+     * not stand and the tail rule decides as before, keeping the word.
+     */
+    #[Test]
+    public function an_earlier_end_that_would_cut_the_last_sung_word_does_not_stand(): void
+    {
+        $section = $this->song(4580.0, 4754.08, [
+            ['start' => 4736.14, 'end' => 4744.14, 'text' => 'No wrongs we have done'],
+            ['start' => 4744.14, 'end' => 4754.08, 'text' => 'Praise be to the Lord the God of Israel from everlasting to everlasting Let all the'],
+            ['start' => 4754.08, 'end' => 4756.11, 'text' => 'people say Amen'],
+        ], [[4580.0, 4744.28, self::LOUD], [4744.28, 4746.3, self::SILENT], [4746.3, 4775.0, -30.0]],
+            timeline: [[4580.0, 4740.0, 0.7, 0.02], [4740.0, 4745.0, 0.7, 0.01], [4745.0, 4775.0, 0.01, 0.79]]);
+        $this->bindSong($section, Song::factory()->create(['lyrics_plain' => "What love could remember\nNo wrongs we have done"]));
+        $this->bank($section, 4754.08, [['start' => 4743.28, 'end' => 4746.21, 'word' => ' Praise'], ['start' => 4746.93, 'end' => 4747.62, 'word' => ' be']]);
+        $sung = [['start' => 4742.2, 'end' => 4742.8, 'word' => ' we'], ['start' => 4742.8, 'end' => 4743.4, 'word' => ' have'], ['start' => 4743.5, 'end' => 4744.95, 'word' => ' done']];
+        $this->bankTail($section, 4754.08, [...$sung, ...$this->spokenWords(4748.64, ['the', 'God', 'of', 'Israel', 'from', 'everlasting', 'to', 'everlasting'])]);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertSame(SongTailSpeechOnset::REASON, $this->endEdge($plan)['reason']);
+        $this->assertEqualsWithDelta(4744.64, $this->endEdge($plan)['replaced']['time'], 0.05);
+        $this->assertEqualsWithDelta(4747.14, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertGreaterThanOrEqual(4744.95, $plan['segments'][0]['end_time'] - $plan['audio_fade_out'], 'The fade must start after the last sung word.');
+    }
+
     /** Short sections must not mistake their preceding announcement for speech after the song. */
     #[Test]
     #[TestWith([false])]
