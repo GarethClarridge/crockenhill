@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\ChurchService;
 
 /**
+ * @phpstan-import-type Ownership from SongEndSpokenWords
+ *
  * How a song that runs into speech ends, from its separated voice and instruments (RA3e, video plan
  * §4.1d, E29; operator 11-08):
  *
@@ -116,13 +118,29 @@ class SongEndOutro
 
     /**
      * @param  array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>, instruments: array{disk: string, path: string}}  $stems
+     * @param  Ownership|null  $ownership
      * @param  float  $onset  Where the first agreed spoken word starts ({@see SongEndSpeechOnset::onset()})
      * @param  float  $cut  The cut the planner placed before the speech
      * @return array{time: float, fade_out: float, song_end_outro: string, speech: float, last_sung: float, outro_end: float, noise?: float, voice_removal?: array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}}|null
      */
-    public function ending(array $stems, float $onset, float $cut): ?array
+    public function ending(array $stems, float $onset, float $cut, ?array $ownership = null): ?array
     {
-        ['speech' => $speech, 'last_sung' => $lastSung] = $this->voice($stems, $onset);
+        $voice = $this->voice($stems, $onset);
+        $ending = $this->endingWithVoice($stems, $voice['speech'], $voice['last_sung'], $cut);
+        if ($ending === null || $ownership === null) {
+            return $ending;
+        }
+        $words = app(SongEndSpokenWords::class)->inLastRun($ownership, $voice);
+
+        return $words === null ? $ending : $this->endingWithVoice($stems, $voice['speech'], $words['last_sung'], $cut);
+    }
+
+    /**
+     * @param  array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>, instruments: array{disk: string, path: string}}  $stems
+     * @return array{time: float, fade_out: float, song_end_outro: string, speech: float, last_sung: float, outro_end: float, noise?: float, voice_removal?: array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}}|null
+     */
+    private function endingWithVoice(array $stems, float $speech, float $lastSung, float $cut): ?array
+    {
         $outroEnd = $this->outroEnd($stems, min($lastSung, $cut), $speech);
         if ($outroEnd === null) {
             return null;
@@ -162,17 +180,38 @@ class SongEndOutro
      * cut 8 in 27 heard, with nothing measured to tell them apart (three rounds, 11-09), so the cut stands.
      *
      * @param  array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>, instruments: array{disk: string, path: string}}  $stems
+     * @param  Ownership|null  $ownership
      * @return array{time: float, fade_out: float, song_end_outro: string, speech: float, last_sung: float, outro_end: float, noise?: float, voice_removal?: array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}}|null
      */
-    public function endingFromTheVoiceTrack(array $stems, float $cut): ?array
+    public function endingFromTheVoiceTrack(array $stems, float $cut, ?array $ownership = null): ?array
     {
         $talking = $this->talkingAfter($stems, $cut);
         if ($talking === null) {
             return null;
         }
-        $ending = $this->ending($stems, $talking, max($cut, $this->voice($stems, $talking)['last_sung']));
+        $voice = $this->voice($stems, $talking);
+        $selected = $this->endingWithVoice($stems, $voice['speech'], $voice['last_sung'], max($cut, $voice['last_sung']));
+        // Word ownership corrects a selected ending; it never revives an outro E30 rejected.
+        if (! in_array($selected['song_end_outro'] ?? null, [self::SILENCE, self::RECORDING_CUT], true)) {
+            return null;
+        }
+        $words = app(SongEndSpokenWords::class)->inLastRun($ownership, $voice);
+        if ($words === null) {
+            return $selected;
+        }
+        $speech = $words['speech'];
+        $lastSung = $words['last_sung'];
+        $ending = $this->endingWithVoice($stems, $speech, $lastSung, max($cut, $lastSung));
+        if (in_array($ending['song_end_outro'] ?? null, [self::SILENCE, self::RECORDING_CUT], true)
+            && $ending['time'] <= $speech + 1e-6) {
+            return $ending;
+        }
+        $time = $lastSung <= $speech - SongEndSpeechOnset::LEAD ? min($cut, $speech - SongEndSpeechOnset::LEAD) : ($lastSung + $speech) / 2;
+        $sounds = array_filter($words['sounds'], static fn (float $sound): bool => $sound <= $time);
+        $sound = $sounds === [] ? $time : max($sounds);
 
-        return in_array($ending['song_end_outro'] ?? null, [self::SILENCE, self::RECORDING_CUT], true) ? $ending : null;
+        return ['time' => round($time, 3), 'fade_out' => round(max(self::CLICK, min(1.5, $time - $sound)), 3),
+            'song_end_outro' => self::UNDER_SPEECH, 'speech' => $speech, 'last_sung' => $lastSung, 'outro_end' => $ending['outro_end'] ?? $time];
     }
 
     /**
@@ -249,7 +288,7 @@ class SongEndOutro
      * singing is taken to run into the talking (4451).
      *
      * @param  array{start: float, frame_seconds: float, voice_db: list<float>}  $stems
-     * @return array{speech: float, last_sung: float}
+     * @return array{speech: float, last_sung: float, frame_seconds: float, sung_runs?: list<array{start: float, end: float}>}
      */
     public function voice(array $stems, float $onset): array
     {
@@ -259,7 +298,7 @@ class SongEndOutro
         $time = static fn (int $index): float => round($stems['start'] + $index * $step, 3);
         $heard = array_slice($voice, $at($onset - 6.0), $at($onset + 2.0) - $at($onset - 6.0));
         if ($heard === []) {
-            return ['speech' => $onset, 'last_sung' => $onset];
+            return ['speech' => $onset, 'last_sung' => $onset, 'frame_seconds' => $step];
         }
         sort($heard);
         $level = $heard[(int) floor(0.9 * (count($heard) - 1))];
@@ -274,10 +313,14 @@ class SongEndOutro
             }
         }
         if ($speech === null) {
-            return ['speech' => $onset, 'last_sung' => $onset];
+            return ['speech' => $onset, 'last_sung' => $onset, 'frame_seconds' => $step];
         }
 
-        return ['speech' => $time($speech), 'last_sung' => $time($this->lastSung($voice, $at($onset - 6.0), $speech, $step))];
+        $sungRuns = [];
+        $lastSung = $this->lastSung($voice, $at($onset - 6.0), $speech, $step, $sungRuns);
+
+        return ['speech' => $time($speech), 'last_sung' => $time($lastSung), 'frame_seconds' => $step,
+            'sung_runs' => array_map(static fn (array $run): array => ['start' => $time($run['start']), 'end' => $time($run['end'])], $sungRuns)];
     }
 
     /**
@@ -290,8 +333,9 @@ class SongEndOutro
      * With no sung phrase in the stretch, the singing stopped before it, at its start (2312).
      *
      * @param  list<float>  $voice
+     * @param  list<array{start: int, end: int}>  $sungRuns
      */
-    private function lastSung(array $voice, int $first, int $speech, float $step): int
+    private function lastSung(array $voice, int $first, int $speech, float $step, array &$sungRuns): int
     {
         $before = array_slice($voice, $first, max(0, $speech - $first));
         if ($before === []) {
@@ -323,6 +367,8 @@ class SongEndOutro
         }
         $sung = array_filter($runs, fn (array $run): bool => ($run['end'] - $run['start']) * $step >= self::SUNG_PHRASE_SECONDS - 0.001
             && array_reduce(array_slice($voice, $run['start'], $run['end'] - $run['start']), static fn (float $peak, float $db): float => max($peak, $db), -INF) >= $level - self::SUNG_PHRASE_BELOW);
+
+        $sungRuns = array_values(array_map(static fn (array $run): array => ['start' => $run['start'], 'end' => $run['end']], $sung));
 
         return $sung === [] ? $first : $sung[array_key_last($sung)]['end'];
     }

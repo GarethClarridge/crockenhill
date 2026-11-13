@@ -204,6 +204,7 @@ class WideOutputEdgeWindowsTest extends TestCase
         app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity,
             'words' => [['start' => 100.0, 'end' => 101.0, 'word' => 'fresh.']]]);
         $this->assertSame(['timing.'], array_column($evidence->heardWords($log->fresh()), 'word'));
+        $this->assertCount(3, $evidence->bankedWindows($log->fresh(), includeWide: true));
         $this->assertArrayHasKey('window_rule', $identity);
     }
 

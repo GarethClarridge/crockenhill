@@ -219,7 +219,18 @@ class OutputEdgeWordTimings
      */
     public function heardWords(MediaProcessingLog $log): array
     {
-        $words = [];
+        return array_merge([], ...array_column($this->bankedWindows($log), 'words'));
+    }
+
+    /**
+     * Accepted lexical decodes, retaining their windows so agreement counts independent hearings.
+     * Wide text windows are included only for word ownership, never for timing guards.
+     *
+     * @return list<array{start: float, end: float, words: list<array{start: float, end: float, word: string}>}>
+     */
+    public function bankedWindows(MediaProcessingLog $log, bool $includeWide = false): array
+    {
+        $windows = [];
         // Wide text evidence must never change a timing guard's union of heard words.
         foreach (ServiceArtifactStorage::recordedFor($log) as $entry) {
             if (! str_starts_with($entry['kind'], 'edge-words-')) {
@@ -232,19 +243,24 @@ class OutputEdgeWordTimings
             }
             $payload = is_string($raw) ? json_decode($raw, true) : null;
             $identity = is_array($payload) && is_array($payload['identity'] ?? null) ? $payload['identity'] : [];
-            if (($identity['window_rule'] ?? null) !== null) {
+            if (! $includeWide && ($identity['window_rule'] ?? null) !== null) {
                 continue;
             }
             try {
                 if (is_numeric($identity['start'] ?? null) && is_numeric($identity['end'] ?? null)) {
                     $window = ['start' => (float) $identity['start'], 'end' => (float) $identity['end']];
-                    array_push($words, ...$this->read($log, $window)['words']);
+                    foreach (['window_rule', 'word_timing'] as $key) {
+                        if (isset($identity[$key])) {
+                            $window[$key] = $identity[$key];
+                        }
+                    }
+                    $windows[] = ['start' => $window['start'], 'end' => $window['end'], 'words' => $this->read($log, $window)['words']];
                 }
             } catch (OutputEdgeTimingsMissing) {
                 // A decode for another version or model is not this run's evidence.
             }
         }
 
-        return $words;
+        return $windows;
     }
 }

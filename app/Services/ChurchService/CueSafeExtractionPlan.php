@@ -2573,7 +2573,7 @@ class CueSafeExtractionPlan
         $tail = $onset->cut($log, $end, $decision['time'] ?? $end, $timeline, $start);
 
         if ($tail === null) {
-            return $this->beforeAgreedSpeech($log, $decision, $timeline);
+            return $this->beforeAgreedSpeech($log, $decision, $timeline, $lyrics, $cues);
         }
         // Speech alone before the agreed words: the next item has begun, so the end before it stands
         // (WP16 P1) — unless that end would cut a held last sung word its lyrics place (E28).
@@ -2636,9 +2636,10 @@ class CueSafeExtractionPlan
      * before it ends the song there ({@see SongEndOutro::endingFromTheVoiceTrack()}).
      *
      * @param  array<string, mixed>|null  $decision
+     * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return array<string, mixed>|null
      */
-    private function beforeAgreedSpeech(MediaProcessingLog $log, ?array $decision, ?AudioTimeline $timeline): ?array
+    private function beforeAgreedSpeech(MediaProcessingLog $log, ?array $decision, ?AudioTimeline $timeline, ?string $lyrics, array $cues): ?array
     {
         if (! in_array($decision['reason'] ?? null, ['song_end_speech', self::SONG_END_FADE], true) || ! isset($decision['last_sound'])) {
             return $decision;
@@ -2647,11 +2648,12 @@ class CueSafeExtractionPlan
         $onset = app(SongEndSpeechOnset::class)->onset($log, $decision['time'], $timeline);
 
         if ($onset === null) {
-            return $this->beforeVoiceTrackTalking($log, $decision, $timeline);
+            return $this->beforeVoiceTrackTalking($log, $decision, $timeline, $lyrics, $cues);
         }
         $replaced = ['reason' => SongEndSpeechOnset::REASON, 'replaced' => ['time' => $decision['time'], 'reason' => $decision['reason']], 'speech_onset' => $onset];
         $stems = app(SongEndStems::class)->read($log, $decision['time']);
-        $ending = $stems === null ? null : app(SongEndOutro::class)->ending($stems, $onset, $decision['time']);
+        $ending = $stems === null ? null : app(SongEndOutro::class)->ending($stems, $onset, $decision['time'],
+            app(SongEndSpokenWords::class)->evidence($log, $lyrics, $cues, $decision['speech_cue']['text'] ?? null, $timeline));
         if ($ending !== null) {
             return [...$decision, ...$ending, ...$replaced];
         }
@@ -2665,15 +2667,17 @@ class CueSafeExtractionPlan
 
     /**
      * @param  array<string, mixed>  $decision
+     * @param  list<array{start: float, end: float, text: string}>  $cues
      * @return array<string, mixed>
      */
-    private function beforeVoiceTrackTalking(MediaProcessingLog $log, array $decision, ?AudioTimeline $timeline): array
+    private function beforeVoiceTrackTalking(MediaProcessingLog $log, array $decision, ?AudioTimeline $timeline, ?string $lyrics, array $cues): array
     {
         if ($timeline === null || ! app(SongEndSpeechOnset::class)->musicPlaysAfter($decision['time'], $timeline)) {
             return $decision;
         }
         $stems = app(SongEndStems::class)->read($log, $decision['time']);
-        $ending = $stems === null ? null : app(SongEndOutro::class)->endingFromTheVoiceTrack($stems, $decision['time']);
+        $ending = $stems === null ? null : app(SongEndOutro::class)->endingFromTheVoiceTrack($stems, $decision['time'],
+            app(SongEndSpokenWords::class)->evidence($log, $lyrics, $cues, $decision['speech_cue']['text'] ?? null, $timeline));
 
         return $ending === null ? $decision : [...$decision, ...$ending, 'reason' => self::SONG_END_VOICE_TRACK_TALKING,
             'replaced' => ['time' => $decision['time'], 'reason' => $decision['reason']]];

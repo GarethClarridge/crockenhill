@@ -37,7 +37,7 @@ class SongTailLastLyric
     private const AGREE = 0.4;
 
     /** A word this near its window's edge is placed by the edge. */
-    private const EDGE = 0.25;
+    public const EDGE = 0.25;
 
     private const MUSIC = 0.5;
 
@@ -126,7 +126,7 @@ class SongTailLastLyric
      * @param  list<string>  $terms
      * @return array<string, list<string>>
      */
-    private function phrases(array $terms): array
+    public function phrases(array $terms): array
     {
         $phrases = [];
         for ($index = 2; $index < count($terms); $index++) {
@@ -137,7 +137,7 @@ class SongTailLastLyric
     }
 
     /** @param  array<string, list<string>>  $phrases */
-    private function sung(array $phrases, string $first, string $second, string $word): bool
+    public function sung(array $phrases, string $first, string $second, string $word): bool
     {
         return array_any($phrases[$first.' '.$second] ?? [], static fn (string $lyric): bool => levenshtein($lyric, $word) <= max(strlen($lyric), strlen($word)) / 2);
     }
@@ -150,14 +150,14 @@ class SongTailLastLyric
     }
 
     /** @return list<string> */
-    private function terms(string $text): array
+    public function terms(string $text): array
     {
         preg_match_all("/[a-z]+(?:'[a-z]+)?/i", $text, $matches);
 
         return array_values(array_filter(array_map($this->term(...), $matches[0]), static fn (string $term): bool => $term !== ''));
     }
 
-    private function term(string $word): string
+    public function term(string $word): string
     {
         return (string) preg_replace('/[^a-z]/', '', mb_strtolower($word));
     }

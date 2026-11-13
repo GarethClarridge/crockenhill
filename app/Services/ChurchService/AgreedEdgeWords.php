@@ -18,10 +18,10 @@ class AgreedEdgeWords
     /** A word near a window's edge is placed by the edge, not the audio. */
     private const EDGE = 1.0;
 
-    private const TOLERANCE = 0.4;
+    public const TOLERANCE = 0.4;
 
     /** Longer than this, a decoded word is smeared over sound it does not cover. */
-    private const WORD_SECONDS = 1.0;
+    public const WORD_SECONDS = 1.0;
 
     /** How long before its aligned end a word after a pause starts. */
     private const AFTER_PAUSE = 0.8;

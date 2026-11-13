@@ -106,6 +106,15 @@ class AudioTimelineTest extends TestCase
         $this->assertSame(0.0, AudioTimeline::fromArray($payload)->windows[0]['singing']);
     }
 
+    #[Test]
+    public function it_preserves_the_optional_choir_score_for_word_ownership(): void
+    {
+        $payload = AudioTimelineFixture::payload([[0, 5, 0.7, 0.5, 0.2]], 5.0);
+        $payload['windows'][0]['choir'] = 0.8;
+
+        $this->assertSame(0.8, AudioTimeline::fromArray($payload)->toArray()['windows'][0]['choir']);
+    }
+
     /**
      * @return array<string, array{0: callable(array<string, mixed>): array<string, mixed>, 1: string}>
      */
@@ -144,6 +153,11 @@ class AudioTimelineTest extends TestCase
 
                 return $p;
             }, 'singing score that is not a number'],
+            'an invalid choir score' => [function (array $p): array {
+                $p['windows'][0]['choir'] = 'loud';
+
+                return $p;
+            }, 'invalid choir score'],
             'a missing score' => [function (array $p): array {
                 unset($p['windows'][0]['speech']);
 

@@ -31,7 +31,7 @@ final readonly class AudioTimeline
     private const float TOLERANCE_SECONDS = 0.01;
 
     /**
-     * @param  list<array{start: float, end: float, music: float, speech: float, singing: float}>  $windows  Contiguous from 0
+     * @param  list<array{start: float, end: float, music: float, speech: float, singing: float, choir?: float}>  $windows  Contiguous from 0
      */
     private function __construct(
         public string $model,
@@ -119,7 +119,14 @@ final readonly class AudioTimeline
                 throw new UnexpectedValueException("Audio timeline window {$position} has a score outside 0-1.");
             }
 
-            $windows[] = ['start' => $start, 'end' => $end, 'music' => $music, 'speech' => $speech, 'singing' => $singing];
+            if (isset($window['choir']) && (! is_numeric($window['choir']) || (float) $window['choir'] < 0.0 || (float) $window['choir'] > 1.0)) {
+                throw new UnexpectedValueException("Audio timeline window {$position} has an invalid choir score.");
+            }
+            $classified = ['start' => $start, 'end' => $end, 'music' => $music, 'speech' => $speech, 'singing' => $singing];
+            if (isset($window['choir'])) {
+                $classified['choir'] = (float) $window['choir'];
+            }
+            $windows[] = $classified;
             $expectedStart = $end;
         }
 
@@ -269,7 +276,7 @@ final readonly class AudioTimeline
     }
 
     /**
-     * @param  callable(array{start: float, end: float, music: float, speech: float, singing: float}): bool  $counts
+     * @param  callable(array{start: float, end: float, music: float, speech: float, singing: float, choir?: float}): bool  $counts
      */
     private function share(float $from, float $to, callable $counts): float
     {

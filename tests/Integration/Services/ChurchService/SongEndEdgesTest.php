@@ -16,6 +16,7 @@ use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\PublicationPlanValidator;
 use App\Services\ChurchService\SongEndOutro;
 use App\Services\ChurchService\SongEndSpeechOnset;
+use App\Services\ChurchService\SongEndSpokenWords;
 use App\Services\ChurchService\SongEndStems;
 use App\Services\ChurchService\SongTailSpeechOnset;
 use App\Services\Media\Audio\ServiceArtifactStorage;
@@ -52,6 +53,98 @@ class SongEndEdgesTest extends TestCase
 
         Config::set('media-processing.segmentation.adaptive_thresholds.enabled', false);
         Config::set('media-processing.segmentation.rms_threshold', -45.0);
+    }
+
+    /** WP19 R2: banked stems, lexical decodes, bound lyrics and classifier windows, 13 November. */
+    #[Test]
+    #[TestWith(['1245/3050', 491.05, 491.41])]
+    #[TestWith(['1174/2336', 1496.0, 1496.96])]
+    #[TestWith(['964/94692', 3936.0, 3936.39])]
+    public function spoken_words_in_the_last_voiced_run_are_not_last_sung(string $key, float $minimum, float $maximum): void
+    {
+        $row = $this->spokenRunFixture($key);
+        $ending = app(SongEndOutro::class)->endingFromTheVoiceTrack($row['stems'], $row['cut'], $row['ownership']);
+
+        $this->assertNotNull($ending);
+        $this->assertGreaterThanOrEqual($minimum, $ending['time']);
+        $this->assertLessThanOrEqual($maximum + 0.001, $ending['time']);
+    }
+
+    #[Test]
+    #[TestWith(['1316/4011'])]
+    #[TestWith(['1130/2066'])]
+    #[TestWith(['1088/1780'])]
+    public function sung_or_undecided_words_in_the_last_voiced_run_keep_the_ending(string $key): void
+    {
+        $row = $this->spokenRunFixture($key);
+        $ending = app(SongEndOutro::class)->endingFromTheVoiceTrack($row['stems'], $row['cut'], $row['ownership']);
+
+        $this->assertNotNull($ending);
+        $this->assertEqualsWithDelta($row['old'], $ending['time'], 0.002);
+    }
+
+    #[Test]
+    #[TestWith(['lyrics'])]
+    #[TestWith(['second_decode'])]
+    #[TestWith(['transcript'])]
+    #[TestWith(['singing'])]
+    #[TestWith(['choir'])]
+    public function spoken_run_ownership_requires_lyrics_agreement_transcript_and_relative_speech(string $missing): void
+    {
+        $row = $this->spokenRunFixture('1245/3050');
+        $context = $row['ownership'];
+        if ($missing === 'lyrics') {
+            $context['lyrics'] = '';
+        } elseif ($missing === 'second_decode') {
+            $context['decodes'] = array_slice($context['decodes'], 0, 1);
+        } elseif ($missing === 'transcript') {
+            $context['cues'] = [];
+            $context['next_line'] = '';
+        } else {
+            foreach ($context['timeline'] as &$window) {
+                $window[$missing] = 1.0;
+            }
+            unset($window);
+        }
+
+        $ending = app(SongEndOutro::class)->endingFromTheVoiceTrack($row['stems'], $row['cut'], $context);
+
+        $this->assertNotNull($ending);
+        $this->assertEqualsWithDelta($row['old'], $ending['time'], 0.002);
+    }
+
+    #[Test]
+    public function the_shared_planner_passes_the_bound_songs_lyrics_to_spoken_run_ownership(): void
+    {
+        $section = $this->outroIntoPrayer();
+        $lyrics = 'Glory to you, there is no greater thing';
+        $this->bindSong($section, Song::factory()->create(['lyrics_plain' => $lyrics]));
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+        $this->bankStems($section, $cut, voice: [[-8, 1.5, -24.0], [1.5, 8.5, -98.0], [8.5, 16, -35.0]],
+            instruments: [[-8, 4.3, -30.0], [4.3, 16, -60.0]]);
+        $rule = $this->partialMock(SongEndSpokenWords::class);
+        $rule->shouldReceive('evidence')->once()->withArgs(static fn ($log, $boundLyrics, $cues, $nextLine, $timeline): bool => $boundLyrics === $lyrics && $cues !== [] && $timeline !== null)->andReturn(null);
+
+        app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+    }
+
+    /** E30's rejected under-talking outros stay rejected when words identify earlier speech. */
+    #[Test]
+    public function word_ownership_does_not_revive_an_outro_rejected_by_e30(): void
+    {
+        $row = $this->spokenRunFixture('1250/4911');
+        $reader = app(SongEndOutro::class);
+
+        $this->assertNull($reader->endingFromTheVoiceTrack($row['stems'], $row['cut']));
+        $this->assertNull($reader->endingFromTheVoiceTrack($row['stems'], $row['cut'], $row['ownership']));
+    }
+
+    /** @return array<string, mixed> */
+    private function spokenRunFixture(string $key): array
+    {
+        $rows = json_decode(file_get_contents(base_path('tests/Fixtures/ChurchService/song-end-spoken-words.json')), true, flags: JSON_THROW_ON_ERROR);
+
+        return array_find($rows, static fn (array $row): bool => $row['key'] === $key);
     }
 
     /** 1250 §4911: the prayer's cue is timed 20 s early, over the last lines and the outro. */
