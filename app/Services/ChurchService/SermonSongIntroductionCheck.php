@@ -584,6 +584,8 @@ TXT;
      * we can have the words on the screen"), stepped back off any line after the music started.
      * Both song and recording-end joins vote on the sermon itself, keeping the preacher’s
      * closing prayer and excluding the congregation’s answering Amen and the line straight after it.
+     * An untied answer takes in a later Amen only within the video vote, except the prayer's own: a
+     * lone "Amen" line straight after the kept line, which does not end on one, is kept regardless.
      * No end when the answers fail or name no line.
      *
      * @param  list<array{sermon_last_line: int|null, ties_to_sermon: bool|null, video_last_line: int|null, reason: string|null}>  $calls
@@ -612,6 +614,11 @@ TXT;
                     && preg_match(self::ENDS_ON_AMEN, $line['text']) === 1 && ! $this->answersAmen($byNumber, $line['n'])) {
                     $chosen = $line['n'];
                 }
+            }
+            // The prayer's own lone Amen closes it whatever the video vote (979, 11-13): K16 never splits the preacher's Amen.
+            if (isset($byNumber[$chosen + 1]) && $byNumber[$chosen + 1]['music'] !== 'yes'
+                && TranscriptCueEvidence::tokens($byNumber[$chosen + 1]['text']) === ['amen'] && ! $this->answersAmen($byNumber, $chosen + 1)) {
+                $chosen++;
             }
         }
 

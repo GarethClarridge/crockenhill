@@ -992,6 +992,145 @@ class SongEndEdgesTest extends TestCase
     }
 
     /**
+     * 1200 §2509 (WP19 case 5, 11-13): the tail's wide decode places the speech from "I was saying"
+     * (460.42), so the tail rule cut at 459.92, inside "Please remain standing." (458.54–460.42). Two
+     * of the tail's decodes hear that line's "Please" at 458.44, before the cut; the line is no lyric
+     * of the song, so the song ends just before it, after the last sung "earth." (to 456.86). The
+     * words and classifier windows are 1200's own.
+     */
+    #[Test]
+    public function tail_cut_does_not_split_the_next_line(): void
+    {
+        $section = $this->pleaseRemainStanding();
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $end = $plan['segments'][0]['end_time'];
+        $edge = $this->endEdge($plan);
+        $this->assertSame(SongTailSpeechOnset::REASON, $edge['reason']);
+        $this->assertGreaterThan(456.86, $end, 'The song keeps its last sung line.');
+        $this->assertLessThan(458.44, $end, 'The song must not take in the start of "Please remain standing."');
+        $this->assertEqualsWithDelta(458.437 - SongEndSpeechOnset::LEAD, $end, 0.001);
+        $this->assertSame('Please remain standing.', $edge['split_line']['line']);
+        $this->assertEqualsWithDelta(459.917, $edge['split_line']['from'], 0.001);
+    }
+
+    /** A line the bound song sings is not the next item's, and with no lyrics nothing tells, so the tail cut stands. */
+    #[Test]
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function tail_cut_inside_a_sung_line_or_without_lyrics_stands(bool $lyricLine): void
+    {
+        $section = $this->pleaseRemainStanding(lyrics: $lyricLine ? "Be exalted, O God, above the heavens,\nPlease remain standing.\nLet Your glory be over all the earth." : null);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $this->assertEqualsWithDelta(459.917, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertArrayNotHasKey('split_line', $this->endEdge($plan));
+    }
+
+    /**
+     * 1239 §165498 (WP19, 11-13): the tail cut at 4122.955 falls inside "O come," and two decodes hear
+     * its "O" at 4122.82 and 4122.94, so the line rule moves the cut before it. The song's own last
+     * sung "let us" then runs to 4125.20 past that cut, and the last-lyric guard, run after the line
+     * rule, keeps it: the end stays in the pause after "us", where the guard alone put it.
+     */
+    #[Test]
+    public function the_last_lyric_guard_wins_over_the_line_rule(): void
+    {
+        $section = $this->song(3960.33, 4125.22, [
+            ['start' => 4115.78, 'end' => 4119.5, 'text' => 'adore him.'],
+            ['start' => 4120.2, 'end' => 4124.14, 'text' => 'O come,'],
+            ['start' => 4124.5, 'end' => 4125.22, 'text' => 'let us'],
+            ['start' => 4125.22, 'end' => 4126.92, 'text' => 'adore him.'],
+            ['start' => 4128.5, 'end' => 4128.98, 'text' => 'Lord,'],
+            ['start' => 4129.06, 'end' => 4129.54, 'text' => 'may we give'],
+        ], [[3950, 4140, self::LOUD]], timeline: [[3950, 4120, 0.82, 0.02], [4120, 4125, 0.5503, 0.4061], [4125, 4145, 0.0114, 0.7813]]);
+        $this->bindSong($section, Song::factory()->create(['lyrics_plain' => "Who has held the oceans in His hands?\nWho has numbered every grain of sand?\n\nBehold our God, seated on His throne,\nCome let us adore Him!\nBehold our King, nothing can compare,\nCome let us adore Him!"]));
+        $this->bankTailWindows($section, 4125.22, [
+            'slide-22' => [['is', 4103.36, 4115.21]],
+            'slide-19' => [['Amen', 4106.36, 4113.08], ['.', 4113.08, 4118.21]],
+            'slide-16' => [['oh', 4109.37, 4119.73]],
+            'slide-13' => [['O', 4112.34, 4114.61], ['come', 4114.62, 4123.75], [',', 4124.21, 4124.21]],
+            'slide-10' => [['Let', 4115.36, 4116.18], ['us', 4116.18, 4116.82], ['adore', 4116.82, 4118.42], ['him', 4118.42, 4119.42], ['.', 4119.42, 4119.44], ['O', 4122.82, 4122.82],
+                ['come', 4122.82, 4122.82], [',', 4122.82, 4122.82], ['let', 4122.82, 4122.82], ['us', 4122.96, 4123.48], ['adore', 4123.48, 4125.17], ['him', 4125.17, 4126.18], ['.', 4126.18, 4127.21]],
+            'slide-7' => [['O', 4118.35, 4119.41], ['come', 4119.41, 4124.14], [',', 4124.15, 4124.45], ['let', 4124.45, 4124.89], ['us', 4124.89, 4125.2], ['adore', 4125.2, 4126.28],
+                ['him', 4126.28, 4126.93], ['.', 4126.93, 4126.94], ['Lord', 4128.36, 4128.36], [',', 4128.36, 4128.36], ['may', 4128.36, 4128.36], ['we', 4128.36, 4128.36],
+                ['give', 4128.49, 4128.67], ['you', 4128.67, 4129.02], ['the', 4129.02, 4129.37], ['honour', 4129.37, 4130.09], ['...', 4130.09, 4130.22]],
+            'slide-4' => [['O', 4121.37, 4121.81], ['come', 4121.81, 4124.16], [',', 4124.16, 4124.46], ['let', 4124.46, 4124.91], ['us', 4124.91, 4125.2], ['adore', 4125.21, 4126.29],
+                ['him', 4126.29, 4126.93], ['.', 4126.93, 4126.94], ['Lord', 4128.36, 4128.36], [',', 4128.36, 4128.36], ['may', 4128.36, 4128.36], ['we', 4128.51, 4128.59],
+                ['give', 4128.59, 4129.19], ['you', 4129.19, 4129.68], ['the', 4129.68, 4129.81], ['honour', 4129.82, 4130.1], ['that', 4130.1, 4130.99], ['you', 4130.99, 4131.65],
+                ['deserve', 4131.65, 4133.22], ['.', 4133.22, 4133.22]],
+            'before' => [['Come', 4103.36, 4103.74], ['and', 4103.74, 4104.13], ['be', 4104.13, 4104.39], ['strong', 4104.39, 4105.17], [',', 4105.17, 4105.43], ['come', 4105.43, 4105.95],
+                ['and', 4105.95, 4106.34], ['let', 4106.34, 4106.73], ['us', 4106.73, 4106.99], ['adore', 4106.99, 4107.64], ['Him', 4107.64, 4108.06], ['.', 4108.06, 4108.06],
+                ['We', 4108.5, 4108.56], ['hold', 4108.56, 4109.56], ['our', 4109.56, 4110.31], ['King', 4110.31, 4111.31], [',', 4111.31, 4111.82], ['nothing', 4111.82, 4112.76],
+                ['can', 4112.76, 4113.15], ['compare', 4113.16, 4114.1], [',', 4114.1, 4114.38], ['come', 4114.38, 4115.25], ['and', 4115.25, 4115.9], ['let', 4115.9, 4116.55],
+                ['us', 4116.55, 4116.98], ['adore', 4116.98, 4118.07], ['Him', 4118.07, 4118.72], ['.', 4118.72, 4119.42], ['O', 4122.94, 4122.94], ['come', 4122.94, 4122.94],
+                [',', 4122.94, 4122.94], ['let', 4122.94, 4122.94], ['us', 4123.08, 4123.31], ['adore', 4123.31, 4124.93], ['Him', 4124.93, 4125.9], ['.', 4125.9, 4126.92],
+                ['Lord', 4128.7, 4128.7], [',', 4128.7, 4128.7], ['may', 4128.7, 4128.7], ['we', 4128.7, 4128.7], ['give', 4128.84, 4129.27], ['you', 4129.27, 4129.74],
+                ['the', 4129.74, 4130.21], ['honour', 4130.21, 4131.22], ['...', 4131.22, 4131.22]],
+        ]);
+        $heard = [['start' => 4124.45, 'end' => 4124.89, 'word' => ' let'], ['start' => 4124.89, 'end' => 4125.2, 'word' => ' us'], ['start' => 4125.2, 'end' => 4126.28, 'word' => ' adore'],
+            ['start' => 4126.28, 'end' => 4126.93, 'word' => ' him.'], ['start' => 4128.36, 'end' => 4128.36, 'word' => ' Lord,']];
+        $this->bank($section, 4125.22, $heard);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+
+        $edge = $this->endEdge($plan);
+        $this->assertSame(SongTailSpeechOnset::REASON, $edge['reason']);
+        $this->assertEqualsWithDelta(4122.82 - SongEndSpeechOnset::LEAD, $edge['split_line']['time'], 0.001, 'The line rule moves the cut before "O come,".');
+        $this->assertEqualsWithDelta(4125.205, $plan['segments'][0]['end_time'], 0.001, 'The last sung "us" is kept.');
+        $this->assertSame('us', $edge['last_lyric']['word']);
+    }
+
+    /**
+     * 1200 §2509's last line, cues and classifier windows, and its tail decodes from 438 s; bound to
+     * the song's own lyrics unless null is given.
+     */
+    private function pleaseRemainStanding(?string $lyrics = "Be exalted, O God, above the heavens,\nLet Your glory be over all the earth.\nLet Your glory,\nLet your glory,\nLet your glory be over all the earth."): ServiceSection
+    {
+        $section = $this->song(309.58, 460.437, [
+            ['start' => 441.06, 'end' => 454.92, 'text' => 'Let your glory, let your glory, let your glory be over the'],
+            ['start' => 454.92, 'end' => 456.86, 'text' => 'earth.'],
+            ['start' => 458.54, 'end' => 460.42, 'text' => 'Please remain standing.'],
+            ['start' => 461.42, 'end' => 466.91, 'text' => 'I was saying in the back room shortly before we began our'],
+            ['start' => 466.91, 'end' => 469.04, 'text' => 'time together this morning'],
+        ], [[300, 480, self::LOUD]], timeline: [[300, 455, 0.65, 0.03], [455, 460, 0.6377, 0.1458], [460, 465, 0.1977, 0.5939], [465, 480, 0.0132, 0.7112]]);
+        if ($lyrics !== null) {
+            $this->bindSong($section, Song::factory()->create(['lyrics_plain' => $lyrics]));
+        }
+        $slideThirteen = [['Oh', 447.577, 447.787], [',', 447.787, 448.137], ['bring', 448.137, 449.007], ['such', 449.007, 449.707], ['a', 449.707, 449.877], ['glory', 449.877, 450.747],
+            [',', 450.747, 451.097], ['bring', 451.097, 451.967], ['the', 451.967, 452.487], ['old', 452.487, 453.007], ['world', 453.007, 453.877], ['glorious', 453.877, 455.337],
+            ['.', 455.337, 456.437], ['Please', 458.437, 458.437], ['pray', 458.577, 458.737], ['.', 458.737, 459.437]];
+        $this->bankTailWindows($section, 460.437, [
+            'slide-22' => [['Let', 438.557, 443.577], ['your', 443.577, 450.427], ['glory', 450.427, 450.427], [',', 450.427, 450.427], ['let', 450.427, 450.427], ['your', 450.427, 450.427], ['glory', 450.427, 450.427]],
+            'slide-19' => [['Let', 441.567, 444.437], ['your', 444.437, 448.437], ['glory', 448.437, 453.427], [',', 453.427, 453.427], ['let', 453.427, 453.427], ['your', 453.427, 453.427],
+                ['glory', 453.427, 453.427], [',', 453.427, 453.427], ['let', 453.427, 453.427], ['your', 453.427, 453.427], ['glory', 453.427, 453.427], ['be', 453.427, 453.427],
+                ['all', 453.427, 453.427], ['.', 453.427, 453.427]],
+            'slide-16' => [['oh', 444.567, 456.427]],
+            'slide-13' => $slideThirteen,
+            'slide-10' => [['I', 450.577, 462.297], ['was', 462.427, 462.427]],
+            'slide-7' => [['I', 453.597, 465.367], ['was', 465.427, 465.427], ['saying', 465.427, 465.427], ['in', 465.427, 465.427], ['the', 465.427, 465.427], ['back', 465.427, 465.427],
+                ['room', 465.427, 465.427], ['shortly', 465.427, 465.427], ['before', 465.427, 465.427]],
+            'slide-4' => [['-', 456.557, 458.417], ['Good', 458.417, 458.737], ['evening', 458.737, 459.267], [',', 459.267, 459.437], ['Sandy', 459.437, 460.677], ['.', 460.687, 461.437],
+                ['I', 461.557, 461.567], ['was', 461.567, 461.957], ['saying', 461.957, 462.737], ['in', 462.737, 462.987], ['the', 462.987, 463.387], ['back', 463.387, 463.907],
+                ['room', 463.907, 464.437], [',', 464.437, 464.437], ['shortly', 464.557, 465.227], ['before', 465.227, 465.907], ['we', 465.907, 466.127], ['began', 466.127, 466.697],
+                ['our', 466.697, 467.037], ['time', 467.037, 467.487], ['together', 467.487, 468.437]],
+            'before' => [['The', 438.557, 438.937], ['love', 438.937, 439.607], ['that', 439.607, 440.277], ['ever', 440.277, 440.957], ['has', 440.957, 442.437], [',', 442.437, 442.857],
+                ['let', 442.857, 443.497], ['your', 443.497, 444.347], ['glory', 444.347, 445.437], [',', 445.437, 445.927], ['let', 445.927, 446.677], ['your', 446.677, 447.677],
+                ['glory', 447.677, 448.917], [',', 448.917, 449.437], ['let', 449.437, 450.127], ['your', 450.127, 451.047], ['glory', 451.047, 452.197], ['be', 452.197, 452.657],
+                ['over', 452.657, 453.577], ['glorious', 453.577, 455.437], ['.', 455.437, 455.437], ['Please', 458.437, 458.437], ['be', 458.437, 458.437], ['standing', 458.557, 459.617],
+                ['.', 459.617, 460.417], ['I', 460.417, 460.577], ['was', 460.577, 461.077], ['saying', 461.077, 462.077], ['in', 462.077, 462.407], ['the', 462.407, 462.907],
+                ['back', 462.907, 463.567], ['room', 463.567, 464.227], ['shortly', 464.227, 465.387], ['before', 465.387, 466.437], ['the', 466.437, 466.437]],
+        ]);
+        $heard = array_map(static fn (array $word): array => ['start' => $word[1], 'end' => $word[2], 'word' => ' '.$word[0]], $slideThirteen);
+        $this->bank($section, 460.437, $heard);
+        $this->bank($section, 461.42, $heard);
+
+        return $section;
+    }
+
+    /**
      * A spoken word after the lyric is never protected, even where two decodes hear it in the music
      * straight after the last sung word: "grace. Please" is no phrase of the song.
      */

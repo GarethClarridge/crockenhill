@@ -2557,6 +2557,10 @@ class CueSafeExtractionPlan
      * the words agreed on, so the end before it stands as it was decided, not passed on to the rules
      * after the cut (1007 §1261, 1314 §3989; WP16 P1, 11-13).
      *
+     * A tail cut never splits the next spoken line ({@see SongTailSpeechOnset::beforeSplitLine()}), and
+     * the last-lyric guard runs on the cut that rule leaves, so a sung word it would cross is still
+     * kept (1239 §165498).
+     *
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}|null  $window  The window around the song's end
      * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
@@ -2578,15 +2582,19 @@ class CueSafeExtractionPlan
                 $decision['speech_cue']['text'] ?? null, $timeline, $start) === null) {
             return $decision;
         }
-        // The fixed margin and fade can cross a held last sung word (E28): its lyric keeps it.
-        $lyric = app(SongTailLastLyric::class)->protect($log, $end, $tail, self::SONG_END_FADE_MIN, $lyrics,
+        // The fixed margin can land inside the next spoken line: the cut goes before its first word (WP19 R4).
+        $split = $onset->beforeSplitLine($log, $end, $tail, $cues, $lyrics, $start);
+        $cut = $split['time'] ?? $tail;
+        // The fixed margin and fade can cross a held last sung word (E28): its lyric keeps it, after the line rule.
+        $lyric = app(SongTailLastLyric::class)->protect($log, $end, $cut, self::SONG_END_FADE_MIN, $lyrics,
             $decision['speech_cue']['text'] ?? null, $timeline, $start);
 
-        return ['time' => $lyric['time'] ?? $tail, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
+        return ['time' => $lyric['time'] ?? $cut, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
             'reason' => SongTailSpeechOnset::REASON, 'speech_cue' => $decision['speech_cue'] ?? null,
             'replaced' => $decision === null ? null : ['time' => $decision['time'], 'reason' => $decision['reason']],
             'fade_out' => $lyric['fade_out'] ?? self::SONG_END_FADE_MIN,
-            ...($lyric === null ? [] : ['last_lyric' => $lyric['last_lyric'], 'tail_cut' => $tail])];
+            ...($split === null ? [] : ['split_line' => $split]),
+            ...($lyric === null ? [] : ['last_lyric' => $lyric['last_lyric'], 'tail_cut' => $cut])];
     }
 
     /** The lyrics of the song a section is bound to, if any. */

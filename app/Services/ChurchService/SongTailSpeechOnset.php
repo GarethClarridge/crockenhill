@@ -67,6 +67,12 @@ class SongTailSpeechOnset
 
     private const WIDE_MARGIN = 0.5;
 
+    /** Two decodes hear the same word where their starts agree to within this ({@see AgreedEdgeWords}). */
+    private const AGREE = 0.4;
+
+    /** A line's first word can be decoded this much before its cue opens. */
+    private const LINE_DRIFT = 1.0;
+
     /** A run must start before the song's recorded end; after it, the end rules place the cut. */
     private const BEFORE_END = 0.5;
 
@@ -140,6 +146,118 @@ class SongTailSpeechOnset
         }
 
         return $cut;
+    }
+
+    /**
+     * The tail cut moved before the next spoken line it would split (WP19 R4, 11-13): the fixed margin
+     * before the agreed words can land inside the line before them, as 1200 §2509's cut at 459.92 did
+     * inside "Please remain standing." (from 458.44). Where the cut falls inside a worded transcript
+     * line that is no lyric of the bound song (none of its three-word phrases, or for a shorter line
+     * not all its words), and two of the tail's decodes, from different windows, hear that line's
+     * first word before the cut within {@see self::AGREE} s of each other, each plainly timed and away
+     * from its window's edges, the song ends {@see SongEndSpeechOnset::LEAD} before the earlier of
+     * them. A decoded first word may open up to {@see self::LINE_DRIFT} s before its line's cue.
+     *
+     * With no lyrics a sung line cannot be told from a spoken one, so nothing changes; nor does it
+     * with no second decode or a line already started before the cut. Nothing limits how far it moves.
+     * Measured offline on the 13 November replay's 284 tail ends: 9 move, none away from a ruling.
+     *
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @return array{time: float, line: string, first_word: float, from: float}|null
+     */
+    public function beforeSplitLine(MediaProcessingLog $log, float $end, float $cut, array $cues, ?string $lyrics, float $start): ?array
+    {
+        if ($lyrics === null || trim($lyrics) === '') {
+            return null;
+        }
+
+        $evidence = app(OutputEdgeWordTimings::class);
+        $windows = $this->windows($end, $log->duration);
+        $words = [];
+
+        try {
+            foreach ($windows as $name => $window) {
+                $words[$name] = $evidence->read($log, $window)['tokens'];
+            }
+        } catch (OutputEdgeTimingsMissing) {
+            return null;
+        }
+
+        return $this->beforeSplitLineFrom($words, $windows, $cut, $cues, $lyrics, $start);
+    }
+
+    /**
+     * @param  array<string, list<array{start: float, end: float, word: string}>>  $words  Each window's decoder tokens, by window name
+     * @param  array<string, array{start: float, end: float, window_rule?: string}>  $windows
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @return array{time: float, line: string, first_word: float, from: float}|null
+     */
+    public function beforeSplitLineFrom(array $words, array $windows, float $cut, array $cues, string $lyrics, float $start): ?array
+    {
+        $line = array_find($cues, fn (array $cue): bool => $cue['start'] < $cut - 0.001 && $cut + 0.001 < $cue['end'] && $this->terms($cue['text']) !== []);
+
+        if ($line === null || $this->isLyric($this->terms($line['text']), $this->terms($lyrics))) {
+            return null;
+        }
+
+        $first = $this->terms($line['text'])[0];
+        $heard = [];
+        foreach ($windows as $name => $window) {
+            foreach ($words[$name] ?? [] as $word) {
+                if (($this->terms($word['word'])[0] ?? null) === $first && $word['start'] >= $line['start'] - self::LINE_DRIFT && $word['start'] < $cut
+                    && $word['end'] - $word['start'] <= self::WORD_SECONDS
+                    && $word['start'] > $window['start'] + self::WIDE_EDGE && $word['start'] < $window['end'] - self::WIDE_EDGE) {
+                    $heard[] = ['window' => $name, 'start' => $word['start']];
+                }
+            }
+        }
+
+        $agreed = array_filter($heard, static fn (array $one): bool => array_any($heard,
+            static fn (array $other): bool => $other['window'] !== $one['window'] && abs($other['start'] - $one['start']) <= self::AGREE));
+
+        if ($agreed === []) {
+            return null;
+        }
+
+        $opening = min(array_column($agreed, 'start'));
+        $time = $opening - SongEndSpeechOnset::LEAD;
+
+        return $time > $start ? ['time' => round($time, 3), 'line' => $line['text'], 'first_word' => $opening, 'from' => $cut] : null;
+    }
+
+    /**
+     * A line the song sings: one of its three-word phrases is the lyrics', or, shorter, all its words are.
+     *
+     * @param  list<string>  $line
+     * @param  list<string>  $lyrics
+     */
+    private function isLyric(array $line, array $lyrics): bool
+    {
+        if (count($line) < 3) {
+            return array_diff($line, $lyrics) === [];
+        }
+
+        $phrases = [];
+        for ($index = 2; $index < count($lyrics); $index++) {
+            $phrases[$lyrics[$index - 2].' '.$lyrics[$index - 1].' '.$lyrics[$index]] = true;
+        }
+
+        for ($index = 2; $index < count($line); $index++) {
+            if (isset($phrases[$line[$index - 2].' '.$line[$index - 1].' '.$line[$index]])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** @return list<string> */
+    private function terms(string $text): array
+    {
+        preg_match_all("/[a-z]+(?:'[a-z]+)?/", mb_strtolower($text), $matches);
+
+        return array_values(array_filter(array_map(static fn (string $term): string => (string) preg_replace('/[^a-z]/', '', $term), $matches[0]),
+            static fn (string $term): bool => $term !== ''));
     }
 
     /**

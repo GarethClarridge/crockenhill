@@ -368,6 +368,47 @@ class SermonSongIntroductionCheckTest extends TestCase
         ];
     }
 
+    /**
+     * 979 (sermon, chosen 2142.78 on 11-13): the closing prayer "…we pray in Christ's name." is
+     * followed by a lone "Amen." that two of the three banked answers left outside the video vote.
+     * The preacher's Amen closes his prayer and is never split from it (K16), whatever the vote.
+     */
+    #[Test]
+    public function an_untied_answer_keeps_the_lone_amen_after_its_prayer_beyond_the_video_vote(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3024.83]], timeline: [[2950, 3080, 0.01, 0.8]]);
+        $check = app(SermonSongIntroductionCheck::class);
+        $identity = $check->question($log, $this->spans())['identity'];
+        $kind = 'sermon-song-introduction-'.hash('sha256', json_encode($identity, JSON_THROW_ON_ERROR | JSON_PRESERVE_ZERO_FRACTION));
+        $calls = array_map(static fn (int $n): array => ['sermon_last_line' => $n, 'ties_to_sermon' => false, 'video_last_line' => $n, 'reason' => 'banked'], [15, 14, 14]);
+        app(ServiceArtifactStorage::class)->putJson($log->processing_id, $kind, ['identity' => $identity, 'calls_completed' => true,
+            'end' => 2141.7, 'ties_to_sermon' => false, 'line' => "Lord, help us, we pray in Christ's name.", 'calls' => $calls, 'lines' => [
+                ['n' => 13, 'start' => 2134.72, 'end' => 2138.06, 'text' => 'And we pray that they would hear this message and respond.', 'music' => 'no'],
+                ['n' => 14, 'start' => 2139.66, 'end' => 2141.7, 'text' => "Lord, help us, we pray in Christ's name.", 'music' => 'no'],
+                ['n' => 15, 'start' => 2142.32, 'end' => 2142.64, 'text' => 'Amen.', 'music' => 'no'],
+                ['n' => 16, 'start' => 2145.02, 'end' => 2145.46, 'text' => 'All right.', 'music' => 'no'],
+                ['n' => 17, 'start' => 2145.46, 'end' => 2145.48, 'text' => 'All right.', 'music' => 'no'],
+            ]]);
+        OpenAI::fake([]);
+
+        $this->assertSame(['end' => 2142.64, 'ties_to_sermon' => false, 'line' => 'Amen.'], $check->read($log->fresh(), $this->spans()));
+        OpenAI::assertNothingSent();
+    }
+
+    /** A lone Amen after a line already ending on one answers it, and stays out beyond the video vote too. */
+    #[Test]
+    public function a_lone_amen_answering_the_kept_lines_amen_stays_out_beyond_the_video_vote(): void
+    {
+        $log = $this->service(sections: [['sermon', 0.0, 3024.83]], timeline: [[2950, 3080, 0.01, 0.8]]);
+        $cues = $this->cues();
+        $cues[1]['text'] = 'In Jesus’ name. Amen.';
+        $cues[2]['text'] = 'Amen.';
+        Storage::disk('local')->put('temp/introduction.json', json_encode(ChurchServiceTranscript::fromCues($cues, 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
+        $this->answers([2, false, 2], [2, false, 2]);
+
+        $this->assertSame(3019.1, app(SermonSongIntroductionCheck::class)->prepare($log, $this->spans())['end']);
+    }
+
     #[Test]
     public function a_congregational_amen_straight_after_the_sermons_amen_is_not_recovered(): void
     {
