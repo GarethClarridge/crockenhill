@@ -244,8 +244,20 @@ and specific operator rulings.
    answers only; 979 → 2142.64, the only sermon end moved) and the line-split rule (needs bound
    lyrics; runs after the speech-crossing check and before the lyric guard; six ends move, none
    away from a ruling: 1040/1507, 1200/2509 → 458.137, 1210/2577, 1288/3611, 1302/166251 by
-   −6.37 s, 1381/167073; unheard). Still unbuilt: spoken-from-sung and E29 for tail ends. The
-   replay owed must follow the last of these. 1019/1335 stays the named K16 content hold and is to be listed as held in
+   −6.37 s, 1381/167073; unheard). **Operator answers 11-13 (register E32):** Amens stay with their
+   prayers, unrepeated (the built lone-Amen rule); no speech under a song's end, else a whole
+   sentence (the built line-split rule); a song ends before the next speaker's breath (new);
+   fractions of a second earlier than an accepted time are acceptable, confirmed by ear on a page.
+   **Built on that:** spoken-from-sung (`SongEndSpokenWords`; bound lyrics, two-window agreement,
+   speech above singing and choir; it corrects a selected ending and never revives an outro E30
+   rejected). Re-measured on the built code over 413 stem reads: 10 ends move, as predicted; away
+   from a ruling 1267/3353 (0.14 s) and 1304/3875 (0.30 s); fades of 4.6 s (997/1199) and 4.8 s
+   (1267/3342); all four to be heard (`storage/scratch/end-fixes-20261113-wp21/`). **Breath rule
+   studied, not built:** no banked evidence labels a breath; the best screen (a voice rise before
+   the next utterance with no agreed word on it) moves 64 ends, 7 away from rulings, 62 with the
+   final chord unprotected; the narrow variant moves 2, one away. To be re-measured once tail ends
+   have separated stems. Still unbuilt: E29 for tail ends; the operator authorised its stem
+   separation at the 284 tail cuts on 11-13. The replay owed must follow it. 1019/1335 stays the named K16 content hold and is to be listed as held in
    the freeze record.
 3. **Record the required routes.** 942/974/1363 retain X7's hand-edited structures (`reExtract`, no
    recompose). 1295 remains held under S10. Split-song fixes need recompose; 1120's lyric extension
