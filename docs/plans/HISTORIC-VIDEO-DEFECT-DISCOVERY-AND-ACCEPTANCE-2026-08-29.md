@@ -201,6 +201,19 @@ and specific operator rulings.
    time; later hearings settle nine, leaving **50 needing a Q13 disposition** (listed with both
    times and the ruling wording in WP14 §5), and 1019's held disposition must be carried into the
    freeze record or answered. Harness note: `run-shards.sh` needs `rg` on the path.
+   **Triage of the 50, 11-13** (`storage/scratch/ruling-reconcile-20261113/WP15-report.md`,
+   `triage.json`; words, levels and register, no listening): **28 settled** (the interval between
+   the banked and replayed end holds only decay, room floor or next-item speech; E21/E24/E28–E30
+   cited per row), **17 need the operator's ear** (page "Ending Reconciliation",
+   `https://claude.ai/artifact/67P3QTk4KTZWfY9EMq2bLK`, `rulings` collection, A/B map in
+   `versions.json`; unanswered), **5 defects**. A scan of the same classes over all 452 runs /
+   1,294 song outputs adds four more defective ends, so nine ends in four mechanisms, none fixed:
+   tail onset placed after the next item's utterance has begun (1007/1261, 1314/3989); onset
+   agreement starting on a later part of the next item (1138/2124); spoken voice labelled as the
+   last sung phrase, kept without removal (1245/3050, 964/94692, 1069/1696, 1174/2336); cut and
+   fade truncating a final sung word (1268/4731, 1180/2371). The scan's 129 broad-screen
+   candidates are a screen, not defects. Row 1 stays open on the 17 answers and these four
+   mechanisms; a fix changes planning code, so it owes another replay.
 3. **Record the required routes.** 942/974/1363 retain X7's hand-edited structures (`reExtract`, no
    recompose). 1295 remains held under S10. Split-song fixes need recompose; 1120's lyric extension
    cannot be reached by extraction alone. K18's extraction-plan fix reaches 942 without structural
