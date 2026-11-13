@@ -36,7 +36,7 @@ Work through the diff systematically. Check for:
   rewrite), that is an automatic **decline** regardless of code quality. Say which backlog item
   covers the code.
 - **Worth-it gate (autonomous PRs only):** every unattended autonomous PR — including Jules,
-  Codex, and Gemini — must state **Who benefits** and **What observably improves**
+  Codex, and Claude Code — must state **Who benefits** and **What observably improves**
   in the description. Missing or vacuous answers ("developers benefit from cleaner code") are a
   Must fix; the author agent should close the PR rather than argue for it.
 - A correct, well-tested change to code nobody should be investing in is still a decline — the

@@ -1,5 +1,33 @@
 {
-  "enabledPlugins": {
-    "laravel-simplifier@laravel": true
+  "permissions": {
+    "allow": [
+      "Bash(vendor/bin/sail artisan test:*)",
+      "Bash(vendor/bin/sail bin pint:*)",
+      "Bash(vendor/bin/sail composer phpstan:*)",
+      "Bash(vendor/bin/sail artisan route:list:*)",
+      "Bash(vendor/bin/sail artisan migrate:status:*)",
+      "mcp__laravel-boost__application-info",
+      "mcp__laravel-boost__browser-logs",
+      "mcp__laravel-boost__database-connections",
+      "mcp__laravel-boost__database-query",
+      "mcp__laravel-boost__database-schema",
+      "mcp__laravel-boost__get-absolute-url",
+      "mcp__laravel-boost__last-error",
+      "mcp__laravel-boost__read-log-entries",
+      "mcp__laravel-boost__search-docs"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-test-runs.sh"
+          }
+        ]
+      }
+    ]
   }
 }
