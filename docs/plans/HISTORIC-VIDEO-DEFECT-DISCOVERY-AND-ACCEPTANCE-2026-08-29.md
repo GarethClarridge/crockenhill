@@ -214,6 +214,24 @@ and specific operator rulings.
    fade truncating a final sung word (1268/4731, 1180/2371). The scan's 129 broad-screen
    candidates are a screen, not defects. Row 1 stays open on the 17 answers and these four
    mechanisms; a fix changes planning code, so it owes another replay.
+   **Answers and first fixes, 11-13.** The operator answered 16 of the 17 (1294/166088 unanswered);
+   banked through `scripts/rulings/gather.py` (17 records, 17 earlier ones superseded; no fixture
+   is captured after them, so no regression assertion changes). Replayed end stands in 8 (1023,
+   1073/1712, 1119, 1148, 1222, 1250, 1256, 1272); returns to the banked end in 5 (979 sermon
+   2142.78, 1196, 1208, 1267, 1304); needs a new end in 3 (1073/267202 before the breath at
+   3774.41; 1200 before "Please" at 458.44; 1307 between 333.8 and 336.115). Remarks not banked
+   as rules, awaiting the operator: "if speech must be included, whole sentences are preferred"
+   (1200) and three mentions of a breath at the cut. Design study of the four mechanisms in
+   `storage/scratch/end-defects-20261113/WP16-report.md`. **Built:** the late-agreement fix (with
+   stems banked and no outro ending found, the earlier cut stands; moves 1138, 1232, 1235) and
+   the final-sung-word fix (`SongTailLastLyric`: the bound song's lyrics protect a last word two
+   decodes agree on, fade starts after it; tolerance half the word's letters; 5 moves, 2
+   fade-only; 1268's fade becomes 0.27 s, unheard). **Not built:** the tail-speech change (keep
+   the earlier end when the extension crosses a speech-only window; 51 moves, agrees with every
+   answered case it touches, 41 without a banked time) and the spoken-as-sung mechanism (no valid
+   design; the rollback variant was measured and rejected). 979, 1267 and 1304 are not covered by
+   either built fix. 1019/1335 stays the named K16 content hold and is to be listed as held in
+   the freeze record.
 3. **Record the required routes.** 942/974/1363 retain X7's hand-edited structures (`reExtract`, no
    recompose). 1295 remains held under S10. Split-song fixes need recompose; 1120's lyric extension
    cannot be reached by extraction alone. K18's extraction-plan fix reaches 942 without structural

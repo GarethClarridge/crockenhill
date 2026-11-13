@@ -985,6 +985,44 @@ for ruling in answers:
         edge='end', heard=heard, expect='keep' if choice in versions else 'at' if choice == 'neither' else None,
         heard_range=[v['end'] for v in versions.values()] if choice == 'either' else None)
 
+# 11-13, the final replay's moved ends against the ends banked before it (WP15). Each pair is the replayed end and
+# the banked one in a neutral A/B order (versions.json). A chosen version is kept; "Either is fine" makes each of the
+# two ends right and only those (E21), whatever the note leans towards. "Neither" is edge truth only where the note
+# says which way both ends are wrong; the times it names are the ends heard, never a new end.
+source = 'ruling-reconcile-20261113'
+pairs = load(f'{source}/versions.json')
+answers = saved(f'{source}/answers/rulings')
+if not set(answers) <= set(pairs):
+    sys.exit(f'{source}: answers do not match the listening page')
+RECONCILE_NEITHER = {
+    # "Both are basically the same. They include a loud intake of breath at the end."
+    '1073-s267202': [('banked', 'inward')],
+    # "A has "please remain", B has "please remain standing"." Both keep the next item's speech.
+    '1200-s2509': [('replayed', 'inward')],
+    # "A is better than B, which cuts the outro."
+    '1222-s2733': [('banked', 'outward')],
+    # "B is too early, A includes speech."
+    '1307-s4653': [('replayed', 'outward'), ('banked', 'inward')],
+}
+for question_id, ruling in answers.items():
+    pair = pairs[question_id]
+    ends = {pair[letter]['version']: pair[letter]['end'] for letter in ('A', 'B')}
+    run, which = question_id.split('-', 1)
+    sermon = which == 'sermon-end'
+    target = {'run': int(run), 'edge': 'end', 'output': 'sermon' if sermon else 'section',
+              'section_id': None if sermon else int(which.removeprefix('s')), 'section_type': 'sermon' if sermon else 'song'}
+    choice = ruling['choice']
+    if choice in ('A', 'B'):
+        add(source, {**ruling, 'choice': 'right', 'question_id': f"{question_id}-{pair[choice]['version']}"},
+            heard=pair[choice]['end'], **target)
+    elif choice == 'either':
+        add(source, ruling, heard=ends['replayed'], heard_range=list(ends.values()), **target)
+    elif choice == 'neither' and question_id in RECONCILE_NEITHER:
+        for version, expect in RECONCILE_NEITHER[question_id]:
+            add(source, {**ruling, 'question_id': f'{question_id}-{version}'}, heard=ends[version], expect=expect, **target)
+    else:
+        skipped[f'{source}:{choice}'] += 1
+
 # A section ruling the page recorded without a section id is on the run's section of its type whose edge is nearest
 # the cut heard, as RuledEndingsTestCase::latestRulings() and the round's analyze.py read it. Without that binding the
 # newest id-less ruling on a run replaced every other on the same edge, whatever its section (1304's §3879 start by a
