@@ -240,7 +240,12 @@ and specific operator rulings.
    moves, fixes 1245/964/1069/1174, two away: 1267/3353 by 0.14 s, 1304/3875 by 0.30 s); let
    tail ends take the E29 outro treatment (1304/3870, 1307) — unmeasured, because `songEnd()`
    returns before E29 and no tail cut has separated stems (0 of 284). Seven operator questions
-   are put in that report and are unanswered. 1019/1335 stays the named K16 content hold and is to be listed as held in
+   are put in that report and are unanswered. **Built after that:** the lone-Amen rule (untied
+   answers only; 979 → 2142.64, the only sermon end moved) and the line-split rule (needs bound
+   lyrics; runs after the speech-crossing check and before the lyric guard; six ends move, none
+   away from a ruling: 1040/1507, 1200/2509 → 458.137, 1210/2577, 1288/3611, 1302/166251 by
+   −6.37 s, 1381/167073; unheard). Still unbuilt: spoken-from-sung and E29 for tail ends. The
+   replay owed must follow the last of these. 1019/1335 stays the named K16 content hold and is to be listed as held in
    the freeze record.
 3. **Record the required routes.** 942/974/1363 retain X7's hand-edited structures (`reExtract`, no
    recompose). 1295 remains held under S10. Split-song fixes need recompose; 1120's lyric extension
