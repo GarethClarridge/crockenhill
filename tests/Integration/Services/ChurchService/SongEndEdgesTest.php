@@ -255,9 +255,9 @@ class SongEndEdgesTest extends TestCase
         return $section;
     }
 
-    /** WP19 R2: banked stems, lexical decodes, bound lyrics and classifier windows, 13 November. */
+    /** WP19 R2 evidence; 1245 now ends before the spoken run, heard at 490.370 on 14 November (WP32 V). */
     #[Test]
-    #[TestWith(['1245/3050', 491.05, 491.41])]
+    #[TestWith(['1245/3050', 490.37, 490.37])]
     #[TestWith(['1174/2336', 1496.0, 1496.96])]
     #[TestWith(['964/94692', 3936.0, 3936.39])]
     public function spoken_words_in_the_last_voiced_run_are_not_last_sung(string $key, float $minimum, float $maximum): void

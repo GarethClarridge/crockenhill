@@ -1077,6 +1077,35 @@ for question_id, ruling in answers.items():
     else:
         raise ValueError((question_id, choice))
 
+
+# 11-14: C1 fade comparisons and the single voice-run ending, heard on "Speech inside a fade".
+# These section identities also post-date rebinding; an either answer keeps both heard ends even when its note leans.
+source = 'fade-speech-listen-20261114'
+pairs = load(f'{source}/versions.json')
+answers = saved(f'{source}/answers/rulings')
+questions = {q['id']: q for q in load(f'{source}/questions.json')}
+if not set(answers) == set(pairs) == set(questions):
+    sys.exit(f'{source}: answers do not match the listening page')
+for question_id, ruling in answers.items():
+    pair = pairs[question_id]
+    run, which = question_id.split('-', 1)
+    target = dict(run=int(run), edge='end', output='section', section_id=int(which[1:]), section_type='song')
+    choice = ruling['choice']
+    if 'single' in pair:
+        if choice != 'yes':
+            raise ValueError((question_id, choice))
+        add(source, ruling, heard=pair['single']['end'], expect='keep', **target)
+    elif choice == 'either':
+        add(source, ruling, heard=pair['B']['end'], heard_range=[pair[letter]['end'] for letter in ('A', 'B')], **target)
+    elif choice in ('A', 'B'):
+        other = 'B' if choice == 'A' else 'A'
+        for letter, expect in ((choice, 'keep'), (other, 'inward' if pair[other]['end'] > pair[choice]['end'] else 'outward')):
+            add(source, {**ruling, 'choice': 'right' if letter == choice else choice,
+                         'question_id': f"{question_id}-{pair[letter]['version']}"},
+                heard=pair[letter]['end'], expect=expect, **target)
+    else:
+        raise ValueError((question_id, choice))
+
 for record in records:
     if record['output'] == 'section' and record['section_id'] is None:
         column = 'start' if record['edge'] == 'start' else 'end'

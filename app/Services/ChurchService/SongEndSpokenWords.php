@@ -107,6 +107,39 @@ class SongEndSpokenWords
     }
 
     /**
+     * C1's word check: two independent windows hear a short, unstacked non-lyric word near
+     * the voice return. The decoder's neighbouring lyric bigrams protect sung words.
+     *
+     * @param  list<array{start: float, end: float, words: list<array{start: float, end: float, word: string}>}>  $decodes
+     */
+    public function nearTalking(array $decodes, float $talking, ?string $lyrics): bool
+    {
+        $term = static fn (string $word): string => preg_replace('/[^a-z]/', '', strtolower($word)) ?? '';
+        $lyricTerms = array_values(array_filter(array_map($term, preg_split('/\s+/', $lyrics ?? '') ?: [])));
+        $pairs = $this->pairs($lyricTerms);
+        $found = [];
+        foreach ($decodes as $decode) {
+            $words = $decode['words'];
+            foreach ($words as $index => $word) {
+                $text = $term($word['word']);
+                if ($text === '' || $word['end'] - $word['start'] < 0.03 || $word['end'] - $word['start'] > AgreedEdgeWords::WORD_SECONDS
+                    || $word['start'] <= $decode['start'] + 1.0 || $word['end'] >= $decode['end'] - 1.0
+                    || $word['start'] < $talking - 0.5 - 1e-6 || $word['start'] >= $talking + 1.0 - 0.05
+                    || count(array_filter($words, static fn (array $other): bool => abs($other['start'] - $word['start']) < 0.011)) >= 3) {
+                    continue;
+                }
+                $found[] = ['window' => $decode['start'], 'text' => $text, 'start' => round($word['start'], 2),
+                    'lyric' => in_array(($index > 0 ? $term($words[$index - 1]['word']) : '').' '.$text, $pairs, true)
+                        || in_array($text.' '.(isset($words[$index + 1]) ? $term($words[$index + 1]['word']) : ''), $pairs, true)];
+            }
+        }
+
+        return array_any($found, static fn (array $word): bool => ! $word['lyric'] && array_any($found,
+            static fn (array $other): bool => $other['window'] !== $word['window'] && $other['text'] === $word['text']
+                && abs($other['start'] - $word['start']) <= AgreedEdgeWords::TOLERANCE));
+    }
+
+    /**
      * @param  list<string>  $terms
      * @return list<string>
      */

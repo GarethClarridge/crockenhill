@@ -2568,12 +2568,33 @@ class CueSafeExtractionPlan
      */
     private function songEnd(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline, bool $requireSustainedReturn = true, float $start = 0.0, ?string $lyrics = null): ?array
     {
+        $stems = null;
+        $decision = $this->songEndBeforeFadeSpeech($log, $cues, $window, $end, $levels, $timeline, $requireSustainedReturn, $start, $lyrics, $stems);
+        if ($decision === null || $stems === null || ($decision['fade_out'] ?? 0.0) <= 0.1 + 1e-6 || isset($decision['voice_removal'])
+            || ! in_array($decision['reason'], [self::SONG_END_FADE, 'song_end_speech', self::SONG_END_SPEECH_OVER_MUSIC,
+                SongEndSpeechOnset::REASON, self::SONG_END_VOICE_TRACK_TALKING, SongTailSpeechOnset::REASON], true)) {
+            return $decision;
+        }
+
+        return app(SongEndOutro::class)->beforeFadeSpeech($stems, $decision,
+            app(OutputEdgeWordTimings::class)->bankedWindows($log, includeWide: true), $lyrics) ?? $decision;
+    }
+
+    /**
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{start: float, end: float, cues: list<array{start: float, end: float, text: string}>}|null  $window
+     * @param  array{samples: list<array{time: float, rms: float}>, threshold: float}|null  $levels
+     * @param  array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>, instruments: array{disk: string, path: string}}|null  $stems  Only the stems the existing evidence path selects
+     * @return array<string, mixed>|null
+     */
+    private function songEndBeforeFadeSpeech(MediaProcessingLog $log, array $cues, ?array $window, float $end, ?array $levels, ?AudioTimeline $timeline, bool $requireSustainedReturn, float $start, ?string $lyrics, ?array &$stems = null): ?array
+    {
         $decision = $this->songEndByCues($log, $cues, $window, $end, $levels, $timeline, $requireSustainedReturn);
         $onset = app(SongTailSpeechOnset::class);
         $located = $onset->locate($log, $end, $decision['time'] ?? $end, $timeline, $start);
 
         if ($located === null) {
-            return $this->beforeAgreedSpeech($log, $decision, $timeline, $lyrics, $cues);
+            return $this->beforeAgreedSpeech($log, $decision, $timeline, $lyrics, $cues, $stems);
         }
         $tail = $located['time'];
         // Speech alone before the agreed words: the next item has begun, so the end before it stands
@@ -2634,6 +2655,10 @@ class CueSafeExtractionPlan
      */
     public static function cutBeforeTheMove(array $entry): array
     {
+        if (isset($entry['fade_speech'])) {
+            $entry['time'] = $entry['fade_speech']['time'];
+        }
+
         return in_array($entry['reason'] ?? null, self::SONG_END_PAST_THE_CUT, true) ? [...$entry, ...$entry['replaced']] : $entry;
     }
 
@@ -2656,9 +2681,10 @@ class CueSafeExtractionPlan
      *
      * @param  array<string, mixed>|null  $decision
      * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>, instruments: array{disk: string, path: string}}|null  $stems
      * @return array<string, mixed>|null
      */
-    private function beforeAgreedSpeech(MediaProcessingLog $log, ?array $decision, ?AudioTimeline $timeline, ?string $lyrics, array $cues): ?array
+    private function beforeAgreedSpeech(MediaProcessingLog $log, ?array $decision, ?AudioTimeline $timeline, ?string $lyrics, array $cues, ?array &$stems = null): ?array
     {
         if (! in_array($decision['reason'] ?? null, ['song_end_speech', self::SONG_END_FADE], true) || ! isset($decision['last_sound'])) {
             return $decision;
@@ -2667,7 +2693,7 @@ class CueSafeExtractionPlan
         $onset = app(SongEndSpeechOnset::class)->onset($log, $decision['time'], $timeline);
 
         if ($onset === null) {
-            return $this->beforeVoiceTrackTalking($log, $decision, $timeline, $lyrics, $cues);
+            return $this->beforeVoiceTrackTalking($log, $decision, $timeline, $lyrics, $cues, $stems);
         }
         $replaced = ['reason' => SongEndSpeechOnset::REASON, 'replaced' => ['time' => $decision['time'], 'reason' => $decision['reason']], 'speech_onset' => $onset];
         $stems = app(SongEndStems::class)->read($log, $decision['time']);
@@ -2687,9 +2713,10 @@ class CueSafeExtractionPlan
     /**
      * @param  array<string, mixed>  $decision
      * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>, instruments: array{disk: string, path: string}}|null  $stems
      * @return array<string, mixed>
      */
-    private function beforeVoiceTrackTalking(MediaProcessingLog $log, array $decision, ?AudioTimeline $timeline, ?string $lyrics, array $cues): array
+    private function beforeVoiceTrackTalking(MediaProcessingLog $log, array $decision, ?AudioTimeline $timeline, ?string $lyrics, array $cues, ?array &$stems = null): array
     {
         if ($timeline === null || ! app(SongEndSpeechOnset::class)->musicPlaysAfter($decision['time'], $timeline)) {
             return $decision;

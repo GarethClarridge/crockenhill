@@ -14,6 +14,27 @@ use PHPUnit\Framework\TestCase;
 class SongEndOwnershipTest extends TestCase
 {
     #[Test]
+    public function word_ownership_never_revives_an_outro_rejected_under_e30(): void
+    {
+        $row = $this->fixture('1245/3050');
+        $row['stems']['instruments_db'] = array_fill(0, count($row['stems']['instruments_db']), -25.0);
+
+        $this->assertNull((new SongEndOutro)->endingFromTheVoiceTrack($row['stems'], $row['stems']['cut'], $row['ownership']));
+    }
+
+    #[Test]
+    public function a_spoken_run_after_the_last_sung_word_is_left_out_on_the_voice_track_path(): void
+    {
+        $row = $this->fixture('1245/3050');
+        $ending = (new SongEndOutro)->endingFromTheVoiceTrack($row['stems'], $row['stems']['cut'], $row['ownership']);
+
+        $this->assertNotNull($ending);
+        $this->assertSame(490.370, $ending['time']);
+        $this->assertSame(0.1, $ending['fade_out']);
+        $this->assertArrayNotHasKey('voice_removal', $ending);
+    }
+
+    #[Test]
     public function ownership_keeps_the_instrument_silence_when_neither_reading_removes_voice(): void
     {
         $row = $this->fixture('1304/3875');

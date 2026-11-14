@@ -214,6 +214,13 @@ class SongEndOutro
         if ($words === null) {
             return $selected;
         }
+        // No earlier kept sound: ownership placed this run after the singing, so leave out its opening too (E32).
+        if ($words['sounds'] === [] && $words['last_sung'] < $words['speech'] - 0.001) {
+            $time = round($words['last_sung'] - SongEndSpeechOnset::LEAD, 3);
+
+            return ['time' => $time, 'fade_out' => self::CLICK, 'song_end_outro' => self::UNDER_SPEECH,
+                'speech' => $words['last_sung'], 'last_sung' => $words['last_sung'], 'outro_end' => $selected['outro_end']];
+        }
         $speech = $words['speech'];
         $lastSung = $words['last_sung'];
         $ending = $this->endingWithVoice($stems, $speech, $lastSung, max($cut, $lastSung));
@@ -227,6 +234,33 @@ class SongEndOutro
 
         return ['time' => round($time, 3), 'fade_out' => round(max(self::CLICK, min(1.5, $time - $sound)), 3),
             'song_end_outro' => self::UNDER_SPEECH, 'speech' => $speech, 'last_sung' => $lastSung, 'outro_end' => $ending['outro_end'] ?? $time];
+    }
+
+    /**
+     * Speech inside a fade (C1, heard 14 November): the held voice return must also have a
+     * non-lyric word heard by independent decodes. Keep the last sung sound, then end before
+     * that return, fading only after the last sung sound. Without that evidence the existing cut stands.
+     *
+     * @param  array{start: float, frame_seconds: float, voice_db: list<float>}  $stems
+     * @param  array<string, mixed>  $decision
+     * @param  list<array{start: float, end: float, words: list<array{start: float, end: float, word: string}>}>  $decodes
+     * @return array<string, mixed>|null
+     */
+    public function beforeFadeSpeech(array $stems, array $decision, array $decodes, ?string $lyrics): ?array
+    {
+        $talking = $this->talkingAfter($stems, $decision['time'] - $decision['fade_out']);
+        if ($talking === null || $talking >= $decision['time'] - self::CLICK
+            || ! app(SongEndSpokenWords::class)->nearTalking($decodes, $talking, $lyrics)) {
+            return null;
+        }
+        $time = round(max($talking - SongEndSpeechOnset::LEAD, $decision['last_sound'] ?? 0.0), 3);
+        if ($time >= $decision['time'] - 1e-6) {
+            return null;
+        }
+
+        return [...$decision, 'time' => $time,
+            'fade_out' => round(max(self::CLICK, min(1.5, $time - ($decision['last_sound'] ?? $time))), 3),
+            'fade_speech' => ['time' => $decision['time'], 'talking' => $talking]];
     }
 
     /**
