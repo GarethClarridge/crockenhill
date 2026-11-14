@@ -276,7 +276,22 @@ and specific operator rulings.
    chord: breath is a watch list, not a rule. **Class B:** 964/94692 fixed by spoken-from-sung;
    1168/2303, 1293/3666, 1290/3628 not; the one candidate rule mends two and moves two ends heard
    right (1042/1521, 1146/2187), so the class is proposed as named residue with its hold kept
-   (operator to confirm). **No replay run:** it follows the page's answers. 1019/1335 stays the named K16 content hold and is to be listed as held in
+   (operator to confirm). **Answers 11-14 (all 45; banked as 59 records, 19 superseded; `gather.py`
+   now reads the page).** Tail outro, 35 ends: either 27, new better 5 (1200/2509, 1304/3870,
+   1230/2836, 1367/4574, 983/1107), old better 2 (18422/335851, 1218/2686), neither 1
+   (1247/3092). **The tail outro rule stands.** Spoken-from-sung, 8 ends: new better 4, old
+   better 2 (1304/3875, 1267/3342), either 1, neither 1 (1245/3050 "both include speech").
+   1307: speech starts straight after the chord, no sung Amen. 1294/166088: either. **Built on
+   the answers:** word ownership no longer re-anchors a natural silence where neither reading
+   removes voice (1304/3875 back to 1322.27), and a corroborated final lyric refutes an earlier
+   removal, with "for ever"/"forever" matched (1267/3342 back to 308.535, fade 1.7); the only two
+   ends that move in 1,294 plans; no regression in 2,064 records. **Left, named:** 18422/335851
+   and 1218/2686 (talking under the outro with no pause in the voice track; the only general
+   change reverts 21 ends including two the operator preferred new); 1245/3050 (candidate end
+   490.37 before the spoken run, unheard, owed one clip); 1247/3092 (a real carol whose section
+   end is about a minute late; already held as `structure_song_swallows_speech`; needs its
+   structure corrected, and held sections are to be left off future ending pages). Seven
+   numerical expectations fail on those four ends. **The replay is now owed on this code.** 1019/1335 stays the named K16 content hold and is to be listed as held in
    the freeze record.
 3. **Record the required routes.** 942/974/1363 retain X7's hand-edited structures (`reExtract`, no
    recompose). 1295 remains held under S10. Split-song fixes need recompose; 1120's lyric extension
