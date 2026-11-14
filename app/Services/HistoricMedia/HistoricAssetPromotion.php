@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\HistoricMedia;
 
+use App\Data\ServiceSectionMetadata;
 use App\Enums\SermonPublicationState;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
+use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
 use App\Services\Import\HistoricSermonPublicationService;
 use App\Services\Media\RecordedVideoOutput;
 use App\Services\Sermon\SermonPromotionAssets;
@@ -372,7 +374,12 @@ final class HistoricAssetPromotion
         $destinations = [$path => $path];
 
         if ($pending !== []) {
-            $this->transfer->copyPipelineAssetsToDestinations($pending, $destinations, $replacementAuthorised);
+            $this->transfer->copyPipelineAssetsToDestinations(
+                $pending,
+                $destinations,
+                $replacementAuthorised
+                    || ($quarantine->exists($path) && $this->republicationAuthorisesReplacement($songVideo, $staging, $path)),
+            );
         }
 
         $this->bindSongVideoToQuarantine($songVideo, $log, $quarantineName);
@@ -381,12 +388,88 @@ final class HistoricAssetPromotion
             $this->transfer->verifyPipelineDestinations($pending, $destinations);
         }
 
+        $reclaimed = $this->removeWorkingCopies($staging, $pending);
+        $this->spendRepublicationAuthority($songVideo);
+
         return [
             'assets_promoted' => count($pending),
             'assets_already_promoted' => $alreadyPromoted,
             'promoted_bytes' => array_sum(array_column($pending, 'size')),
-            'reclaimed_bytes' => $this->removeWorkingCopies($staging, $pending),
+            'reclaimed_bytes' => $reclaimed,
         ];
+    }
+
+    /**
+     * Whether the song's section authorises replacing its quarantine copy with exactly the bytes
+     * now on staging.
+     *
+     * {@see SongPublicationHandler::publish()} records this when it republishes a re-cut over the
+     * section's own song file, naming the bytes it published. It is the per-section counterpart
+     * of the run-wide sermon re-extraction authority, which a clips-only `sections:recut` never
+     * carries (run 1306). Any other bytes at the path stay the conflict this guard refuses.
+     */
+    private function republicationAuthorisesReplacement(
+        SongVideo $songVideo,
+        FilesystemAdapter $staging,
+        string $path,
+    ): bool {
+        $authority = $this->republicationAuthority($songVideo);
+
+        if (! is_array($authority)
+            || ($authority['path'] ?? null) !== $path
+            || ! is_int($authority['size'] ?? null)
+            || ! is_string($authority['sha256'] ?? null)
+            || $staging->size($path) !== $authority['size']) {
+            return false;
+        }
+
+        $stream = $staging->readStream($path);
+
+        if (! is_resource($stream)) {
+            return false;
+        }
+
+        try {
+            $context = hash_init('sha256');
+            hash_update_stream($context, $stream);
+
+            return hash_equals($authority['sha256'], hash_final($context));
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    /** @return array<string, mixed>|null */
+    private function republicationAuthority(SongVideo $songVideo): ?array
+    {
+        $section = ServiceSection::query()->find($songVideo->service_section_id);
+        $authority = $section?->metadata?->raw['song_video_extraction'][SongPublicationHandler::PROMOTION_REPLACEMENT] ?? null;
+
+        return is_array($authority) ? $authority : null;
+    }
+
+    /**
+     * One republication, one replacement: the authority goes once the song's bytes are verified
+     * in quarantine, so later bytes at the same path meet the create-only guard again.
+     */
+    private function spendRepublicationAuthority(SongVideo $songVideo): void
+    {
+        if ($this->republicationAuthority($songVideo) === null) {
+            return;
+        }
+
+        DB::transaction(function () use ($songVideo): void {
+            $section = ServiceSection::query()->whereKey($songVideo->service_section_id)->lockForUpdate()->first();
+            $metadata = $section?->metadata?->toArray() ?? [];
+
+            if (! $section instanceof ServiceSection || ! is_array($metadata['song_video_extraction'] ?? null)) {
+                return;
+            }
+
+            unset($metadata['song_video_extraction'][SongPublicationHandler::PROMOTION_REPLACEMENT]);
+            $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+            $section->save();
+        });
     }
 
     private function assertSongVideoCanBePromoted(

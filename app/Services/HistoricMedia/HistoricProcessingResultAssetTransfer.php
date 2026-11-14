@@ -280,8 +280,10 @@ class HistoricProcessingResultAssetTransfer
      * Replace an already-promoted asset with a deliberately re-cut one.
      *
      * Reached only when the run carries
-     * {@see MediaProcessingLog::permitsPromotionVideoReplacement()}; without it
-     * a differing destination stays a hard conflict for an operator to see.
+     * {@see MediaProcessingLog::permitsPromotionVideoReplacement()}, or for a
+     * republished song whose section names these exact bytes
+     * ({@see HistoricAssetPromotion}); without either a differing destination
+     * stays a hard conflict for an operator to see.
      *
      * The new bytes land beside the existing asset and are verified there before
      * anything is removed, so a failed replacement leaves the published video in

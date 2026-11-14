@@ -33,6 +33,9 @@ class SongPublicationHandler implements SectionPublicationHandler
 {
     use SanitizesLogData;
 
+    /** The key under `song_video_extraction` naming the bytes a republication may put in quarantine. */
+    public const string PROMOTION_REPLACEMENT = 'promotion_replacement';
+
     /**
      * @param  SongVideoService  $songVideoService  Service for managing song video records
      * @param  ServiceSectionPublicationTransitionService  $publicationTransitions  Service for managing section state transitions
@@ -213,6 +216,7 @@ class SongPublicationHandler implements SectionPublicationHandler
         }
 
         $localTempDownload = null;
+        $previousPath = SongVideo::query()->where('service_section_id', $section->id)->value('video_file_path');
 
         try {
             $sourceDiskName = $section->extractedAssetDisk();
@@ -229,6 +233,7 @@ class SongPublicationHandler implements SectionPublicationHandler
             }
 
             $clipSeconds = $this->measuredClipSeconds($localInputPath, $section);
+            $publishedBytes = $this->publishedBytes($localInputPath);
             $promotedPath = $this->promoteExtractedVideo($section, $videoPath);
         } finally {
             if ($localTempDownload !== null && file_exists($localTempDownload)) {
@@ -245,6 +250,21 @@ class SongPublicationHandler implements SectionPublicationHandler
             'media_processing' => MediaProcessingVersion::signature(),
             'generated_at' => now()->toIso8601String(),
         ];
+
+        /**
+         * Republishing over the section's own song file replaces a clip an earlier promotion may
+         * already hold in quarantine, and promotion refuses a differing destination unless told the
+         * replacement was meant. This tells it, for this cut's bytes only: run 1306's recut was
+         * refused for want of it, because the only other authority is the run-wide one a sermon
+         * re-extraction issues. Read by {@see \App\Services\HistoricMedia\HistoricAssetPromotion}, which spends it.
+         */
+        if ($previousPath === $promotedPath) {
+            $metadata['song_video_extraction'][self::PROMOTION_REPLACEMENT] = [
+                'path' => $promotedPath,
+                ...$publishedBytes,
+                'authorised_at' => now()->toIso8601String(),
+            ];
+        }
         $section->metadata = ServiceSectionMetadata::fromArray($metadata);
 
         $this->songVideoService->createFromExtraction($section, $promotedPath, $clipSeconds);
@@ -300,6 +320,23 @@ class SongPublicationHandler implements SectionPublicationHandler
         }
 
         $this->publish($section);
+    }
+
+    /**
+     * The exact bytes about to be published, read from the local copy already made for measuring.
+     *
+     * @return array{size: int, sha256: string}
+     */
+    private function publishedBytes(string $localClipPath): array
+    {
+        $size = filesize($localClipPath);
+        $sha256 = hash_file('sha256', $localClipPath);
+
+        if ($size === false || $sha256 === false) {
+            throw new \RuntimeException('Unable to read the song clip about to be published');
+        }
+
+        return ['size' => $size, 'sha256' => $sha256];
     }
 
     /**
