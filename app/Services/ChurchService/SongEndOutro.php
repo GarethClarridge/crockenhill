@@ -131,8 +131,23 @@ class SongEndOutro
             return $ending;
         }
         $words = app(SongEndSpokenWords::class)->inLastRun($ownership, $voice);
+        if ($words === null) {
+            return $ending;
+        }
+        $corrected = $this->endingWithVoice($stems, $voice['speech'], $words['last_sung'], $cut);
 
-        return $words === null ? $ending : $this->endingWithVoice($stems, $voice['speech'], $words['last_sung'], $cut);
+        // Ownership of voice cannot re-anchor an instrument-only natural silence (WP28 S).
+        if ($ending['song_end_outro'] === self::SILENCE && ($corrected['song_end_outro'] ?? null) === self::SILENCE
+            && ! isset($ending['voice_removal']) && ! isset($corrected['voice_removal'])) {
+            return $ending;
+        }
+        // A corroborated lyric across the earlier removal refutes that ownership reading (WP28 L).
+        if ($corrected !== null && isset($corrected['voice_removal']) && $words['last_sung'] < $voice['last_sung']
+            && app(SongTailLastLyric::class)->crossesOwnership($ownership, $words['last_sung'], $corrected['time'], $stems['start'])) {
+            return $ending;
+        }
+
+        return $corrected;
     }
 
     /**

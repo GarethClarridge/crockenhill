@@ -10,6 +10,8 @@ use App\Models\ServiceSection;
 use App\Services\Media\Audio\AudioTimeline;
 
 /**
+ * @phpstan-import-type Ownership from SongEndSpokenWords
+ *
  * The last sung word a song's tail cut or its fade would take (WP16 P4, 11-13; E28).
  *
  * {@see SongTailSpeechOnset} cuts a fixed margin before the speech its decodes agree on and fades
@@ -72,13 +74,41 @@ class SongTailLastLyric
      */
     public function protectFrom(array $words, array $windows, float $cut, float $fadeOut, string $lyrics, ?string $nextLine, AudioTimeline $timeline, float $start): ?array
     {
+        return $this->protectWords($words, $windows, $cut, $fadeOut, $lyrics, $nextLine, $timeline->windows, $start);
+    }
+
+    /** A final lyric corroborated by the existing two-window/music checks refutes earlier voice removal.
+     *
+     * @param  Ownership  $ownership
+     */
+    public function crossesOwnership(array $ownership, float $lastSung, float $end, float $start): bool
+    {
+        $words = $windows = [];
+        foreach ($ownership['decodes'] as $decode) {
+            $key = $decode['start'].':'.$decode['end'];
+            $words[$key] = $decode['words'];
+            $windows[$key] = ['start' => $decode['start'], 'end' => $decode['end']];
+        }
+
+        return $this->protectWords($words, $windows, $end, $end - $lastSung, $ownership['lyrics'],
+            $ownership['next_line'], $ownership['timeline'], $start) !== null;
+    }
+
+    /**
+     * @param  array<string, list<array{start: float, end: float, word: string}>>  $words
+     * @param  array<string, array{start: float, end: float}>  $windows
+     * @param  list<array{start: float, end: float, music: float, speech: float, singing: float, choir?: float}>  $timeline
+     * @return array{time: float, fade_out: float, last_lyric: array{word: string, end: float, next_start: float}}|null
+     */
+    private function protectWords(array $words, array $windows, float $cut, float $fadeOut, string $lyrics, ?string $nextLine, array $timeline, float $start): ?array
+    {
         $fadeFrom = $cut - $fadeOut;
         $phrases = $this->phrases($this->terms($lyrics));
         $spoken = array_flip($this->terms($nextLine ?? ''));
         $heard = [];
 
         foreach ($windows as $name => $window) {
-            $lexical = $words[$name] ?? [];
+            $lexical = $this->normaliseWords($words[$name] ?? []);
             foreach ($lexical as $index => $word) {
                 $text = $this->term($word['word']);
                 if ($index < 2 || $text === '' || $text === 'music' || isset($spoken[$text])
@@ -142,19 +172,43 @@ class SongTailLastLyric
         return array_any($phrases[$first.' '.$second] ?? [], static fn (string $lyric): bool => levenshtein($lyric, $word) <= max(strlen($lyric), strlen($word)) / 2);
     }
 
-    private function inMusic(AudioTimeline $timeline, float $time): bool
+    /** @param  list<array{start: float, end: float, music: float}>  $timeline */
+    private function inMusic(array $timeline, float $time): bool
     {
-        $window = $timeline->windowAt($time);
+        $window = array_find($timeline, static fn (array $window): bool => $window['start'] <= $time && $time < $window['end']);
 
-        return $window !== null && $timeline->windows[$window]['music'] >= self::MUSIC;
+        return $window !== null && $window['music'] >= self::MUSIC;
     }
 
     /** @return list<string> */
     public function terms(string $text): array
     {
+        $text = (string) preg_replace('/\bfor\s+ever\b/i', 'forever', $text);
         preg_match_all("/[a-z]+(?:'[a-z]+)?/i", $text, $matches);
 
         return array_values(array_filter(array_map($this->term(...), $matches[0]), static fn (string $term): bool => $term !== ''));
+    }
+
+    /**
+     * Only the spelling pair "for ever"/"forever" is joined, retaining the full timed span.
+     * General compounding would invent lyric matches; no other split has been established here.
+     *
+     * @param  list<array{start: float, end: float, word: string}>  $words
+     * @return list<array{start: float, end: float, word: string}>
+     */
+    public function normaliseWords(array $words): array
+    {
+        $normalised = [];
+        foreach ($words as $word) {
+            $last = array_key_last($normalised);
+            if ($last !== null && $this->term($normalised[$last]['word']) === 'for' && $this->term($word['word']) === 'ever') {
+                $normalised[$last] = ['start' => $normalised[$last]['start'], 'end' => $word['end'], 'word' => 'forever'];
+            } else {
+                $normalised[] = $word;
+            }
+        }
+
+        return $normalised;
     }
 
     public function term(string $word): string

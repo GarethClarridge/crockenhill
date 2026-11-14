@@ -1036,6 +1036,47 @@ unbound = rebind_drifted_sections(records, ruling_sections)
 if unbound:
     sys.exit(f"no section of the ruled type near the cut heard for {unbound}; check them or re-run export-sections.php")
 
+# 11-14: saved tail and spoken-from-sung comparisons (WP27). These explicit section ids post-date
+# the November-5 rebinding snapshot; preferences also reject the other heard end in its stated direction.
+source = 'end-listen-20261114'
+pairs = load(f'{source}/versions.json')
+answers = saved(f'{source}/answers/rulings')
+questions = {q['id']: q for q in load(f'{source}/questions.json')}
+if not set(answers) == set(pairs) == set(questions):
+    sys.exit(f'{source}: answers do not match the listening page')
+for question_id, ruling in answers.items():
+    pair = pairs[question_id]
+    if 'single' in pair:
+        skipped[f'{source}:sound identification, no cut ruling'] += 1
+        continue
+    run, which = question_id.split('-', 1)
+    target = dict(run=int(run), edge='end', output='section', section_id=int(which[1:]), section_type='song')
+    choice = ruling['choice']
+    def bank(letter, expect, answer=None):
+        version = pair[letter]['version']
+        add(source, {**ruling, 'choice': answer or choice, 'question_id': f'{question_id}-{version}'},
+            heard=pair[letter]['end'], expect=expect, **target)
+    if choice == 'either':
+        note = ruling.get('note', '')
+        if question_id == '1307-s4653':
+            sound = answers['1307-s4653-sound']
+            note += ('; ' if note else '') + sound['question_id'] + ': ' + sound['note']
+        add(source, {**ruling, 'note': note}, heard=pair['B']['end'],
+            heard_range=[pair[letter]['end'] for letter in ('A', 'B')], **target)
+    elif choice in ('A', 'B'):
+        bank(choice, 'keep', 'right')
+        other = 'B' if choice == 'A' else 'A'
+        # Existing directional rejection shape: move from the worse end towards the chosen end.
+        bank(other, 'inward' if pair[other]['end'] > pair[choice]['end'] else 'outward')
+    elif choice == 'neither':
+        # Both notes explicitly reject included speech; the all-speech section must not make a clip.
+        if question_id not in ('1245-s3050', '1247-s3092'):
+            raise ValueError((question_id, choice))
+        for letter in ('A', 'B'):
+            bank(letter, 'inward')
+    else:
+        raise ValueError((question_id, choice))
+
 for record in records:
     if record['output'] == 'section' and record['section_id'] is None:
         column = 'start' if record['edge'] == 'start' else 'end'

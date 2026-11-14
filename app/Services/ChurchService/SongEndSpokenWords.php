@@ -13,7 +13,7 @@ use App\Services\Media\Audio\AudioTimeline;
  * the bound song's lyrics, with speech stronger than both singing and choir. Earlier agreed
  * words are kept even when the lyric match misses them. No distance limit is added.
  *
- * @phpstan-type Ownership array{decodes: list<array{start: float, end: float, words: list<array{start: float, end: float, word: string}>}>, lyrics: string, cues: list<array{start: float, end: float, text: string}>, next_line: string, timeline: list<array{start: float, end: float, speech: float, singing: float, choir?: float}>}
+ * @phpstan-type Ownership array{decodes: list<array{start: float, end: float, words: list<array{start: float, end: float, word: string}>}>, lyrics: string, cues: list<array{start: float, end: float, text: string}>, next_line: string, timeline: list<array{start: float, end: float, music: float, speech: float, singing: float, choir?: float}>}
  */
 class SongEndSpokenWords
 {
@@ -69,6 +69,7 @@ class SongEndSpokenWords
             if ($decode['end'] < $run['start'] - 1.0 || $decode['start'] > $run['end'] + 1.0) {
                 continue;
             }
+            $decode['words'] = $lyric->normaliseWords($decode['words']);
             foreach ($decode['words'] as $index => $word) {
                 $text = $lyric->term($word['word']);
                 $previous = $index > 0 ? $lyric->term($decode['words'][$index - 1]['word']) : '';
