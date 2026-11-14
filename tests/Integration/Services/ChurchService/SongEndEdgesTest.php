@@ -55,6 +55,206 @@ class SongEndEdgesTest extends TestCase
         Config::set('media-processing.segmentation.rms_threshold', -45.0);
     }
 
+    /** WP19 R3, 1073/267202 shape: decay to zero precedes the 3774.13 breath. */
+    #[Test]
+    public function a_tail_end_takes_the_separated_outro_ending(): void
+    {
+        $section = $this->tailBeforeBreath();
+        $before = app(CueSafeExtractionPlan::class)->forSection($section);
+        $edge = $this->endEdge($before);
+        $this->assertSame(SongTailSpeechOnset::REASON, $edge['reason']);
+        $cut = $edge['replaced']['time'];
+        $this->bankStems($section, $cut,
+            voice: [[-100, 3772.51 - $cut, -24.0], [3772.51 - $cut, 3774.13 - $cut, -98.0], [3774.13 - $cut, 3774.7 - $cut, -48.0],
+                [3774.7 - $cut, 3776.32 - $cut, -98.0], [3776.32 - $cut, 100, -25.0]],
+            instruments: [[-100, 3773.8 - $cut, -30.0], [3773.8 - $cut, 100, -98.0]], tailEnd: 3779.0);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertGreaterThanOrEqual(3773.6, $plan['segments'][0]['end_time']);
+        $this->assertLessThan(3774.13, $plan['segments'][0]['end_time'], json_encode($this->endEdge($plan), JSON_THROW_ON_ERROR));
+        $this->assertSame(SongEndOutro::RECORDING_CUT, $this->endEdge($plan)['song_end_outro']);
+    }
+
+    #[Test]
+    public function a_tail_end_without_banked_stems_is_unchanged(): void
+    {
+        $plan = app(CueSafeExtractionPlan::class)->forSection($this->tailBeforeBreath());
+
+        $this->assertEqualsWithDelta(3775.26, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame(1.5, $plan['audio_fade_out']);
+        $this->assertNull($plan['audio_voice_removal']);
+    }
+
+    #[Test]
+    public function a_tail_with_stems_but_no_outro_ending_keeps_its_margin_and_fade(): void
+    {
+        $section = $this->tailBeforeBreath();
+        $before = app(CueSafeExtractionPlan::class)->forSection($section);
+        $this->bankStems($section, $this->endEdge($before)['replaced']['time'],
+            voice: [[-100, 100, -24.0]], instruments: [[-100, 100, -30.0]], tailEnd: 3779.0);
+
+        $after = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertSame($before['segments'], $after['segments']);
+        $this->assertSame($before['audio_fade_out'], $after['audio_fade_out']);
+        $this->assertNull($after['audio_voice_removal']);
+    }
+
+    #[Test]
+    public function a_tail_outro_can_end_at_natural_silence_with_a_click_fade(): void
+    {
+        $section = $this->tailBeforeBreath();
+        $cut = $this->endEdge(app(CueSafeExtractionPlan::class)->forSection($section))['replaced']['time'];
+        $this->bankStems($section, $cut,
+            voice: [[-100, 3772.51 - $cut, -24.0], [3772.51 - $cut, 3776.32 - $cut, -98.0], [3776.32 - $cut, 100, -25.0]],
+            instruments: [[-100, 3773.0 - $cut, -30.0], [3773.0 - $cut, 3773.4 - $cut, -40.0],
+                [3773.4 - $cut, 3773.8 - $cut, -45.0], [3773.8 - $cut, 100, -55.0]], tailEnd: 3779.0);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertEqualsWithDelta(3773.8, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertSame(SongEndOutro::SILENCE, $this->endEdge($plan)['song_end_outro']);
+        $this->assertSame(0.1, $plan['audio_fade_out']);
+    }
+
+    #[Test]
+    public function a_tail_outro_dies_under_talking_with_the_voice_removed(): void
+    {
+        $section = $this->tailBeforeBreath();
+        $cut = $this->endEdge(app(CueSafeExtractionPlan::class)->forSection($section))['replaced']['time'];
+        $this->bankStems($section, $cut,
+            voice: [[-100, 3772.51 - $cut, -24.0], [3772.51 - $cut, 3776.32 - $cut, -98.0], [3776.32 - $cut, 100, -35.0]],
+            instruments: [[-100, 3778.0 - $cut, -30.0], [3778.0 - $cut, 100, -65.0]], tailEnd: 3779.0);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertSame(SongEndOutro::UNDER_SPEECH, $this->endEdge($plan)['song_end_outro']);
+        $this->assertNotNull($plan['audio_voice_removal']);
+        $this->assertGreaterThan(3776.32, $plan['segments'][0]['end_time']);
+        $this->assertEqualsWithDelta(3772.51, $plan['audio_voice_removal']['from'], 0.11);
+        $this->assertEqualsWithDelta(3776.76, $this->endEdge($plan)['speech_onset'], 0.001);
+    }
+
+    #[Test]
+    public function a_separated_tail_ending_still_cannot_split_the_next_line(): void
+    {
+        $section = $this->pleaseRemainStanding();
+        $before = app(CueSafeExtractionPlan::class)->forSection($section);
+        $cut = $this->endEdge($before)['replaced']['time'];
+        $this->bankStems($section, $cut,
+            voice: [[-100, 450.0 - $cut, -24.0], [450.0 - $cut, 461.42 - $cut, -98.0], [461.42 - $cut, 100, -35.0]],
+            instruments: [[-100, 460.0 - $cut, -30.0], [460.0 - $cut, 100, -65.0]], tailEnd: (float) $section->end_time);
+
+        $after = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertSame($before['segments'], $after['segments']);
+        $this->assertArrayHasKey('split_line', $this->endEdge($after));
+        $this->assertArrayNotHasKey('song_end_outro', $this->endEdge($after));
+    }
+
+    #[Test]
+    public function the_last_sung_word_guard_runs_after_a_separated_tail_ending(): void
+    {
+        $section = $this->sacrificeOfPraise();
+        $cut = $this->endEdge(app(CueSafeExtractionPlan::class)->forSection($section))['replaced']['time'];
+        $this->bankStems($section, $cut,
+            voice: [[-100, 496.0 - $cut, -24.0], [496.0 - $cut, 499.16 - $cut, -98.0], [499.16 - $cut, 100, -35.0]],
+            instruments: [[-100, 497.0 - $cut, -30.0], [497.0 - $cut, 100, -65.0]], tailEnd: (float) $section->end_time);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertGreaterThanOrEqual(498.27, $plan['segments'][0]['end_time'] - $plan['audio_fade_out']);
+        $this->assertArrayHasKey('last_lyric', $this->endEdge($plan));
+    }
+
+    #[Test]
+    public function tail_voice_removal_keeps_a_last_sung_word_even_before_the_fade(): void
+    {
+        $section = $this->tailBeforeBreath(nextText: 'Do please sit down and we praise him');
+        $this->bindSong($section, Song::factory()->create(['lyrics_plain' => 'Glory to the highest']));
+        $this->bankTail($section, 3779.0, [
+            ['start' => 3769.1, 'end' => 3769.4, 'word' => ' to'], ['start' => 3769.5, 'end' => 3769.9, 'word' => ' the'],
+            ['start' => 3770.0, 'end' => 3771.6, 'word' => ' highest'],
+            ...$this->spokenWords(3776.76, ['Jesus', 'saves', 'and', 'we', 'praise', 'him']),
+        ]);
+        $cut = $this->endEdge(app(CueSafeExtractionPlan::class)->forSection($section))['replaced']['time'];
+        $this->bankStems($section, $cut,
+            voice: [[-100, 3769.8 - $cut, -24.0], [3769.8 - $cut, 3776.32 - $cut, -98.0], [3776.32 - $cut, 100, -35.0]],
+            instruments: [[-100, 3778.0 - $cut, -30.0], [3778.0 - $cut, 100, -65.0]], tailEnd: 3779.0);
+
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertNotNull($plan['audio_voice_removal']);
+        $this->assertGreaterThanOrEqual(3771.6, $plan['audio_voice_removal']['from']);
+        $this->assertGreaterThanOrEqual(3772.3, $plan['segments'][0]['end_time'] - $plan['audio_fade_out']);
+    }
+
+    #[Test]
+    public function speech_already_begun_keeps_the_earlier_end_even_with_tail_stems(): void
+    {
+        $section = $this->tailBeforeBreath(speechBeforeCut: true);
+        $before = app(CueSafeExtractionPlan::class)->forSection($section);
+        $this->assertNotSame(SongTailSpeechOnset::REASON, $this->endEdge($before)['reason']);
+        $this->bankStems($section, $before['segments'][0]['end_time'],
+            voice: [[-100, 3772.51 - $before['segments'][0]['end_time'], -24.0],
+                [3772.51 - $before['segments'][0]['end_time'], 100, -98.0]],
+            instruments: [[-100, 100, -30.0]], tailEnd: 3779.0);
+
+        $after = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertSame($before['segments'], $after['segments']);
+        $this->assertSame($this->endEdge($before), $this->endEdge($after));
+    }
+
+    #[Test]
+    public function a_tail_outro_uses_spoken_from_sung_ownership_before_its_final_lyric_guard(): void
+    {
+        $section = $this->tailBeforeBreath(nextText: 'Do please sit down and we praise him');
+        $this->bindSong($section, Song::factory()->create(['lyrics_plain' => 'Glory to God in the highest']));
+        $cut = $this->endEdge(app(CueSafeExtractionPlan::class)->forSection($section))['replaced']['time'];
+        $this->bankStems($section, $cut,
+            voice: [[-100, 3772.51 - $cut, -24.0], [3772.51 - $cut, 3773.6 - $cut, -98.0],
+                [3773.6 - $cut, 3775.4 - $cut, -24.0], [3775.4 - $cut, 3776.32 - $cut, -98.0], [3776.32 - $cut, 100, -25.0]],
+            instruments: [[-100, 3773.8 - $cut, -30.0], [3773.8 - $cut, 100, -98.0]], tailEnd: 3779.0);
+        $words = $this->spokenWords(3773.6, ['Do', 'please']);
+        $log = $section->processingLog->fresh();
+        $evidence = app(OutputEdgeWordTimings::class);
+        foreach ([['start' => 3769.0, 'end' => 3777.0], ['start' => 3770.0, 'end' => 3778.0]] as $window) {
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($evidence->identity($log, $window)), [
+                'identity' => $evidence->identity($log, $window), 'words' => $words, 'compute_seconds' => 1.0,
+            ]);
+        }
+        $section->unsetRelation('processingLog');
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section->fresh());
+
+        $this->assertEqualsWithDelta(3773.8, $plan['segments'][0]['end_time'], 0.001);
+        $this->assertEqualsWithDelta(3773.6, $this->endEdge($plan)['last_sung'], 0.001);
+    }
+
+    /** The mixed window allows R3 to be tested; the separate P1 tests retain speech-alone priority. */
+    private function tailBeforeBreath(bool $speechBeforeCut = false, string $nextText = 'Hallelujah Jesus saves and we praise him'): ServiceSection
+    {
+        $section = $this->song(3600.0, 3779.0, [
+            ['start' => 3760.0, 'end' => 3772.0, 'text' => 'Hallelujah Jesus saves'],
+            ['start' => 3772.0, 'end' => 3784.0, 'text' => $nextText],
+        ], [[3600.0, 3772.11, -20.0], [3772.11, 3776.32, -90.0], [3776.32, 3800, -25.0]],
+            timeline: [[3600, 3776, 0.7, 0.6], [3776, 3800, 0.01, 0.8]]);
+        $payload = AudioTimelineFixture::payload([[3600, 3800, 0.7, 0.6]], 5000.0);
+        $payload['windows'] = array_merge(array_slice($payload['windows'], 0, 755), [
+            ['start' => 3775.0, 'end' => 3776.0, 'music' => 0.7, 'speech' => 0.6],
+            ['start' => 3776.0, 'end' => 3780.0, 'music' => 0.01, 'speech' => 0.8],
+        ], array_slice($payload['windows'], 756));
+        if (! $speechBeforeCut) {
+            Storage::disk('local')->put('service-transcripts/song-end.classes.json', json_encode($payload, JSON_THROW_ON_ERROR));
+        }
+        $this->bank($section, 3779.0, $this->spokenWords(3776.76, ['Jesus', 'saves', 'and', 'we', 'praise', 'him']));
+        $this->bank($section, 3772.0, $this->spokenWords(3776.76, ['Jesus', 'saves', 'and', 'we', 'praise', 'him']));
+        $this->bankTail($section, 3779.0, $this->spokenWords(3776.76, ['Jesus', 'saves', 'and', 'we', 'praise', 'him']));
+
+        return $section;
+    }
+
     /** WP19 R2: banked stems, lexical decodes, bound lyrics and classifier windows, 13 November. */
     #[Test]
     #[TestWith(['1245/3050', 491.05, 491.41])]
@@ -1783,15 +1983,15 @@ class SongEndEdgesTest extends TestCase
      * @param  list<array{0: float|int, 1: float|int, 2: float}>  $voice
      * @param  list<array{0: float|int, 1: float|int, 2: float}>  $instruments
      */
-    private function bankStems(ServiceSection $section, float $cut, array $voice, array $instruments): void
+    private function bankStems(ServiceSection $section, float $cut, array $voice, array $instruments, ?float $tailEnd = null): void
     {
         $log = $section->processingLog->fresh();
         $stems = app(SongEndStems::class);
-        $identity = $stems->identity($log, $cut);
-        $frames = static function (array $spans): array {
+        $identity = $stems->identity($log, $cut, $tailEnd);
+        $frames = static function (array $spans) use ($identity, $cut): array {
             $levels = [];
-            for ($index = 0; $index < 240; $index++) {
-                $time = -8.0 + $index * 0.1 + 0.0001;
+            for ($index = 0; $index < (int) round(($identity['end'] - $identity['start']) * 10); $index++) {
+                $time = $identity['start'] - $cut + $index * 0.1 + 0.0001;
                 $levels[] = array_values(array_filter($spans, static fn (array $span): bool => $time >= $span[0] && $time < $span[1]))[0][2];
             }
 

@@ -8,6 +8,7 @@ use App\Enums\ServiceSectionType;
 use App\Jobs\TranscribeOutputEdges;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 
@@ -98,7 +99,9 @@ class PrepareOutputEdgeEvidence
         $fadeCutWindows = [];
         $fadeCuts = [];
         foreach ($run->serviceSections()->where('section_type', ServiceSectionType::Song)->orderBy('start_time')->get() as $section) {
-            $plan = $this->cutPlans->forSpans($run, [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]], songEnds: true);
+            $songId = $section->resolvedSongId();
+            $plan = $this->cutPlans->forSpans($run, [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]], songEnds: true,
+                songLyrics: $songId === null ? null : Song::query()->whereKey($songId)->value('lyrics_plain'));
             foreach ($plan['segments'] as $span) {
                 $window = $dependent->window($run, $cues, (float) $span['start_time']);
                 if ($window !== null) {
@@ -107,8 +110,9 @@ class PrepareOutputEdgeEvidence
             }
             // A song faded into speech is decoded again on its cut (RA3, heard 11-07), so the speech's
             // agreed first words can move the cut past the outro's last note.
-            foreach ($this->fadeCuts($plan['cue_edge_widening']) as $cut) {
-                $fadeCuts[] = $cut;
+            foreach ($this->fadeCuts($plan['cue_edge_widening']) as $entry) {
+                $fadeCuts[] = $entry;
+                $cut = $entry['cut'];
                 foreach (app(SongEndSpeechOnset::class)->windows($cut, $run->duration) as $window) {
                     $fadeCutWindows[$evidence->kind($evidence->identity($run, $window))] = $window;
                 }
@@ -124,8 +128,14 @@ class PrepareOutputEdgeEvidence
         }
         // Each such cut's voice and instruments, separated: how the song's outro ends (E29).
         if ($fadeCuts !== []) {
-            $summary['song_end_stems'] = app(SongEndStems::class)->prepare($run, $fadeCuts);
-            $run->refresh();
+            $summary['song_end_stems'] = ['cuts' => 0, 'separated' => 0, 'compute_seconds' => 0.0];
+            foreach (array_unique($fadeCuts, SORT_REGULAR) as $entry) {
+                $prepared = app(SongEndStems::class)->prepare($run, [$entry['cut']], $entry['tail_end'] ?? null);
+                foreach ($prepared as $key => $value) {
+                    $summary['song_end_stems'][$key] += $value;
+                }
+                $run->refresh();
+            }
         }
         // Asked of the cuts the decoded words place, so only once they are decoded.
         $summary['sentence_check'] = $this->sentenceCheck->prepare($run, $composition['selected_section_ids']);
@@ -138,9 +148,10 @@ class PrepareOutputEdgeEvidence
     /**
      * Where each song end fades into speech, as the rules before {@see SongEndSpeechOnset} place it:
      * a cut it or the voice track already moved is decoded at the cut it replaced, so its windows stay the same.
+     * T also uses its replaced cut, including a silence, with a stem window covering the whole tail search.
      *
      * @param  list<array<string, mixed>>  $audit
-     * @return list<float>
+     * @return list<array{cut: float, tail_end?: float}>
      */
     private function fadeCuts(array $audit): array
     {
@@ -150,9 +161,15 @@ class PrepareOutputEdgeEvidence
             if ($entry['edge'] !== 'end') {
                 continue;
             }
+            if (($entry['reason'] ?? null) === SongTailSpeechOnset::REASON) {
+                $cuts[] = ['cut' => (float) ($entry['replaced']['time'] ?? $entry['original_time']),
+                    'tail_end' => (float) $entry['original_time']];
+
+                continue;
+            }
             $decision = CueSafeExtractionPlan::cutBeforeTheMove($entry);
             if (in_array($decision['reason'] ?? null, ['song_end_speech', CueSafeExtractionPlan::SONG_END_FADE], true)) {
-                $cuts[] = (float) $decision['time'];
+                $cuts[] = ['cut' => (float) $decision['time']];
             }
         }
 

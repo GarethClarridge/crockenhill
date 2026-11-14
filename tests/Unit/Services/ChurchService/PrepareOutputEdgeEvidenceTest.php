@@ -19,6 +19,7 @@ use App\Services\ChurchService\PrepareOutputEdgeEvidence;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
 use App\Services\ChurchService\PublicationPlanValidator;
 use App\Services\ChurchService\SermonSongIntroductionCheck;
+use App\Services\ChurchService\SongTailSpeechOnset;
 use App\Services\ChurchService\SpokenEdgeSentenceCheck;
 use App\Services\ChurchService\Structure\SermonContinuationScreen;
 use App\Services\Media\Audio\ServiceArtifactStorage;
@@ -61,6 +62,26 @@ class PrepareOutputEdgeEvidenceTest extends TestCase
         Application::setInstance(null);
 
         parent::tearDown();
+    }
+
+    /** WP19 R3: T stems use the replaced cut even when it was silence, and survive an outro move. */
+    #[Test]
+    public function fade_cuts_include_a_tail_ends_replaced_cut(): void
+    {
+        $reader = (new \ReflectionClass(PrepareOutputEdgeEvidence::class))->newInstanceWithoutConstructor();
+        $method = new \ReflectionMethod($reader, 'fadeCuts');
+        $entry = ['edge' => 'end', 'reason' => SongTailSpeechOnset::REASON,
+            'time' => 3775.26, 'original_time' => 3779.0,
+            'replaced' => ['time' => 3772.51, 'reason' => 'song_end_silence']];
+
+        self::assertSame([['cut' => 3772.51, 'tail_end' => 3779.0]], $method->invoke($reader, [$entry]));
+        $entry['time'] = 3773.8;
+        $entry['song_end_outro'] = 'silence';
+        self::assertSame([['cut' => 3772.51, 'tail_end' => 3779.0]], $method->invoke($reader, [$entry]));
+        $entry['replaced'] = null;
+        self::assertSame([['cut' => 3779.0, 'tail_end' => 3779.0]], $method->invoke($reader, [$entry]));
+        $entry['edge'] = 'start';
+        self::assertSame([], $method->invoke($reader, [$entry]));
     }
 
     #[Test]

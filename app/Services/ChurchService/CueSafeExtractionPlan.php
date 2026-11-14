@@ -2570,11 +2570,12 @@ class CueSafeExtractionPlan
     {
         $decision = $this->songEndByCues($log, $cues, $window, $end, $levels, $timeline, $requireSustainedReturn);
         $onset = app(SongTailSpeechOnset::class);
-        $tail = $onset->cut($log, $end, $decision['time'] ?? $end, $timeline, $start);
+        $located = $onset->locate($log, $end, $decision['time'] ?? $end, $timeline, $start);
 
-        if ($tail === null) {
+        if ($located === null) {
             return $this->beforeAgreedSpeech($log, $decision, $timeline, $lyrics, $cues);
         }
+        $tail = $located['time'];
         // Speech alone before the agreed words: the next item has begun, so the end before it stands
         // (WP16 P1) — unless that end would cut a held last sung word its lyrics place (E28).
         if ($decision !== null && $timeline !== null && $onset->crossesSpeech($timeline, (float) $decision['time'], $tail)
@@ -2582,17 +2583,35 @@ class CueSafeExtractionPlan
                 $decision['speech_cue']['text'] ?? null, $timeline, $start) === null) {
             return $decision;
         }
-        // The fixed margin can land inside the next spoken line: the cut goes before its first word (WP19 R4).
-        $split = $onset->beforeSplitLine($log, $end, $tail, $cues, $lyrics, $start);
-        $cut = $split['time'] ?? $tail;
-        // The fixed margin and fade can cross a held last sung word (E28): its lyric keeps it, after the line rule.
-        $lyric = app(SongTailLastLyric::class)->protect($log, $end, $cut, self::SONG_END_FADE_MIN, $lyrics,
+        // E29 also reads a tail's outro, at the stable cut that evidence preparation uses (WP19 R3).
+        $stemsCut = (float) ($decision['time'] ?? $end);
+        $stems = app(SongEndStems::class)->read($log, $stemsCut, $end);
+        $ending = $stems === null ? null : app(SongEndOutro::class)->ending($stems, $located['speech_onset'], $stemsCut,
+            app(SongEndSpokenWords::class)->evidence($log, $lyrics, $cues, $decision['speech_cue']['text'] ?? null, $timeline));
+        $proposed = $ending['time'] ?? $tail;
+        // No ending, including an E29 ending, may split the next spoken line (WP19 R4).
+        $split = $onset->beforeSplitLine($log, $end, $proposed, $cues, $lyrics, $start);
+        if ($split !== null) {
+            $ending = null;
+        }
+        $cut = $split['time'] ?? $proposed;
+        $fade = $ending['fade_out'] ?? self::SONG_END_FADE_MIN;
+        // E28 protects the word from both the fade and removal of the voice, after the line rule.
+        $protectedFade = max($fade, $cut - ($ending['voice_removal']['from'] ?? $cut));
+        $lyric = app(SongTailLastLyric::class)->protect($log, $end, $cut, $protectedFade, $lyrics,
             $decision['speech_cue']['text'] ?? null, $timeline, $start);
 
-        return ['time' => $lyric['time'] ?? $cut, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
+        if ($lyric !== null) {
+            $lyric['fade_out'] = min($lyric['fade_out'], $lyric['time'] - ($cut - $fade));
+            if (isset($ending['voice_removal'])) {
+                $ending['voice_removal']['from'] = max($ending['voice_removal']['from'], $lyric['last_lyric']['end']);
+            }
+        }
+
+        return [...($ending ?? []), 'time' => $lyric['time'] ?? $cut, 'chosen_pause' => null, 'word_before' => null, 'word_after' => null,
             'reason' => SongTailSpeechOnset::REASON, 'speech_cue' => $decision['speech_cue'] ?? null,
             'replaced' => $decision === null ? null : ['time' => $decision['time'], 'reason' => $decision['reason']],
-            'fade_out' => $lyric['fade_out'] ?? self::SONG_END_FADE_MIN,
+            'fade_out' => $lyric['fade_out'] ?? $fade, 'speech_onset' => $located['speech_onset'],
             ...($split === null ? [] : ['split_line' => $split]),
             ...($lyric === null ? [] : ['last_lyric' => $lyric['last_lyric'], 'tail_cut' => $cut])];
     }

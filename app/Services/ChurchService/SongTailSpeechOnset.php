@@ -101,6 +101,12 @@ class SongTailSpeechOnset
      */
     public function cut(MediaProcessingLog $log, float $end, float $planned, ?AudioTimeline $timeline, float $start = 0.0): ?float
     {
+        return $this->locate($log, $end, $planned, $timeline, $start)['time'] ?? null;
+    }
+
+    /** @return array{time: float, speech_onset: float}|null */
+    public function locate(MediaProcessingLog $log, float $end, float $planned, ?AudioTimeline $timeline, float $start = 0.0): ?array
+    {
         if ($timeline === null) {
             return null;
         }
@@ -116,7 +122,7 @@ class SongTailSpeechOnset
             return null;
         }
 
-        return $this->cutFrom($words, $end, $planned, $timeline, $log->duration, $start);
+        return $this->locateFrom($words, $end, $planned, $timeline, $log->duration, $start);
     }
 
     /**
@@ -124,20 +130,28 @@ class SongTailSpeechOnset
      */
     public function cutFrom(array $words, float $end, float $planned, AudioTimeline $timeline, ?float $duration = 5000.0, float $start = 0.0): ?float
     {
+        return $this->locateFrom($words, $end, $planned, $timeline, $duration, $start)['time'] ?? null;
+    }
+
+    /**
+     * @param  array<string, list<array{start: float, end: float, word: string}>>  $words
+     * @return array{time: float, speech_onset: float}|null
+     */
+    public function locateFrom(array $words, float $end, float $planned, AudioTimeline $timeline, ?float $duration = 5000.0, float $start = 0.0): ?array
+    {
         $windows = $this->windows($end, $duration);
         $words = array_map(static fn (array $tokens): array => array_values(array_filter($tokens,
             static fn (array $word): bool => $word['start'] >= $start)), $words);
-        $agreed = $this->agreedOnset($words, $windows, $end, $timeline);
-        $cut = $agreed !== null ? $agreed - self::AGREED_MARGIN : null;
-
-        if ($cut === null && isset($windows['before'])) {
-            $wide = $this->wideOnset($words['before'] ?? [], $windows['before'], $end, $timeline);
-            $cut = $wide !== null ? $wide - self::WIDE_MARGIN : null;
+        $speech = $this->agreedOnset($words, $windows, $end, $timeline);
+        $margin = self::AGREED_MARGIN;
+        if ($speech === null && isset($windows['before'])) {
+            $speech = $this->wideOnset($words['before'] ?? [], $windows['before'], $end, $timeline);
+            $margin = self::WIDE_MARGIN;
         }
-
-        if ($cut === null || $cut <= $start) {
+        if ($speech === null || $speech - $margin <= $start) {
             return null;
         }
+        $cut = $speech - $margin;
 
         // Moved later only to keep singing: through speech alone the earlier cut is as right.
         $between = $this->between($timeline, $planned, $cut);
@@ -145,7 +159,7 @@ class SongTailSpeechOnset
             return null;
         }
 
-        return $cut;
+        return ['time' => $cut, 'speech_onset' => $speech];
     }
 
     /**

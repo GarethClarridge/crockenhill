@@ -26,6 +26,18 @@ class SongEndStemsTest extends TestCase
     use DatabaseTransactions;
 
     #[Test]
+    public function a_tail_window_covers_the_replaced_cut_and_the_whole_tail_search_in_both_directions(): void
+    {
+        $stems = new SongEndStems(app(ServiceArtifactStorage::class), $this->storage());
+
+        $this->assertSame(['start' => 67.0, 'end' => 124.0], $stems->window(95.0, 5000.0, 100.0));
+        $this->assertSame(['start' => 67.0, 'end' => 146.0], $stems->window(130.0, 5000.0, 100.0));
+        $this->assertSame(['start' => 42.0, 'end' => 124.0], $stems->window(50.0, 5000.0, 100.0));
+        $this->assertSame(['start' => 0.0, 'end' => 28.0], $stems->window(4.0, 5000.0, 4.0));
+        $this->assertSame(['start' => 4957.0, 'end' => 5000.0], $stems->window(4990.0, 5000.0, 4990.0));
+    }
+
+    #[Test]
     public function a_cut_is_separated_once_and_its_levels_and_instruments_banked(): void
     {
         $log = $this->log();

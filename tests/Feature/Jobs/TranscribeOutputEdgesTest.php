@@ -9,6 +9,7 @@ use App\Enums\ServiceSectionType;
 use App\Jobs\TranscribeOutputEdges;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
+use App\Models\Song;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\DeadFeedExcision;
 use App\Services\ChurchService\PrepareOutputEdgeWordTimings;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class TranscribeOutputEdgesTest extends TestCase
@@ -111,7 +113,9 @@ class TranscribeOutputEdgesTest extends TestCase
      * ({@see SongEndSpeechOnset}), banked after the plan places the cut and before the sentence check.
      */
     #[Test]
-    public function it_decodes_a_song_faded_into_speech_on_its_cut(): void
+    #[TestWith([false])]
+    #[TestWith([true])]
+    public function it_decodes_a_song_faded_into_speech_on_its_cut(bool $tail): void
     {
         Storage::fake('local');
         config(['media-processing.storage.service_artifact_disk' => 'local']);
@@ -120,11 +124,15 @@ class TranscribeOutputEdgesTest extends TestCase
         Storage::disk('local')->put('temp/edges.json', json_encode(ChurchServiceTranscript::fromCues([
             ['start' => 100.0, 'end' => 110.0, 'text' => 'Words.'],
         ], 5000, ChurchServiceTranscript::SOURCE_MOCK)->toArray(), JSON_THROW_ON_ERROR));
-        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Song, 'start_time' => 90.0, 'end_time' => 200.0]);
-        $this->partialMock(CueSafeExtractionPlan::class, function (MockInterface $mock): void {
+        $lyrics = 'Glory to God in the highest';
+        $song = Song::factory()->create(['lyrics_plain' => $lyrics]);
+        ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Song, 'start_time' => 90.0, 'end_time' => 200.0,
+            'metadata' => ['transcript_song_match' => ['song_id' => $song->id]]]);
+        $this->partialMock(CueSafeExtractionPlan::class, function (MockInterface $mock) use ($tail, $lyrics): void {
             $mock->shouldReceive('songEndSpeechEdges')->andReturn([]);
-            $mock->shouldReceive('forSpans')->once()->andReturn(['segments' => [['start_time' => 90.0, 'end_time' => 203.4]],
-                'cue_edge_widening' => [['span_index' => 0, 'edge' => 'end', 'time' => 203.4, 'reason' => 'song_end_speech']]]);
+            $mock->shouldReceive('forSpans')->once()->withArgs(static fn (...$arguments): bool => in_array($lyrics, $arguments, true))->andReturn(['segments' => [['start_time' => 90.0, 'end_time' => 203.4]],
+                'cue_edge_widening' => [['span_index' => 0, 'edge' => 'end', 'time' => 203.4, 'reason' => $tail ? SongTailSpeechOnset::REASON : 'song_end_speech',
+                    'original_time' => 200.0, 'replaced' => ['time' => 203.4, 'reason' => 'song_end_silence']]]]);
         });
         $banked = [];
         $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock) use (&$banked): void {
@@ -136,8 +144,8 @@ class TranscribeOutputEdgesTest extends TestCase
             });
         });
 
-        $this->mock(SongEndStems::class, function (MockInterface $mock) use ($log): void {
-            $mock->shouldReceive('prepare')->once()->withArgs(static fn (MediaProcessingLog $run, array $cuts): bool => $run->is($log) && $cuts === [203.4])
+        $this->mock(SongEndStems::class, function (MockInterface $mock) use ($log, $tail): void {
+            $mock->shouldReceive('prepare')->once()->withArgs(static fn (MediaProcessingLog $run, array $cuts, ?float $tailEnd): bool => $run->is($log) && $cuts === [203.4] && $tailEnd === ($tail ? 200.0 : null))
                 ->andReturn(['cuts' => 1, 'separated' => 1, 'compute_seconds' => 0.0]);
         });
 

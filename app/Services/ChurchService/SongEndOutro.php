@@ -67,7 +67,7 @@ class SongEndOutro
     private const SUNG_PHRASE_BELOW = 10.0;
 
     /** The outro's level is read over this long before the singing stops. */
-    private const OUTRO_REFERENCE = 3.0;
+    public const OUTRO_REFERENCE = 3.0;
 
     /** The outro has died away this far below its level (828's fell 20 dB in the 2 s before the talking)... */
     private const OUTRO_GONE_BELOW = 20.0;

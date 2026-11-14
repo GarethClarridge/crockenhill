@@ -44,16 +44,31 @@ class SongEndStems
         private StorageAdapterHelper $storage,
     ) {}
 
-    /** @return array{start: float, end: float} */
-    public function window(float $cut, ?float $duration): array
+    /**
+     * T ends cover the whole tail decode search, with the usual 8 s before and 16 s after it,
+     * plus the outro's 3 s reference before the voice search. The replaced cut is covered too.
+     * Movement never changes this identity; an outro still playing at the window's end has no ending.
+     *
+     * @return array{start: float, end: float}
+     */
+    public function window(float $cut, ?float $duration, ?float $tailEnd = null): array
     {
-        return ['start' => max(0.0, $cut - self::BEFORE), 'end' => min($duration ?? INF, $cut + self::AFTER)];
+        $first = $last = $cut;
+        if ($tailEnd !== null) {
+            $windows = app(SongTailSpeechOnset::class)->windows($tailEnd, $duration);
+            foreach ($windows as $window) {
+                $first = min($first, $window['start'] - SongEndOutro::OUTRO_REFERENCE);
+                $last = max($last, $window['end']);
+            }
+        }
+
+        return ['start' => max(0.0, $first - self::BEFORE), 'end' => min($duration ?? INF, $last + self::AFTER)];
     }
 
     /** @return array<string, mixed> */
-    public function identity(MediaProcessingLog $log, float $cut): array
+    public function identity(MediaProcessingLog $log, float $cut, ?float $tailEnd = null): array
     {
-        return ['processing_id' => $log->processing_id, ...$this->window($cut, $log->duration), 'rule' => self::RULE,
+        return ['processing_id' => $log->processing_id, ...$this->window($cut, $log->duration, $tailEnd), 'rule' => self::RULE,
             'model' => self::MODEL, 'media_processing' => MediaProcessingVersion::signature()];
     }
 
@@ -68,9 +83,9 @@ class SongEndStems
      *
      * @return array{start: float, frame_seconds: float, voice_db: list<float>, instruments_db: list<float>, instruments: array{disk: string, path: string}}|null
      */
-    public function read(MediaProcessingLog $log, float $cut): ?array
+    public function read(MediaProcessingLog $log, float $cut, ?float $tailEnd = null): ?array
     {
-        $kind = $this->kind($this->identity($log, $cut));
+        $kind = $this->kind($this->identity($log, $cut, $tailEnd));
         $entries = ServiceArtifactStorage::recordedFor($log);
         $levels = array_values(array_filter($entries, static fn (array $entry): bool => $entry['kind'] === $kind))[0] ?? null;
         $track = array_values(array_filter($entries, static fn (array $entry): bool => $entry['kind'] === $kind.'-instruments'))[0] ?? null;
@@ -136,9 +151,9 @@ class SongEndStems
      * @param  list<float>  $cuts
      * @return array{cuts: int, separated: int, compute_seconds: float}
      */
-    public function prepare(MediaProcessingLog $log, array $cuts): array
+    public function prepare(MediaProcessingLog $log, array $cuts, ?float $tailEnd = null): array
     {
-        $pending = array_values(array_filter(array_unique($cuts, SORT_REGULAR), fn (float $cut): bool => $this->read($log, $cut) === null));
+        $pending = array_values(array_filter(array_unique($cuts, SORT_REGULAR), fn (float $cut): bool => $this->read($log, $cut, $tailEnd) === null));
         $summary = ['cuts' => count($cuts), 'separated' => count($pending), 'compute_seconds' => 0.0];
         if ($pending === []) {
             return $summary;
@@ -151,7 +166,7 @@ class SongEndStems
         try {
             foreach ($pending as $cut) {
                 $started = microtime(true);
-                $this->separate($log, $cut, $local);
+                $this->separate($log, $cut, $local, $tailEnd);
                 $summary['compute_seconds'] += microtime(true) - $started;
             }
         } finally {
@@ -163,9 +178,9 @@ class SongEndStems
         return $summary;
     }
 
-    private function separate(MediaProcessingLog $log, float $cut, string $localAudio): void
+    private function separate(MediaProcessingLog $log, float $cut, string $localAudio, ?float $tailEnd): void
     {
-        $identity = $this->identity($log, $cut);
+        $identity = $this->identity($log, $cut, $tailEnd);
         $kind = $this->kind($identity);
         $outDir = storage_path('app/temp/song-end-stems/'.Str::uuid());
         File::ensureDirectoryExists($outDir);
