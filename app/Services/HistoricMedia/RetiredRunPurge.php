@@ -13,8 +13,8 @@ use App\Models\ChurchServiceSourceRecord;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Models\ServiceSection;
 use App\Models\SermonProcessingStep;
+use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Support\CanonicalJson;
@@ -298,7 +298,6 @@ class RetiredRunPurge
             $left[] = "sermon #{$sermon->id} (quarantined, still linked to the run): its own files are not this command's to delete";
         }
 
-        
     }
 
     /**

@@ -7,8 +7,8 @@ namespace App\Services\HistoricMedia;
 use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
-use App\Services\Sermon\SermonSlugGenerator;
 use App\Services\Import\ProductionCensusExporter;
+use App\Services\Sermon\SermonSlugGenerator;
 use App\Support\CanonicalJson;
 use RuntimeException;
 

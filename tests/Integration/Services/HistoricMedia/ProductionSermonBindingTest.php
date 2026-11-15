@@ -7,6 +7,7 @@ namespace Tests\Integration\Services\HistoricMedia;
 use App\Enums\SermonPublicationState;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
+use App\Models\Preacher;
 use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricProcessingResultBundle;
 use App\Services\HistoricMedia\HistoricProcessingResultBundleImporter;
@@ -368,7 +369,7 @@ class ProductionSermonBindingTest extends TestCase
     #[Test]
     public function a_replacement_keeps_every_hand_entered_detail_and_records_what_it_did_not_apply(): void
     {
-        $preacher = \App\Models\Preacher::factory()->create(['name' => 'Production Preacher']);
+        $preacher = Preacher::factory()->create(['name' => 'Production Preacher']);
         [$target, $bundle] = $this->fixture(null, [
             'title' => 'Production title', 'preacher' => 'Production Preacher', 'preacher_id' => $preacher->id,
             'reference' => 'Colossians 1:15-20', 'series' => 'Production series',
@@ -621,7 +622,7 @@ class ProductionSermonBindingTest extends TestCase
     {
         return app(ProductionSermonBinding::class)->bind($bundle, $this->folder.'/census.jsonl', [
             ['processing_key' => 'approved-run', 'target_sermon_id' => $target]
-                + ($corrections === [] ? [] : ['corrections' => $corrections]),
+            + ($corrections === [] ? [] : ['corrections' => $corrections]),
         ]);
     }
 
