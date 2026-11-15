@@ -349,8 +349,7 @@ timeline relocation (R5), workflow state (R6) and OoS regex parsing (R7) were al
 or completed in the tree; the deterministic analysis stub (2.2) no longer has an owning plan. Only
 two entries remain live. Do not reinstate a removed entry without a current owning plan.
 
-- **One-shot tooling (R8, R12):** `LegacySermonImporter`, `GenerateProdSermonPatchCommand`,
-  `PreacherCutoverCommand`, `LegacyPlayDateSongUsageImporter`, `LegacySongReconciler`,
+- **One-shot tooling (R8, R12):** `LegacySermonImporter`, `PreacherCutoverCommand`, `LegacyPlayDateSongUsageImporter`, `LegacySongReconciler`,
   `HistoricVideoImporter` + `ImportHistoricVideoBatchCommand`, `ConvertJpgToWebp`,
   `ImportOpenLpDirectoryCommand`, `BackfillMediaProcessingIdentityCommand`,
   `FixUploadDirectories`, `MeetingMigratePhotosCommand` + `MeetingPhotoMigrationService`,

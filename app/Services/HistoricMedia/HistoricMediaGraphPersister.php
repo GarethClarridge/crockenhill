@@ -22,6 +22,7 @@ use App\Models\SermonScriptureFilter;
 use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
+use App\Support\SeedSignature;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -51,6 +52,7 @@ class HistoricMediaGraphPersister
     private function persistEventQuietly(HistoricProcessingResultImportPlan $plan): array
     {
         $graph = $plan->service['media_graph'];
+        SeedSignature::assertMediaGraphClean($graph, 'Historic import');
         $processingId = $graph['processing_key'];
         $churchService = $this->resolveChurchService($plan, $graph);
         /**
@@ -727,6 +729,8 @@ class HistoricMediaGraphPersister
         if (! is_string($slug) || ! is_string($name)) {
             throw new RuntimeException('Bundle preacher natural identity is incomplete.');
         }
+
+        SeedSignature::assertPublicationClean(['preacher' => $payload], 'Historic import preacher');
 
         $preacher = Preacher::query()->where('slug', $slug)->lockForUpdate()->first();
 

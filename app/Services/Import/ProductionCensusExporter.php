@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Import;
 
 use App\Support\CodeRevision;
+use App\Support\SeedSignature;
 use Illuminate\Database\Connection;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
@@ -29,6 +30,20 @@ class ProductionCensusExporter
         'preachers', 'preacher_aliases', 'songs', 'song_authors', 'song_books',
         'song_author_song', 'song_book_song', 'media_processing_logs',
     ];
+
+    /** @var array<string, array{count: int, ids: list<int|string>}> */
+    private array $seedMatches = [];
+
+    /**
+     * Seed-signature matches found by the last export, per kind. Expected to be
+     * all zero on production, which was never seeded.
+     *
+     * @return array<string, array{count: int, ids: list<int|string>}>
+     */
+    public function seedMatches(): array
+    {
+        return $this->seedMatches;
+    }
 
     /** @return array<string, int> */
     public function export(string $path, bool $skipHashes): array
@@ -76,6 +91,8 @@ class ProductionCensusExporter
                 'media_consistency' => 'Observed individually after SQL snapshot; concurrent file changes are possible.',
             ], $digest);
             $written = array_fill_keys(self::TABLES, 0);
+            $this->seedMatches = array_fill_keys(['sermons', 'preachers', 'preacher_aliases', 'media_processing_logs', 'church_service_items'], ['count' => 0, 'ids' => []]);
+            $serviceKeys = [];
             foreach (self::TABLES as $table) {
                 if (! isset($schema[$table])) {
                     continue;
@@ -87,6 +104,7 @@ class ProductionCensusExporter
                 }
                 foreach ($query->cursor() as $record) {
                     $row = $this->identityRow($table, (array) $record, $skipHashes);
+                    $this->recordSeedMatch($table, $row, $serviceKeys);
                     $this->writeLine($handle, ['tag' => 'row', 'table' => $table, 'row' => $row], $digest);
                     $written[$table]++;
                 }
@@ -95,7 +113,7 @@ class ProductionCensusExporter
                 throw new RuntimeException('Snapshot counts changed. Incomplete output retained.');
             }
             $this->writeLine($handle, ['tag' => 'footer', 'counts' => $written, 'rows' => array_sum($written),
-                'sha256' => hash_final($digest)], null);
+                'seed_signature' => $this->seedMatches, 'sha256' => hash_final($digest)], null);
             if (! fflush($handle)) {
                 throw new RuntimeException('Cannot flush census output.');
             }
@@ -110,6 +128,56 @@ class ProductionCensusExporter
                 fclose($handle);
             }
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array<int, array{0: string, 1: string}>  $serviceKeys  church service id => [date, service]
+     */
+    private function recordSeedMatch(string $table, array $row, array &$serviceKeys): void
+    {
+        $id = $row['id'] ?? null;
+        $label = is_int($id) ? $id : null;
+
+        $matched = match ($table) {
+            'church_services' => $this->rememberService($row, $serviceKeys),
+            'sermons' => SeedSignature::matches(
+                substr((string) ($row['date'] ?? ''), 0, 10),
+                (string) ($row['service'] ?? ''),
+                (string) ($row['content_type'] ?? ''),
+                $row,
+            ) !== [],
+            'preachers' => SeedSignature::isSeededPreacherName($row['name'] ?? null),
+            'preacher_aliases' => SeedSignature::isSeededAlias($row['alias'] ?? null),
+            'media_processing_logs' => SeedSignature::isSeededProcessingId($row['processing_id'] ?? null),
+            'church_service_items' => isset($serviceKeys[$row['church_service_id'] ?? 0])
+                && SeedSignature::isSeededServiceItem(
+                    $serviceKeys[$row['church_service_id']][0],
+                    $serviceKeys[$row['church_service_id']][1],
+                    $row['position'] ?? null,
+                    $row['type'] ?? null,
+                    $row['title'] ?? null,
+                ),
+            default => false,
+        };
+
+        if ($matched && isset($this->seedMatches[$table])) {
+            $this->seedMatches[$table]['count']++;
+            $this->seedMatches[$table]['ids'][] = $label ?? (string) ($row['processing_id'] ?? $row['alias'] ?? '');
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array<int, array{0: string, 1: string}>  $serviceKeys
+     */
+    private function rememberService(array $row, array &$serviceKeys): bool
+    {
+        if (is_int($row['id'] ?? null)) {
+            $serviceKeys[$row['id']] = [substr((string) ($row['date'] ?? ''), 0, 10), (string) ($row['service'] ?? '')];
+        }
+
+        return false;
     }
 
     private function startSnapshot(Connection $connection, PDO $pdo, bool &$ownsSnapshot): string

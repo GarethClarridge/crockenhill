@@ -14,6 +14,7 @@ use App\Enums\SermonSourceType;
 use App\Enums\SermonTitleProvenance;
 use App\Enums\SermonUpsertAction;
 use App\Enums\TitleGenerationStrategy;
+use App\Exceptions\SeedResidueException;
 use App\Exceptions\SermonRichnessDowngradeException;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
@@ -22,6 +23,7 @@ use App\Models\ServiceSection;
 use App\Services\Preacher\PreacherResolutionService;
 use App\Support\MediaAssetPath;
 use App\Support\PlaceholderSermonTitle;
+use App\Support\SeedSignature;
 use App\Traits\SanitizesLogData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
@@ -74,6 +76,7 @@ class SermonCreationService
      * @return Sermon The created or updated sermon model
      *
      * @throws SermonRichnessDowngradeException When attempting to overwrite a richer record
+     * @throws SeedResidueException When the matching row still carries seeded sample values
      * @throws \Exception For underlying service or repository failures
      */
     public function createSermon(
@@ -90,6 +93,7 @@ class SermonCreationService
             return $this->createFresh($processingLog, $options, $sermonDate, $service);
         }
 
+        $this->assertNotSeeded($existing);
         $this->assertMediaCustodyMatches($existing);
 
         $existingLevel = $this->detectExistingRichness($existing);
@@ -108,6 +112,32 @@ class SermonCreationService
                 $incomingLevel,
             ),
         };
+    }
+
+    /**
+     * A real recording must never inherit sample values. Adopting a seeded row
+     * would keep its title, slug, reference and series, so refuse loudly: a
+     * silent skip would leave a duplicate date/service row behind.
+     *
+     * @throws SeedResidueException
+     */
+    private function assertNotSeeded(Sermon $existing): void
+    {
+        $seeded = SeedSignature::matchesSermon($existing);
+
+        if ($seeded === []) {
+            return;
+        }
+
+        $fields = implode(', ', array_map(
+            static fn (string $field, string $value): string => "{$field}='{$value}'",
+            array_keys($seeded),
+            $seeded,
+        ));
+
+        throw new SeedResidueException(
+            "Sermon {$existing->id} ({$existing->slug}) carries seeded values ({$fields}); refusing to attach a real recording to it. Run sermons:clear-seeded-residue first.",
+        );
     }
 
     private function assertMediaCustodyMatches(Sermon $sermon): void

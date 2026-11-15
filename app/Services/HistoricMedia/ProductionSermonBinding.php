@@ -10,6 +10,7 @@ use App\Models\Sermon;
 use App\Services\Import\ProductionCensusExporter;
 use App\Services\Sermon\SermonSlugGenerator;
 use App\Support\CanonicalJson;
+use App\Support\SeedSignature;
 use RuntimeException;
 
 /** Transport authority only; never selects, processes or approves a local cut. */
@@ -49,6 +50,9 @@ class ProductionSermonBinding
     public function bind(array $bundle, string $censusPath, array $mapping): array
     {
         $bundle = app(HistoricProcessingResultBundle::class)->validate($bundle);
+        foreach ($bundle['services'] as $candidate) {
+            SeedSignature::assertMediaGraphClean($candidate['media_graph'], 'Production binding');
+        }
         if (isset($bundle['production_binding'])) {
             throw new RuntimeException('A production binding already exists. Start with the original approved bundle.');
         }

@@ -10,6 +10,7 @@ use App\Models\ChurchServiceSourceRecord;
 use App\Models\MediaProcessingLog;
 use App\Support\CanonicalJson;
 use App\Support\MediaAssetPath;
+use App\Support\SeedSignature;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Support\Facades\Storage;
@@ -255,6 +256,7 @@ class HistoricProcessingResultBundleExporter
             ->sortBy('revision_hash')
             ->values();
         $mediaGraph = $this->inventory->build($run);
+        SeedSignature::assertMediaGraphClean($mediaGraph, 'Historic result export');
 
         return [
             'date' => $service->date->toDateString(),

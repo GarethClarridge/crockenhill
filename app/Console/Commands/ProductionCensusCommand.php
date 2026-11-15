@@ -31,6 +31,14 @@ class ProductionCensusCommand extends Command
         try {
             $counts = $exporter->export($path, (bool) $this->option('skip-hashes'));
             $this->info('Census complete: '.array_sum($counts).' rows. Copy the single JSONL file.');
+            $total = 0;
+            foreach ($exporter->seedMatches() as $kind => $match) {
+                $total += $match['count'];
+                $this->line(sprintf('Seed signature %s: %d%s', $kind, $match['count'], $match['ids'] === [] ? '' : ' ('.implode(', ', $match['ids']).')'));
+            }
+            if ($total > 0) {
+                $this->warn('Seed signature matches found; production should have none.');
+            }
 
             return self::SUCCESS;
         } catch (Throwable $exception) {
