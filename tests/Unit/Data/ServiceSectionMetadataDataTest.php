@@ -9,6 +9,7 @@ use App\Data\SectionPublicationMetadata;
 use App\Data\ServiceSectionMetadata;
 use App\Data\ServiceSectionMetadataCast;
 use App\Data\TalkSpeakerMetadata;
+use App\Data\TalkTypeProposal;
 use Illuminate\Database\Eloquent\Model;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -303,5 +304,38 @@ class ServiceSectionMetadataDataTest extends TestCase
         $arr = ServiceSectionMetadata::fromArray(['summary' => 'A prayer.', 'talk_type' => null])->toArray();
 
         $this->assertArrayNotHasKey('talk_type', $arr);
+    }
+
+    #[Test]
+    public function old_talk_type_json_and_unknown_keys_round_trip_without_new_defaults(): void
+    {
+        $payload = ['unknown_outer' => ['keep' => true], 'talk_type' => ['proposed' => 'testimony', 'reviewed' => ['value' => 'sermon'], 'unknown' => ['keep' => true]]];
+        $metadata = ServiceSectionMetadata::fromArray($payload);
+        $this->assertNull($metadata->talkType->proposal());
+        $this->assertSame($payload, $metadata->toArray());
+    }
+
+    #[Test]
+    public function versioned_proposal_accessors_validate_optional_fields(): void
+    {
+        $proposal = new TalkTypeProposal(proposed: null, disposition: 'insufficient_evidence', confidence: null, reasons: [['source' => 'missing transcript']], decidedBy: null);
+        $payload = ['talk_type' => array_merge($proposal->toArray(), ['input_hash' => str_repeat('a', 64), 'unknown' => ['keep' => true]])];
+        $metadata = ServiceSectionMetadata::fromArray($payload);
+        $this->assertSame('insufficient_evidence', $metadata->talkType->proposal()->disposition);
+        $this->assertNull($metadata->talkType->publicationTalkType());
+        $this->assertSame($payload, $metadata->toArray());
+        $this->expectException(\InvalidArgumentException::class);
+        new TalkTypeProposal(confidence: NAN);
+    }
+
+    #[Test]
+    public function invalid_proposal_json_remains_raw_and_never_becomes_a_typed_proposal(): void
+    {
+        foreach ([['confidence' => 1.1], ['confidence' => -0.1], ['proposed_series' => str_repeat('x', 256)], ['disposition' => 'unknown'], ['decided_by' => 'operator'], ['reasons' => [4]], ['proposal_status' => 'failed', 'confidence' => 0.5]] as $invalid) {
+            $payload = ['talk_type' => array_replace(['proposed' => null, 'disposition' => 'uncertain', 'unknown' => ['keep' => true]], $invalid)];
+            $metadata = ServiceSectionMetadata::fromArray($payload);
+            $this->assertNull($metadata->talkType->proposal());
+            $this->assertSame($payload, $metadata->toArray());
+        }
     }
 }

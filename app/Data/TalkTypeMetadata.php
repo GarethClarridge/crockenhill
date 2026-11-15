@@ -38,6 +38,11 @@ final readonly class TalkTypeMetadata extends JsonData
         );
     }
 
+    public function proposal(): ?TalkTypeProposal
+    {
+        return TalkTypeProposal::fromArray($this->raw);
+    }
+
     /**
      * The confirmed type, never the proposal.
      */
