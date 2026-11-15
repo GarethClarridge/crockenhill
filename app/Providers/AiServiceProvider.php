@@ -8,8 +8,10 @@ use App\Contracts\OosSemanticAnnotator;
 use App\Contracts\OosSemanticRepairer;
 use App\Contracts\SermonAnalysisInterface;
 use App\Contracts\ServiceStructureInterface;
+use App\Contracts\TalkTypeClassifier;
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Contracts\TranscriptionServiceInterface;
+use App\Services\ChurchService\OpenAiTalkTypeClassifier;
 use App\Services\ChurchService\Structure\MockServiceStructureService;
 use App\Services\ChurchService\Structure\OpenAiServiceStructureService;
 use App\Services\ChurchService\Structure\ServiceStructureEvaluationTelemetry;
@@ -102,6 +104,8 @@ class AiServiceProvider extends ServiceProvider
                 ),
             };
         });
+
+        $this->app->bind(TalkTypeClassifier::class, OpenAiTalkTypeClassifier::class);
 
         $this->app->singleton(OosParserEvaluationTelemetry::class);
         $this->app->bind(OosSemanticAnnotator::class, OpenAiOosSemanticAnnotator::class);

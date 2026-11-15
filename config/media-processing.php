@@ -454,6 +454,22 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Talk-Type Proposal
+    |--------------------------------------------------------------------------
+    | Semantic assessment of short talks the ordered rules leave undecided.
+    | Deliberately NOT under `service_structure`: that whole array is hashed into
+    | the historic processing fingerprint, so a key added there would change the
+    | fingerprint of every banked run. Settings are unmeasured; they follow the
+    | structure model until measured after the round.
+    */
+    'talk_type' => [
+        'model' => env('TALK_TYPE_MODEL', 'gpt-5.6-luna'),
+        'reasoning_effort' => env('TALK_TYPE_REASONING_EFFORT', 'medium'),
+        'max_completion_tokens' => (int) env('TALK_TYPE_MAX_COMPLETION_TOKENS', 8000),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | LLM-First Service Structure Pipeline
     |--------------------------------------------------------------------------
     | Full-service transcription + one-call LLM structure detection, replacing
