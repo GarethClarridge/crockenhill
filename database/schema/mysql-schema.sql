@@ -1185,6 +1185,7 @@ CREATE TABLE `sermons` (
   `title_provenance` varchar(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `slug` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL,
   `reference` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL COMMENT 'Denormalized scripture reference cache for display/search compatibility. scripture_passage_id is the canonical normalized identity when present.',
+  `reference_provenance` varchar(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `scripture_passage_id` bigint unsigned DEFAULT NULL COMMENT 'Canonical normalized scripture identity for the published sermon. The reference text column is a synchronized cache.',
   `download_count` int unsigned NOT NULL DEFAULT '0',
   `preacher` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci NOT NULL DEFAULT 'Mark Drury' COMMENT 'Denormalized preacher display cache. preacher_id is the canonical preacher identity for the published sermon.',
@@ -1864,3 +1865,4 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_01_222802_add_q
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_05_184631_widen_fums_token_on_scripture_passages_table',109);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_12_100000_add_church_update_talk_type',110);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_14_184435_add_media_replacement_history_to_sermons_table',111);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_15_202544_add_reference_provenance_to_sermons_table',112);

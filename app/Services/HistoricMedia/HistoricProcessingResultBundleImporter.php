@@ -172,7 +172,7 @@ class HistoricProcessingResultBundleImporter
         if ($existing instanceof MediaProcessingLog) {
             $existingHash = $this->bindings->comparableHash($this->inventory->build($existing), $binding);
 
-            if ($existingHash === $this->bindings->comparableHash($graph, $binding)) {
+            if ($existingHash === $this->bindings->comparableHash($graph, $binding, expected: true)) {
                 try {
                     $this->persister->verifyExisting($this->verificationPlan($service, $operation, $binding), $existing);
 

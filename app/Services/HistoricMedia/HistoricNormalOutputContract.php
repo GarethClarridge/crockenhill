@@ -519,18 +519,18 @@ class HistoricNormalOutputContract
                 ],
                 /**
                  * `publication_state`, `asset_disk`, `historic_import_operation_id`,
-                 * `media_replacement_history` and `title_provenance` are deliberately outside the
+                 * `media_replacement_history`, `title_provenance` and `reference_provenance` are outside the
                  * portable contract. The audience boundary is a destination
                  * decision: every apply lands quarantined on the destination's
                  * own private disk and is released by a separately authorised
-                 * step. Title provenance is local operational state; the title
-                 * itself remains portable. Carrying these fields would let an
+                 * step. Title and reference provenance are local operational state;
+                 * the values themselves remain portable. Carrying these fields would let an
                  * exported bundle dictate destination-owned state.
                  */
                 excluded: [
                     'id', 'scripture_passage_id', 'download_count', 'created_at', 'updated_at',
                     'publication_state', 'asset_disk', 'historic_import_operation_id', 'title_provenance',
-                    'media_replacement_history',
+                    'media_replacement_history', 'reference_provenance',
                 ],
             ),
             'media_processing_logs' => $this->table(

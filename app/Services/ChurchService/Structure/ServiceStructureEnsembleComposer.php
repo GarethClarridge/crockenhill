@@ -1423,13 +1423,7 @@ class ServiceStructureEnsembleComposer
             );
             $sections[$index] = $sermon;
 
-            $readings = array_map(
-                static fn (ServiceStructureSection $reading): ?string => $reading->readingReference,
-                array_filter($sections, static fn (ServiceStructureSection $reading): bool => $reading->type === ServiceSectionType::BibleReading
-                    && $reading->startTime < $sermon->startTime),
-            );
-
-            if ($this->scriptureReferences->sermonReadingMembership($sermon->sermonReference, $readings)['could_be_cut'] === []) {
+            if (blank($sermon->sermonReference)) {
                 $sections[$index] = $sermon->withReviewFlags([ServiceStructureValidator::FLAG_MISSING_PREACHED_READING]);
             }
         }

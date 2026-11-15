@@ -12,6 +12,7 @@ use App\Enums\SermonRichnessLevel;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonTitleProvenance;
+use App\Enums\SermonReferenceProvenance;
 use App\Enums\SermonUpsertAction;
 use App\Enums\TitleGenerationStrategy;
 use App\Exceptions\SeedResidueException;
@@ -417,9 +418,16 @@ class SermonCreationService
         $this->refreshAiField($existing, $updates, 'series', filled($options->id3Series)
             ? $options->id3Series
             : ($options->aiAnalysis['series'] ?? null));
-        $this->refreshAiField($existing, $updates, 'reference', filled($options->id3Reference)
-            ? $options->id3Reference
-            : ($options->aiAnalysis['reference'] ?? null));
+        if ($existing->reference_provenance !== SermonReferenceProvenance::Curated) {
+            $this->refreshAiField($existing, $updates, 'reference', filled($options->id3Reference)
+                ? $options->id3Reference
+                : ($options->aiAnalysis['reference'] ?? null));
+            if (array_key_exists('reference', $updates)) {
+                $updates['reference_provenance'] = filled($options->id3Reference)
+                    ? SermonReferenceProvenance::Curated
+                    : SermonReferenceProvenance::AiAnalysis;
+            }
+        }
 
         if (isset($options->aiAnalysis['points'])) {
             $updates['points'] = $options->aiAnalysis['points'];
@@ -494,7 +502,7 @@ class SermonCreationService
      */
     private function fillReferenceIfBlank(Sermon $existing, SermonCreationOptions $options, array &$updates): void
     {
-        if (filled($existing->reference)) {
+        if (! $existing->referenceMayBeFilledByAnalysis()) {
             return;
         }
 
@@ -504,6 +512,9 @@ class SermonCreationService
 
         if (filled($value)) {
             $updates['reference'] = $value;
+            $updates['reference_provenance'] = filled($options->id3Reference)
+                ? SermonReferenceProvenance::Curated
+                : SermonReferenceProvenance::AiAnalysis;
         }
     }
 
@@ -703,10 +714,13 @@ class SermonCreationService
 
         if ($curated?->scriptureReference !== null) {
             $sermonData['reference'] = $curated->scriptureReference;
+            $sermonData['reference_provenance'] = SermonReferenceProvenance::Curated;
         } elseif ($options->id3Reference) {
             $sermonData['reference'] = $options->id3Reference;
+            $sermonData['reference_provenance'] = SermonReferenceProvenance::Curated;
         } elseif ($options->aiAnalysis && isset($options->aiAnalysis['reference'])) {
             $sermonData['reference'] = $options->aiAnalysis['reference'];
+            $sermonData['reference_provenance'] = SermonReferenceProvenance::AiAnalysis;
         }
 
         if ($options->aiAnalysis && array_key_exists('points', $options->aiAnalysis)) {

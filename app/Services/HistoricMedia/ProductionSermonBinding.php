@@ -8,6 +8,8 @@ use App\Enums\SermonService;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Import\ProductionCensusExporter;
+use App\Services\Scripture\ScriptureReferenceResolver;
+use App\Services\Scripture\SermonScriptureFilterIndexService;
 use App\Services\Sermon\SermonSlugGenerator;
 use App\Support\CanonicalJson;
 use App\Support\SeedSignature;
@@ -33,7 +35,7 @@ class ProductionSermonBinding
     public const FILL_IF_EMPTY_FIELDS = ['summary', 'meta_description', 'points'];
 
     /** Editorial fields a mapping entry may correct by hand, in place of the production value. */
-    public const CORRECTABLE_FIELDS = ['title', 'service', 'series', 'summary', 'meta_description'];
+    public const CORRECTABLE_FIELDS = ['title', 'service', 'reference', 'series', 'summary', 'meta_description'];
 
     /** Main-publication payload keys that describe the kept editorial facts rather than the media. */
     private const MASKED_PUBLICATION_KEYS = [
@@ -300,7 +302,10 @@ class ProductionSermonBinding
         }
         foreach ($corrections as $field => $value) {
             if (! in_array($field, self::CORRECTABLE_FIELDS, true) || ! is_string($value) || trim($value) === ''
-                || ($field === 'service' && SermonService::tryFrom($value) === null)) {
+                || ($field === 'service' && SermonService::tryFrom($value) === null)
+                || ($field === 'reference' && (mb_strlen($value) > 255
+                    || app(ScriptureReferenceResolver::class)->normalizeAll($value) === null
+                    || app(SermonScriptureFilterIndexService::class)->entriesForReference($value) === []))) {
                 throw new RuntimeException('Production binding correction is not allowed: '.$field);
             }
         }
@@ -345,12 +350,20 @@ class ProductionSermonBinding
      * @param  array<string, mixed>  $graph
      * @param  array<string, mixed>|null  $entry
      */
-    public function comparableHash(array $graph, ?array $entry): string
+    public function comparableHash(array $graph, ?array $entry, bool $expected = false): string
     {
         if (($entry['target_sermon_id'] ?? null) === null) {
             return $graph['logical_hash'];
         }
 
+        if ($expected && ($entry['previous_row']['partial_recording'] ?? false)) {
+            foreach ($graph['publications'] as &$publication) {
+                if ($publication['slug'] === $entry['previous_row']['slug']) {
+                    $publication['partial_recording'] = true;
+                }
+            }
+            unset($publication);
+        }
         $graph = $this->maskKeptEditorial($graph, $entry['previous_row']['slug']);
 
         return app(HistoricProcessingResultInventory::class)->logicalHash($graph);

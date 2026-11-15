@@ -994,13 +994,23 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         $this->assertContains('bible_reading', array_column($preached->disputes, 'type'));
     }
 
-    /**
-     * A sermon misses its preached reading exactly when extraction's membership rule could cut
-     * no reading into it: distance does not matter, a reading sharing verses or with no
-     * reference could still be the preached one, and only an unrelated reading leaves it bare.
-     */
     #[Test]
-    public function a_missing_preached_reading_follows_extractions_membership_rule(): void
+    public function d3_needs_only_a_reference_and_keeps_unrelated_review_flags(): void
+    {
+        $flag = ServiceStructureValidator::FLAG_MISSING_PREACHED_READING;
+        $composer = app(ServiceStructureEnsembleComposer::class);
+        $sermon = new ServiceStructureSection(ServiceSectionType::Sermon, null, 2000.0, 4000.0, 0.9, null, null, null, '2 John 1:10-11');
+        $known = $composer->flagMissingPreachedReading([$sermon->withReviewFlags([$flag, 'content_defect_hold'])])[0];
+        $this->assertNotContains($flag, $known->reviewFlags);
+        $this->assertContains('content_defect_hold', $known->reviewFlags);
+        foreach ([null, '', '   '] as $reference) {
+            $unknown = new ServiceStructureSection(ServiceSectionType::Sermon, null, 2000.0, 4000.0, 0.9, null, null, null, $reference);
+            $this->assertContains($flag, $composer->flagMissingPreachedReading([$unknown])[0]->reviewFlags);
+        }
+    }
+
+    #[Test]
+    public function a_missing_preached_reading_follows_d3_reference_presence(): void
     {
         $flags = function (?string $readingReference, int $readingStart, ?string $sermonReference): array {
             $draw = $this->structure(
@@ -1014,10 +1024,10 @@ class ServiceStructureEnsembleComposerTest extends TestCase
         };
 
         $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('John 3', 300, 'John 3:16'), 'a matching reading pairs however early');
-        $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('Psalm 23', 300, null), 'an unnamed sermon pairs with any earlier reading');
+        $this->assertContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('Psalm 23', 300, null), 'D3 requires a sermon reference even when a reading exists');
         $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags(null, 1700, 'John 3:16'), 'an unnamed reading could be the preached one');
         $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('John 3:1-21', 1950, 'John 3:16'), 'a reading that overlaps the sermon start is still before it');
-        $this->assertContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('Isaiah 40', 1700, 'John 3:16'), 'an unrelated reading never pairs');
+        $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $flags('Isaiah 40', 1700, 'John 3:16'), 'D3 does not require a matching captured reading');
     }
 
     /**

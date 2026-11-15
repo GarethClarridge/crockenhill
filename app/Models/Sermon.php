@@ -12,6 +12,7 @@ use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonTitleProvenance;
+use App\Enums\SermonReferenceProvenance;
 use App\Enums\SermonVideoQualityStatus;
 use App\Enums\SermonVideoVisibilityOverride;
 use App\Enums\TalkType;
@@ -70,6 +71,7 @@ use Spatie\Sitemap\Tags\Url;
  * @property ?SermonTitleProvenance $title_provenance
  * @property string $slug
  * @property ?string $reference
+ * @property ?SermonReferenceProvenance $reference_provenance
  * @property string $preacher
  * @property ?int $preacher_id
  * @property ?PreacherSource $preacher_source
@@ -155,6 +157,7 @@ class Sermon extends Model implements Sitemapable
         'title_provenance',
         'series',
         'reference',
+        'reference_provenance',
         'preacher',
         'preacher_id',
         'preacher_source',
@@ -200,6 +203,7 @@ class Sermon extends Model implements Sitemapable
             'content_type' => TalkType::class,
             'publication_state' => SermonPublicationState::class,
             'title_provenance' => SermonTitleProvenance::class,
+            'reference_provenance' => SermonReferenceProvenance::class,
             'segment_start_time' => 'float',
             'segment_end_time' => 'float',
             'thumbnail_generated_at' => 'datetime',
@@ -635,6 +639,13 @@ class Sermon extends Model implements Sitemapable
             null => PlaceholderSermonTitle::matches((string) $this->title),
             default => false,
         };
+    }
+
+    /** Whether automated processing may supply a missing reference, including legacy rows. */
+    public function referenceMayBeFilledByAnalysis(): bool
+    {
+        return $this->reference_provenance !== SermonReferenceProvenance::Curated
+            && blank($this->reference);
     }
 
     public function videoQualityStatus(): SermonVideoQualityStatus

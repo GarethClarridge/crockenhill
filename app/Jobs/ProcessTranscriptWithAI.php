@@ -9,6 +9,7 @@ use App\Actions\QueueScriptureEnrichment;
 use App\Contracts\SermonAnalysisInterface;
 use App\Data\SermonAnalysis;
 use App\Enums\SermonTitleProvenance;
+use App\Enums\SermonReferenceProvenance;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use App\Services\Media\Audio\TranscriptStorageService;
@@ -146,8 +147,9 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
             }
 
             // Only update reference if not already set on the sermon or in ID3 tags
-            if (blank($sermon->reference) && blank($id3Metadata?->reference)) {
+            if ($sermon->referenceMayBeFilledByAnalysis() && blank($id3Metadata?->reference)) {
                 $updateData['reference'] = $analysis->reference;
+                $updateData['reference_provenance'] = SermonReferenceProvenance::AiAnalysis;
                 // Clear any stale passage link so the old text is not shown while re-enrichment runs
                 $updateData['scripture_passage_id'] = null;
             }
@@ -240,8 +242,9 @@ class ProcessTranscriptWithAI extends ProcessingJob implements ShouldQueue
                     if (blank($sermon->series) && blank($id3Metadata?->series)) {
                         $updateData['series'] = $fallbackAnalysis->series;
                     }
-                    if (blank($sermon->reference) && blank($id3Metadata?->reference)) {
+                    if ($sermon->referenceMayBeFilledByAnalysis() && blank($id3Metadata?->reference)) {
                         $updateData['reference'] = $fallbackAnalysis->reference;
+                        $updateData['reference_provenance'] = SermonReferenceProvenance::Generated;
                         // Clear stale passage link so old text is not shown during re-enrichment
                         $updateData['scripture_passage_id'] = null;
                     }

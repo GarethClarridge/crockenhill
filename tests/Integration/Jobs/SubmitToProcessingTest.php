@@ -243,7 +243,9 @@ class SubmitToProcessingTest extends TestCase
             'audio_file_path' => 'sermons/audio/original-duration.mp3',
             'duration' => 3600.0,
             'title' => 'Curated sermon title',
-            'reference' => 'John 3:16',
+            'reference' => '2 John 1:10-11',
+            'reference_provenance' => 'curated',
+            'partial_recording' => true,
             'series' => 'Curated series',
             'preacher' => 'Curated preacher',
             'livestream_processing_id' => null,
@@ -283,7 +285,9 @@ class SubmitToProcessingTest extends TestCase
 
         $this->assertEquals(1425.5, $sermon->duration);
         $this->assertSame('Curated sermon title', $sermon->title);
-        $this->assertSame('John 3:16', $sermon->reference);
+        $this->assertSame('2 John 1:10-11', $sermon->reference);
+        $this->assertSame('curated', $sermon->reference_provenance?->value);
+        $this->assertTrue($sermon->partial_recording);
         $this->assertSame('Curated series', $sermon->series);
         $this->assertSame('Curated preacher', $sermon->preacher);
     }

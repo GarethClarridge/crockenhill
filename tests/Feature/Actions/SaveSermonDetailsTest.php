@@ -9,6 +9,7 @@ use App\Actions\QueueScriptureEnrichment;
 use App\Actions\SaveSermonDetails;
 use App\Enums\PreacherSource;
 use App\Enums\SermonService;
+use App\Enums\SermonReferenceProvenance;
 use App\Enums\ServiceSectionType;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
@@ -19,6 +20,7 @@ use App\Services\Preacher\PreacherResolutionService;
 use App\Services\Processing\SermonIdentitySyncService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class SaveSermonDetailsTest extends TestCase
@@ -32,6 +34,128 @@ class SaveSermonDetailsTest extends TestCase
         parent::setUp();
         $this->app->forgetInstance(SaveSermonDetails::class);
         $this->action = app(SaveSermonDetails::class);
+    }
+
+    #[Test]
+    public function changing_the_reference_marks_it_curated(): void
+    {
+        $old = ScripturePassage::factory()->create(['normalized_reference' => '3 John 1:10-11']);
+        $correct = ScripturePassage::factory()->create(['normalized_reference' => '2 John 1:10-11']);
+        $sermon = Sermon::factory()->create(['reference' => '3 John 1:10-11', 'scripture_passage_id' => $old->id]);
+        $this->mock(QueueScriptureEnrichment::class)->shouldReceive('dispatch')->once();
+        $this->action = app(SaveSermonDetails::class);
+        $this->action->execute($sermon, $this->validData(['reference' => '2 John 1:10-11', 'partialRecording' => true]));
+        $sermon->refresh();
+        $this->assertSame('curated', $sermon->reference_provenance?->value);
+        $this->assertSame($correct->id, $sermon->scripture_passage_id);
+        $this->assertSame(['2 John'], $sermon->scriptureFilters()->pluck('bible_book')->all());
+        $this->assertTrue($sermon->partial_recording);
+    }
+
+    #[Test]
+    public function editing_other_fields_leaves_a_blank_reference_fillable_by_analysis(): void
+    {
+        $sermon = Sermon::factory()->create(['reference' => null, 'reference_provenance' => null]);
+        $this->mock(QueueScriptureEnrichment::class)->shouldReceive('dispatch')->never();
+        $this->action = app(SaveSermonDetails::class);
+
+        $this->action->execute($sermon, $this->validData(['title' => 'Edited title', 'reference' => null]));
+
+        $sermon->refresh();
+        $this->assertSame('Edited title', $sermon->title);
+        $this->assertNull($sermon->reference);
+        $this->assertNull($sermon->reference_provenance);
+        $this->assertTrue($sermon->referenceMayBeFilledByAnalysis());
+    }
+
+    #[Test]
+    public function editing_other_fields_keeps_an_ai_reference_provenance(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'reference' => 'John 3:16', 'reference_provenance' => SermonReferenceProvenance::AiAnalysis,
+        ]);
+        $this->mock(QueueScriptureEnrichment::class)->shouldReceive('dispatch')->never();
+        $this->action = app(SaveSermonDetails::class);
+
+        $this->action->execute($sermon, $this->validData(['title' => 'Edited title', 'reference' => 'John 3:16']));
+
+        $sermon->refresh();
+        $this->assertSame('Edited title', $sermon->title);
+        $this->assertSame('John 3:16', $sermon->reference);
+        $this->assertSame(SermonReferenceProvenance::AiAnalysis, $sermon->reference_provenance);
+    }
+
+    #[Test]
+    #[TestWith([null])]
+    #[TestWith(['ai_analysis'])]
+    #[TestWith(['curated'])]
+    #[TestWith(['generated'])]
+    public function unchanged_editor_save_preserves_reference_provenance(?string $provenance): void
+    {
+        $sermon = Sermon::factory()->create(['reference' => 'John 3:16', 'reference_provenance' => $provenance]);
+        $this->mock(QueueScriptureEnrichment::class)->shouldReceive('dispatch')->never();
+        $this->action = app(SaveSermonDetails::class);
+
+        $this->action->execute($sermon, $this->validData(['reference' => 'John 3:16']));
+
+        $this->assertSame($provenance, $sermon->refresh()->reference_provenance?->value);
+    }
+
+    #[Test]
+    #[TestWith([null])]
+    #[TestWith([''])]
+    public function clearing_a_reference_marks_it_curated(?string $reference): void
+    {
+        $sermon = Sermon::factory()->create(['reference' => 'John 3:16', 'reference_provenance' => SermonReferenceProvenance::AiAnalysis]);
+        $this->mock(QueueScriptureEnrichment::class)->shouldReceive('dispatch')->never();
+        $this->action = app(SaveSermonDetails::class);
+
+        $this->action->execute($sermon, $this->validData(['reference' => $reference]));
+
+        $sermon->refresh();
+        $this->assertSame($reference === '' ? null : $reference, $sermon->reference);
+        $this->assertSame(SermonReferenceProvenance::Curated, $sermon->reference_provenance);
+        $this->assertFalse($sermon->referenceMayBeFilledByAnalysis());
+        $this->assertNull($sermon->scripture_passage_id);
+        $this->assertSame(0, $sermon->scriptureFilters()->count());
+    }
+
+    #[Test]
+    #[TestWith(['John 3:16'])]
+    #[TestWith([null])]
+    public function correct_reference_marks_an_unchanged_value_curated(?string $reference): void
+    {
+        $sermon = Sermon::factory()->create(['reference' => $reference, 'reference_provenance' => null]);
+        $this->mock(QueueScriptureEnrichment::class)->shouldReceive('dispatch')->never();
+        $this->action = app(SaveSermonDetails::class);
+
+        $this->action->correctReference($sermon, $reference, false);
+
+        $sermon->refresh();
+        $this->assertSame($reference === '' ? null : $reference, $sermon->reference);
+        $this->assertSame(SermonReferenceProvenance::Curated, $sermon->reference_provenance);
+        $this->assertFalse($sermon->referenceMayBeFilledByAnalysis());
+    }
+
+    #[Test]
+    public function a_reference_only_correction_keeps_preacher_review_and_other_editorial_details(): void
+    {
+        $sermon = Sermon::factory()->create([
+            'reference' => '3 John 1:10-11', 'preacher_source' => PreacherSource::Default,
+            'needs_preacher_review' => true, 'title' => 'Curated title', 'title_provenance' => 'curated',
+        ]);
+        $before = $sermon->refresh()->getRawOriginal();
+        $this->mock(QueueScriptureEnrichment::class)->shouldReceive('dispatch')->once();
+        $this->action = app(SaveSermonDetails::class);
+        $this->action->correctReference($sermon, '2 John 1:10-11', true);
+        $sermon->refresh();
+        $this->assertSame('2 John 1:10-11', $sermon->reference);
+        $this->assertSame('curated', $sermon->reference_provenance?->value);
+        $this->assertTrue($sermon->partial_recording);
+        $this->assertSame(['2 John'], $sermon->scriptureFilters()->pluck('bible_book')->all());
+        foreach (['title', 'title_provenance', 'slug', 'series', 'preacher', 'preacher_id', 'preacher_source', 'needs_preacher_review'] as $field) {
+            $this->assertSame($before[$field], $sermon->getRawOriginal($field), $field);
+        }
     }
 
     #[Test]

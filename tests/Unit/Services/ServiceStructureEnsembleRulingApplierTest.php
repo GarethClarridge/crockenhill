@@ -15,6 +15,7 @@ use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
 use App\Support\SermonAutoExtractionPolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\TestCase;
 
 class ServiceStructureEnsembleRulingApplierTest extends TestCase
@@ -539,8 +540,7 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
     }
 
     /**
-     * 987: the composition flagged the sermon because no reading was written; the operator's
-     * answer wrote the reading it preached, so the flag no longer holds.
+     * A prior composition's stale flag is withdrawn under D3 because the sermon has a reference.
      */
     #[Test]
     public function an_answered_reading_clears_the_missing_preached_reading_flag(): void
@@ -559,12 +559,14 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         $this->assertNotContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $result['structure']['sections'][1]['review_flags']);
     }
 
-    /** The other way: an answer removing the only reading before the sermon leaves it bare. */
+    /** D3 depends on the sermon reference, even after an answer removes the only reading. */
     #[Test]
-    public function an_answer_removing_the_preached_reading_flags_the_sermon(): void
+    #[TestWith(['Luke 15:11-32', false])]
+    #[TestWith([null, true])]
+    public function an_answer_removing_a_reading_uses_d3_reference_presence(?string $reference, bool $flagged): void
     {
         $reading = new ServiceStructureSection(ServiceSectionType::BibleReading, null, 100, 200, 0.95, null, null, 'Luke 15:11-32');
-        $sermon = new ServiceStructureSection(ServiceSectionType::Sermon, null, 250, 500, 0.95, null, null, null, 'Luke 15:11-32');
+        $sermon = new ServiceStructureSection(ServiceSectionType::Sermon, null, 250, 500, 0.95, null, null, null, $reference);
         $proposal = $this->proposalOf([$reading, $sermon], ['type' => 'bible_reading', 'written' => true, 'start_time' => 100.0, 'end_time' => 200.0]);
 
         $result = app(ServiceStructureEnsembleRulingApplier::class)->apply($proposal, [[
@@ -573,7 +575,7 @@ class ServiceStructureEnsembleRulingApplierTest extends TestCase
         ]]);
 
         $this->assertSame([['sermon', 250.0, 500.0]], $this->spans($result));
-        $this->assertContains(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $result['structure']['sections'][0]['review_flags']);
+        $this->assertSame($flagged, in_array(ServiceStructureValidator::FLAG_MISSING_PREACHED_READING, $result['structure']['sections'][0]['review_flags'], true));
     }
 
     #[Test]

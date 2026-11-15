@@ -21,6 +21,7 @@ use App\Models\ServiceSection;
 use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -34,6 +35,53 @@ class SermonCreationServiceTest extends TestCase
     {
         parent::setUp();
         $this->service = $this->app->make(SermonCreationService::class);
+    }
+
+    #[Test]
+    #[TestWith(['2 John 1:10-11', false])]
+    #[TestWith([null, false])]
+    #[TestWith([null, true])]
+    public function hand_ruled_references_survive_replacement_and_enrichment(?string $reference, bool $richer): void
+    {
+        $existing = Sermon::factory()->create([
+            'date' => '2024-01-01', 'service' => SermonService::Morning,
+            'content_type' => TalkType::Sermon, 'source_type' => SermonSourceType::AudioUpload,
+            'audio_file_path' => 'audio/old.mp3', 'video_file_path' => null,
+            'livestream_processing_id' => null, 'reference' => $reference,
+            'reference_provenance' => 'curated',
+        ]);
+        $log = MediaProcessingLog::factory()->audio()->create(['processing_metadata' => []]);
+        $result = $this->service->createSermon($log, new SermonCreationOptions(
+            audioFilePath: 'audio/new.mp3', originalFilename: 'replacement.mp3',
+            sourceType: $richer ? SermonSourceType::VideoUpload : SermonSourceType::AudioUpload,
+            videoFilePath: $richer ? 'video/new.mp4' : null,
+            date: '2024-01-01', service: SermonService::Morning,
+            id3Reference: '3 John 1:10-11', aiAnalysis: ['reference' => 'John 3:16'],
+        ));
+        $this->assertSame($existing->id, $result->id);
+        $this->assertSame($reference, $result->reference);
+        $this->assertSame('curated', $result->reference_provenance?->value);
+        $this->assertSame($reference === null ? [] : ['2 John'], $result->scriptureFilters()->pluck('bible_book')->all());
+    }
+
+    #[Test]
+    #[TestWith([true, 'curated'])]
+    #[TestWith([false, 'ai_analysis'])]
+    public function automatic_reference_writers_record_their_source_and_refresh_legacy_rows(bool $id3, string $provenance): void
+    {
+        $log = MediaProcessingLog::factory()->audio()->create(['processing_metadata' => []]);
+        $options = new SermonCreationOptions(
+            audioFilePath: 'audio/new.mp3', originalFilename: 'new.mp3',
+            sourceType: SermonSourceType::AudioUpload,
+            date: '2024-01-01', service: SermonService::Morning,
+            id3Reference: $id3 ? '2 John 1:10-11' : null, aiAnalysis: ['reference' => '2 John 1:10-11'],
+        );
+        $fresh = $this->service->createSermon($log, $options);
+        $this->assertSame($provenance, $fresh->reference_provenance?->value);
+        $fresh->forceFill(['reference' => '3 John 1:10-11', 'reference_provenance' => null])->save();
+        $refreshed = $this->service->createSermon($log, $options);
+        $this->assertSame('2 John 1:10-11', $refreshed->reference);
+        $this->assertSame($provenance, $refreshed->reference_provenance?->value);
     }
 
     #[Test]

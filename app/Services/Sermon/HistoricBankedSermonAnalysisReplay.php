@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Sermon;
 
 use App\Enums\SermonTitleProvenance;
+use App\Enums\SermonReferenceProvenance;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Support\Facades\Log;
@@ -65,8 +66,9 @@ class HistoricBankedSermonAnalysisReplay
             $refused[] = 'title_curated';
         }
 
-        if (blank($sermon->reference) && filled($analysis->reference)) {
+        if ($sermon->referenceMayBeFilledByAnalysis() && filled($analysis->reference)) {
             $updates['reference'] = $analysis->reference;
+            $updates['reference_provenance'] = SermonReferenceProvenance::AiAnalysis;
             $updates['scripture_passage_id'] = null;
             $changed[] = 'reference';
         } elseif (filled($sermon->reference)) {

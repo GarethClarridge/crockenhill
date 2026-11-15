@@ -7,6 +7,7 @@ namespace App\Services\HistoricMedia;
 use App\Data\HistoricProcessingResultImportPlan;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\SermonPublicationState;
+use App\Enums\SermonReferenceProvenance;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
 use App\Models\ChurchService;
@@ -23,6 +24,8 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Support\SeedSignature;
+use App\Services\Processing\SermonIdentitySyncService;
+use App\Services\Scripture\SermonScriptureFilterIndexService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -136,7 +139,7 @@ class HistoricMediaGraphPersister
         $inventory = $this->inventory->build($run);
 
         /** A replaced production sermon keeps its own editorial facts; only the media graph must match. */
-        $expectedHash = $this->bindings->comparableHash($plan->service['media_graph'], $plan->productionBinding);
+        $expectedHash = $this->bindings->comparableHash($plan->service['media_graph'], $plan->productionBinding, expected: true);
         $liveHash = $this->bindings->comparableHash($inventory, $plan->productionBinding);
 
         if (! hash_equals($expectedHash, $liveHash)) {
@@ -304,6 +307,9 @@ class HistoricMediaGraphPersister
                     'thumbnail_file_path' => null,
                     'media_replacement_history' => $history,
                 ])->save();
+                if (isset($entry['corrections']['reference'])) {
+                    app(SermonScriptureFilterIndexService::class)->syncForSermon($target);
+                }
                 $sermon = $target;
             } else {
                 $sermon = $existing instanceof Sermon
@@ -390,6 +396,7 @@ class HistoricMediaGraphPersister
         $unapplied = [];
         $filled = [];
         $applied = [];
+        $attributes['partial_recording'] = $target->partial_recording || ($attributes['partial_recording'] ?? false);
 
         foreach (ProductionSermonBinding::KEPT_FIELDS as $field) {
             if (! array_key_exists($field, $attributes)) {
@@ -430,6 +437,12 @@ class HistoricMediaGraphPersister
             ];
             $attributes[$field] = $value;
             unset($unapplied[$field]);
+        }
+
+        if (isset($corrections['reference'])) {
+            $attributes['reference_provenance'] = SermonReferenceProvenance::Curated;
+            $attributes['scripture_passage_id'] = app(SermonIdentitySyncService::class)
+                ->findExistingScripturePassage($corrections['reference'])?->id;
         }
 
         return ['attributes' => $attributes, 'unapplied' => $unapplied, 'filled' => $filled, 'corrections' => $applied];

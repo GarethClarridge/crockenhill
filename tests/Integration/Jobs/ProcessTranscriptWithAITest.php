@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use OpenAI\Exceptions\RateLimitException;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Concerns\CreatesHistoricImportOperations;
 use Tests\TestCase;
 
@@ -41,6 +42,29 @@ class ProcessTranscriptWithAITest extends TestCase
             summary: 'A sermon about Jesus as the Good Shepherd.',
             transcript: $this->sampleTranscript
         );
+    }
+
+    #[Test]
+    #[TestWith([null, false])]
+    #[TestWith(['2 John 1:10-11', false])]
+    #[TestWith([null, true])]
+    public function analysis_preserves_a_deliberately_cleared_hand_ruled_reference(?string $reference, bool $fallback): void
+    {
+        Storage::fake();
+        Storage::put('transcripts/manual-reference.txt', $this->sampleTranscript);
+        $sermon = Sermon::factory()->create(['reference' => $reference, 'reference_provenance' => 'curated']);
+        $log = MediaProcessingLog::factory()->audio()->processing()->create([
+            'sermon_id' => $sermon->id, 'transcript_file_path' => 'transcripts/manual-reference.txt',
+        ]);
+        $analysis = $this->createMock(SermonAnalysisInterface::class);
+        if ($fallback) {
+            $analysis->expects($this->once())->method('analyzeSermon')->willThrowException(new \Exception('Unavailable'));
+        } else {
+            $analysis->expects($this->once())->method('analyzeSermon')->willReturn($this->createAnalysis());
+        }
+        (new ProcessTranscriptWithAI($log))->handle($analysis, app(SermonRepository::class));
+        $this->assertSame($reference, $sermon->fresh()->reference);
+        $this->assertSame('curated', $sermon->fresh()->reference_provenance?->value);
     }
 
     #[Test]

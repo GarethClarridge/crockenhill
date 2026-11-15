@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Actions;
 
 use App\Enums\PreacherSource;
+use App\Enums\SermonReferenceProvenance;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
 use App\Models\Sermon;
@@ -49,11 +50,6 @@ class SaveSermonDetails
 
         $referenceChanged = $sermon->reference !== $validated['reference'];
         $newReference = $validated['reference'];
-        $scripturePassage = $this->sermonIdentitySyncService->findExistingScripturePassage($newReference);
-        $scripturePassageId = ($referenceChanged || $sermon->scripture_passage_id === null)
-            ? $scripturePassage?->id
-            : $sermon->scripture_passage_id;
-
         $updateData = [
             'title' => $validated['title'],
             'slug' => $validated['slug'],
@@ -68,14 +64,12 @@ class SaveSermonDetails
             'segment_end_time' => $validated['segmentEndTime'],
             'download_count' => $validated['downloadCount'] ?? 0,
             'needs_preacher_review' => false,
-            'reference' => $newReference,
-            'scripture_passage_id' => $scripturePassageId,
+            ...$this->referenceUpdates($sermon, $newReference, $validated['partialRecording']),
             'series' => $validated['series'],
             'summary' => $validated['summary'],
             'points' => array_filter($validated['points']),
             'show_summary' => $validated['showSummary'],
             'show_points' => $validated['showPoints'],
-            'partial_recording' => $validated['partialRecording'],
         ];
 
         $sermon->update($updateData);
@@ -88,12 +82,48 @@ class SaveSermonDetails
             'slug' => $fresh instanceof Sermon ? $fresh->slug : $sermon->slug,
         ]));
 
-        // Dispatch enrichment after saving if reference was set or changed
+        $this->afterReferenceSave($sermon, $referenceChanged, $newReference);
+    }
+
+    /** Apply a hand-ruled reference and disclosure without re-ruling the rest of the editor form. */
+    public function correctReference(Sermon $sermon, ?string $reference, bool $partialRecording): void
+    {
+        $changed = $sermon->reference !== $reference;
+        $sermon->update([
+            ...$this->referenceUpdates($sermon, $reference, $partialRecording),
+            'reference_provenance' => SermonReferenceProvenance::Curated,
+        ]);
+        Log::warning('Sermon reference corrected by admin', $this->sanitizeArrayForLog([
+            'admin_id' => auth()->id(),
+            'sermon_id' => $sermon->id,
+            'reference' => $sermon->reference,
+            'partial_recording' => $sermon->partial_recording,
+        ]));
+        $this->afterReferenceSave($sermon, $changed, $reference);
+    }
+
+    /** @return array{reference: ?string, reference_provenance: ?SermonReferenceProvenance, scripture_passage_id: ?int, partial_recording: bool} */
+    private function referenceUpdates(Sermon $sermon, ?string $reference, bool $partialRecording): array
+    {
+        $changed = $sermon->reference !== $reference;
+        $passage = $this->sermonIdentitySyncService->findExistingScripturePassage($reference);
+
+        return [
+            'reference' => $reference,
+            'reference_provenance' => $changed ? SermonReferenceProvenance::Curated : $sermon->reference_provenance,
+            'scripture_passage_id' => ($changed || $sermon->scripture_passage_id === null)
+                ? $passage?->id
+                : $sermon->scripture_passage_id,
+            'partial_recording' => $partialRecording,
+        ];
+    }
+
+    private function afterReferenceSave(Sermon $sermon, bool $referenceChanged, ?string $newReference): void
+    {
         if ($referenceChanged && ! empty($newReference)) {
-            $this->queueScriptureEnrichment->dispatch($fresh instanceof Sermon ? $fresh : $sermon);
+            $this->queueScriptureEnrichment->dispatch($sermon->fresh() ?? $sermon);
         }
 
-        // A corrected reference withdraws the contradiction hold; a new wrong one raises it.
         $run = $sermon->latestProcessingLog;
 
         if ($referenceChanged && $run instanceof MediaProcessingLog) {

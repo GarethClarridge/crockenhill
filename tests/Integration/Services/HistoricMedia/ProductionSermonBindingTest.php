@@ -33,7 +33,7 @@ class ProductionSermonBindingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->folder = base_path('storage/scratch/prod-binding-20261114-wp33/test-'.bin2hex(random_bytes(8)));
+        $this->folder = base_path('storage/scratch/reference-correction-20261115-wp51/test-'.bin2hex(random_bytes(8)));
         mkdir($this->folder, 0700, true);
         Storage::fake('binding_old', ['root' => $this->folder.'/old']);
         Storage::fake('historic_staging', ['root' => $this->folder.'/staging']);
@@ -45,6 +45,96 @@ class ProductionSermonBindingTest extends TestCase
             'media-processing.storage.historic_staging_disk' => 'historic_staging',
             'media-processing.storage.historic_quarantine_disk' => 'historic_quarantine',
         ]);
+    }
+
+    #[Test]
+    #[TestWith([true])]
+    #[TestWith([false])]
+    public function an_explicit_reference_correction_rebuilds_passage_and_filters(bool $cached): void
+    {
+        $old = \App\Models\ScripturePassage::factory()->create(['normalized_reference' => '3 John 1:10-11']);
+        $correct = $cached ? \App\Models\ScripturePassage::factory()->create(['normalized_reference' => '2 John 1:10-11']) : null;
+        [$target, $bundle] = $this->fixture(null, ['reference' => '3 John 1:10-11', 'scripture_passage_id' => $old->id]);
+        $bound = $this->bind($bundle, $target->id, ['reference' => '2 John 1:10-11']);
+        $importer = app(HistoricProcessingResultBundleImporter::class);
+        $importer->importService($bound, $importer->prepareService($bound)->planHash);
+        $target->refresh();
+        $this->assertSame('2 John 1:10-11', $target->reference);
+        $this->assertSame('curated', $target->reference_provenance?->value);
+        $this->assertSame($correct?->id, $target->scripture_passage_id);
+        $this->assertSame(['2 John'], $target->scriptureFilters()->pluck('bible_book')->all());
+        $this->assertSame([1], $target->scriptureFilters()->pluck('bible_chapter')->all());
+        $this->assertSame('2 John 1:10-11', $target->media_replacement_history[0]['corrections_applied']['reference']['applied']);
+        $this->assertSame('already_present', $importer->prepareService($bound)->classification);
+    }
+
+    #[Test]
+    #[TestWith([true, false])]
+    #[TestWith([false, true])]
+    #[TestWith([true, true])]
+    #[TestWith([false, false])]
+    public function bound_partial_recording_is_the_union_of_production_and_local(bool $production, bool $local): void
+    {
+        [$target, $bundle] = $this->fixture(null, ['partial_recording' => $production]);
+        $bundle['services'][0]['media_graph']['publications'][0]['partial_recording'] = $local;
+        $bundle['services'][0]['media_graph']['logical_hash'] = app(HistoricProcessingResultInventory::class)->logicalHash($bundle['services'][0]['media_graph']);
+        $bound = $this->bind($this->rehash($bundle), $target->id);
+        $importer = app(HistoricProcessingResultBundleImporter::class);
+        $importer->importService($bound, $importer->prepareService($bound)->planHash);
+        $this->assertSame($production || $local, $target->fresh()->partial_recording);
+        $this->assertSame('already_present', $importer->prepareService($bound)->classification);
+    }
+
+    #[Test]
+    #[TestWith([null])]
+    #[TestWith([''])]
+    #[TestWith(['nonsense'])]
+    #[TestWith(['2 John 2:10-11'])]
+    #[TestWith(['John 3:999'])]
+    #[TestWith([123])]
+    public function malformed_reference_corrections_are_refused(mixed $reference): void
+    {
+        [$target, $bundle] = $this->fixture();
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('correction');
+        $this->bind($bundle, $target->id, ['reference' => $reference]);
+    }
+
+    #[Test]
+    public function a_reference_correction_is_hash_bound(): void
+    {
+        [$target, $bundle] = $this->fixture();
+        $bound = $this->bind($bundle, $target->id, ['reference' => '2 John 1:10-11']);
+        $bound['production_binding']['entries'][0]['corrections']['reference'] = '3 John 1:10-11';
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('binding hash');
+        app(HistoricProcessingResultBundle::class)->validate($this->rehash($bound));
+    }
+
+    #[Test]
+    public function a_reference_correction_does_not_bypass_the_seed_signature(): void
+    {
+        [$target, $bundle] = $this->fixture();
+        $bundle['services'][0]['date'] = '2024-12-15';
+        $publication = &$bundle['services'][0]['media_graph']['publications'][0];
+        $publication['date'] = '2024-12-15';
+        $publication['title'] = 'The Birth of Our Saviour';
+        unset($publication);
+        $bundle['services'][0]['media_graph']['logical_hash'] = app(HistoricProcessingResultInventory::class)->logicalHash($bundle['services'][0]['media_graph']);
+        $this->expectException(\App\Exceptions\SeedResidueException::class);
+        $this->expectExceptionMessage('seeded');
+        $this->bind($this->rehash($bundle), $target->id, ['reference' => '2 John 1:10-11']);
+    }
+
+    #[Test]
+    public function a_cleared_partial_flag_is_detected_on_replay(): void
+    {
+        [$target, $bundle] = $this->fixture(null, ['partial_recording' => true]);
+        $bound = $this->bind($bundle, $target->id);
+        $importer = app(HistoricProcessingResultBundleImporter::class);
+        $importer->importService($bound, $importer->prepareService($bound)->planHash);
+        $target->refresh()->forceFill(['partial_recording' => false])->saveQuietly();
+        $this->assertNotSame('already_present', $importer->prepareService($bound)->classification);
     }
 
     #[Test]
@@ -617,7 +707,7 @@ class ProductionSermonBindingTest extends TestCase
         return [$target, $bundle];
     }
 
-    /** @param array<string, mixed> $bundle @param array<string, string> $corrections @return array<string, mixed> */
+    /** @param array<string, mixed> $bundle @param array<string, mixed> $corrections @return array<string, mixed> */
     private function bind(array $bundle, ?int $target, array $corrections = []): array
     {
         return app(ProductionSermonBinding::class)->bind($bundle, $this->folder.'/census.jsonl', [
