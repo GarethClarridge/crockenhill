@@ -27,14 +27,27 @@ class SermonSlugGenerator
      */
     public function generate(string $title, ?int $excludeSermonId = null): string
     {
-        $baseSlug = Str::slug($title);
-        $slug = $baseSlug;
-        $counter = 1;
-
         $query = Sermon::query()
             ->when($excludeSermonId, fn (Builder $builder): Builder => $builder->where('id', '!=', $excludeSermonId));
 
-        while ($query->clone()->where('slug', $slug)->exists()) {
+        return $this->firstFree(
+            Str::slug($title),
+            fn (string $slug): bool => $query->clone()->where('slug', $slug)->exists(),
+        );
+    }
+
+    /**
+     * The uniqueness rule itself: the bare slug, else `-1`, `-2`, ... until one is free.
+     * Shared with destinations that cannot be asked of the local database.
+     *
+     * @param  callable(string): bool  $isTaken
+     */
+    public function firstFree(string $baseSlug, callable $isTaken): string
+    {
+        $slug = $baseSlug;
+        $counter = 1;
+
+        while ($isTaken($slug)) {
             $slug = "{$baseSlug}-{$counter}";
             $counter++;
         }

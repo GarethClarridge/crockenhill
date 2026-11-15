@@ -10,6 +10,7 @@ readonly class HistoricProcessingResultImportPlan
      * @param  'already_present'|'create'|'safe_enrichment'|'blocked_difference'|'conflict'  $classification
      * @param  array<string, mixed>  $service
      * @param  list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}>  $assets
+     * @param  array<string, mixed>|null  $productionBinding
      */
     public function __construct(
         public string $classification,
@@ -20,5 +21,6 @@ readonly class HistoricProcessingResultImportPlan
         public array $assets,
         public ?int $existingProcessingLogId = null,
         public ?int $historicImportOperationId = null,
+        public ?array $productionBinding = null,
     ) {}
 }

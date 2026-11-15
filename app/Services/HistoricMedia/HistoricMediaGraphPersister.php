@@ -34,6 +34,7 @@ class HistoricMediaGraphPersister
         private readonly HistoricProcessingResultAssetTransfer $assets,
         private readonly HistoricProcessingResultInventory $inventory,
         private readonly HistoricScripturePassageRequirements $scriptureRequirements,
+        private readonly ProductionSermonBinding $bindings,
     ) {}
 
     /**
@@ -70,6 +71,7 @@ class HistoricMediaGraphPersister
             $processingId,
             $run,
             $plan->historicImportOperationId,
+            $plan,
         );
         $run->sermon_id = $publications['main']->id ?? null;
         $run->save();
@@ -95,6 +97,14 @@ class HistoricMediaGraphPersister
      */
     private function operationOwnedDestinations(HistoricProcessingResultImportPlan $plan, array $destinations): array
     {
+        if ($plan->productionBinding !== null) {
+            $hash = $plan->productionBinding['binding_hash'];
+            $destinations = array_map(
+                static fn (string $path): string => "production-bindings/{$hash}/{$path}",
+                $destinations,
+            );
+        }
+
         if ($plan->historicImportOperationId === null) {
             return $destinations;
         }
@@ -123,7 +133,11 @@ class HistoricMediaGraphPersister
         $run = $run->fresh() ?? $run;
         $inventory = $this->inventory->build($run);
 
-        if (! hash_equals($plan->service['media_graph']['logical_hash'], $inventory['logical_hash'])) {
+        /** A replaced production sermon keeps its own editorial facts; only the media graph must match. */
+        $expectedHash = $this->bindings->comparableHash($plan->service['media_graph'], $plan->productionBinding);
+        $liveHash = $this->bindings->comparableHash($inventory, $plan->productionBinding);
+
+        if (! hash_equals($expectedHash, $liveHash)) {
             throw new RuntimeException('Already-present historic media graph differs from the reviewed bundle.');
         }
 
@@ -193,6 +207,7 @@ class HistoricMediaGraphPersister
         string $processingId,
         MediaProcessingLog $run,
         ?int $historicImportOperationId,
+        HistoricProcessingResultImportPlan $plan,
     ): array {
         $created = [];
 
@@ -242,20 +257,66 @@ class HistoricMediaGraphPersister
                 'video_quality_assessed_at' => $publication['video_quality_assessed_at'] ?? null,
                 'thumbnail_generated_at' => $publication['thumbnail_generated_at'] ?? null,
                 'thumbnail_metadata' => $publication['thumbnail_metadata'] ?? null,
-                'preacher' => $preacher?->name,
+                'preacher' => $preacher->name ?? ($publication['preacher_display_name'] ?? null),
                 'preacher_id' => $preacher?->id,
             ];
-            $existing = $this->resolveExistingPublication($publication, $processingId, $run, $created);
-            $sermon = $existing instanceof Sermon
-                ? $this->convergePublication($existing, $attributes, $this->assertedFields($publication), $processingId)
-                : Sermon::query()->create([
-                    ...$attributes,
+            $boundMain = $plan->productionBinding !== null && $key === 'main';
+            $target = $boundMain ? $this->bindings->verifyTarget($plan->productionBinding, true) : null;
+            $existing = $this->resolveExistingPublication($publication, $processingId, $run, $created, $target?->id);
+            if ($plan->productionBinding !== null && $target === null && $existing instanceof Sermon) {
+                throw new RuntimeException('Explicit create binding resolved an existing production sermon.');
+            }
+            if ($target instanceof Sermon) {
+                if ($existing instanceof Sermon && $existing->isNot($target)) {
+                    throw new RuntimeException('Production binding conflicts with a strong sermon identity.');
+                }
+                $entry = $plan->productionBinding;
+                $history = $target->getAttribute('media_replacement_history') ?? [];
+                $history[] = [
+                    'binding_hash' => $entry['binding_hash'],
+                    'census_sha256' => $entry['census_sha256'],
+                    'processing_key' => $processingId,
+                    'previous_row' => $entry['previous_row'],
+                    'previous_assets' => $entry['previous_row']['_assets'] ?? [],
+                    'previous_scripture_filters' => $target->scriptureFilters()->get()->map(
+                        static fn (SermonScriptureFilter $filter): array => $filter->getRawOriginal(),
+                    )->all(),
+                    'replaced_at' => now()->toIso8601String(),
+                ];
+                $replacement = $this->boundReplacementAttributes($target, $attributes, $entry['corrections'] ?? []);
+                $history[array_key_last($history)] += [
+                    'unapplied_local_values' => $replacement['unapplied'],
+                    'filled_from_local' => $replacement['filled'],
+                    'corrections_applied' => $replacement['corrections'],
+                    'local_scripture_filters_unapplied' => $publication['scripture_filters'] ?? [],
+                ];
+                $target->forceFill([
+                    ...$replacement['attributes'],
                     'livestream_processing_id' => $processingId,
                     'historic_import_operation_id' => $historicImportOperationId,
                     'publication_state' => SermonPublicationState::Quarantined,
                     'asset_disk' => $this->assets->targetDiskName(),
-                ]);
-            $this->persistScriptureFilters($sermon, $publication['scripture_filters'] ?? []);
+                    'audio_file_path' => $publication['audio_file_path'],
+                    'video_file_path' => null,
+                    'transcript_file_path' => null,
+                    'thumbnail_file_path' => null,
+                    'media_replacement_history' => $history,
+                ])->save();
+                $sermon = $target;
+            } else {
+                $sermon = $existing instanceof Sermon
+                    ? $this->convergePublication($existing, $attributes, $this->assertedFields($publication), $processingId)
+                    : Sermon::query()->create([
+                        ...$attributes,
+                        'livestream_processing_id' => $processingId,
+                        'historic_import_operation_id' => $historicImportOperationId,
+                        'publication_state' => SermonPublicationState::Quarantined,
+                        'asset_disk' => $this->assets->targetDiskName(),
+                    ]);
+            }
+            if (! $target instanceof Sermon) {
+                $this->persistScriptureFilters($sermon, $publication['scripture_filters'] ?? []);
+            }
             $created[$key] = $sermon;
         }
 
@@ -313,6 +374,77 @@ class HistoricMediaGraphPersister
     }
 
     /**
+     * Split a local publication's attributes for a bound production sermon: the production
+     * value stays for hand-entered editorial fields, empty derived text is filled from the
+     * local value, explicit corrections replace the production value, and everything else
+     * (media, timings, grading) is taken from the local run.
+     *
+     * @param  array<string, mixed>  $attributes
+     * @param  array<string, string>  $corrections
+     * @return array{attributes: array<string, mixed>, unapplied: array<string, mixed>, filled: array<string, mixed>, corrections: array<string, array<string, mixed>>}
+     */
+    private function boundReplacementAttributes(Sermon $target, array $attributes, array $corrections): array
+    {
+        $unapplied = [];
+        $filled = [];
+        $applied = [];
+
+        foreach (ProductionSermonBinding::KEPT_FIELDS as $field) {
+            if (! array_key_exists($field, $attributes)) {
+                continue;
+            }
+            $production = $target->getAttribute($field);
+            if ($this->comparable($production) !== $this->comparable($attributes[$field])) {
+                $unapplied[$field] = $attributes[$field];
+            }
+            $attributes[$field] = $production;
+        }
+
+        foreach (ProductionSermonBinding::FILL_IF_EMPTY_FIELDS as $field) {
+            if (! array_key_exists($field, $attributes)) {
+                continue;
+            }
+            $production = $target->getAttribute($field);
+            if (blank($production)) {
+                if (! blank($attributes[$field])) {
+                    $filled[$field] = $attributes[$field];
+                }
+
+                continue;
+            }
+            if ($this->comparable($production) !== $this->comparable($attributes[$field])) {
+                $unapplied[$field] = $attributes[$field];
+            }
+            $attributes[$field] = $production;
+        }
+
+        foreach ($corrections as $field => $value) {
+            $applied[$field] = [
+                'production' => $target->getAttribute($field) instanceof \BackedEnum
+                    ? $target->getAttribute($field)->value
+                    : $target->getAttribute($field),
+                'local' => $unapplied[$field] ?? $attributes[$field] ?? null,
+                'applied' => $value,
+            ];
+            $attributes[$field] = $value;
+            unset($unapplied[$field]);
+        }
+
+        return ['attributes' => $attributes, 'unapplied' => $unapplied, 'filled' => $filled, 'corrections' => $applied];
+    }
+
+    private function comparable(mixed $value): string
+    {
+        if ($value instanceof \BackedEnum) {
+            $value = $value->value;
+        } elseif ($value instanceof \DateTimeInterface) {
+            $value = $value->format('Y-m-d');
+        }
+
+        return (string) json_encode($value, JSON_UNESCAPED_UNICODE);
+    }
+
+    /**
      * @param  array<string, Sermon>  $created
      */
     private function publicationCreatedInThisAttempt(array $created, string $slug): ?Sermon
@@ -360,6 +492,7 @@ class HistoricMediaGraphPersister
         string $processingId,
         MediaProcessingLog $run,
         array $created,
+        ?int $boundTargetId = null,
     ): ?Sermon {
         $candidateIds = Sermon::query()
             ->where('livestream_processing_id', $processingId)
@@ -402,7 +535,9 @@ class HistoricMediaGraphPersister
 
         if ($candidateIds === []) {
             if ($slugMatch instanceof Sermon) {
-                throw new RuntimeException('Historic publication slug already belongs to a different sermon.');
+                if ($slugMatch->id !== $boundTargetId) {
+                    throw new RuntimeException('Historic publication slug already belongs to a different sermon.');
+                }
             }
 
             return null;
@@ -1253,12 +1388,14 @@ class HistoricMediaGraphPersister
                     'thumbnail_candidate' => "thumbnail-candidate-{$publicationRole['candidate_index']}-{$variant}.{$extension}",
                 };
 
-                $destinations[$role] = $this->existingPublicationAssetPath(
-                    $publication,
-                    $publicationRole,
-                    "sermons/{$publication->id}/{$filename}",
-                    $stagedPaths,
-                );
+                $destinations[$role] = $plan->productionBinding !== null
+                    ? "sermons/{$publication->id}/{$filename}"
+                    : $this->existingPublicationAssetPath(
+                        $publication,
+                        $publicationRole,
+                        "sermons/{$publication->id}/{$filename}",
+                        $stagedPaths,
+                    );
             } elseif (str_starts_with($role, 'section:')) {
                 $sectionRole = HistoricProcessingResultAssetRole::parseSection($role);
                 $section = $sectionRole === null ? null : $sections[$sectionRole['section_key']] ?? null;

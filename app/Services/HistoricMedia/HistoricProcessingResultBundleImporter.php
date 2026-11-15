@@ -19,6 +19,7 @@ class HistoricProcessingResultBundleImporter
         private readonly HistoricProcessingResultAssetTransfer $assets,
         private readonly HistoricProcessingResultInventory $inventory,
         private readonly HistoricMediaGraphPersister $persister,
+        private readonly ProductionSermonBinding $bindings,
     ) {}
 
     /** @param array<string, mixed> $bundle */
@@ -58,6 +59,12 @@ class HistoricProcessingResultBundleImporter
             throw new RuntimeException("Bundle service index {$serviceIndex} does not exist.");
         }
 
+        if (! $verifyStaging && $operation === null && isset($bundle['production_binding'])) {
+            $operation = MediaProcessingLog::query()->with('historicImportOperation')
+                ->where('processing_id', $service['media_graph']['processing_key'])
+                ->first()?->historicImportOperation;
+        }
+
         /** @var list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}> $assetManifest */
         $assetManifest = $service['assets'];
 
@@ -65,7 +72,9 @@ class HistoricProcessingResultBundleImporter
             $this->assets->verifyStaged($assetManifest);
         }
 
-        $classification = $this->classify($service, $operation);
+        $binding = $this->bindings->forService($bundle, $serviceIndex);
+        $this->bindings->verifyTarget($binding);
+        $classification = $this->classify($service, $operation, $binding);
         $planHash = CanonicalJson::hash([
             'bundle_hash' => $bundle['bundle_hash'],
             'service_identity' => [$service['date'], $service['service']],
@@ -84,6 +93,7 @@ class HistoricProcessingResultBundleImporter
             assets: $assetManifest,
             existingProcessingLogId: $classification['existing_processing_log_id'],
             historicImportOperationId: $operation?->id,
+            productionBinding: $binding,
         );
     }
 
@@ -100,6 +110,8 @@ class HistoricProcessingResultBundleImporter
         if (! hash_equals($plan->planHash, $planHash)) {
             throw new RuntimeException('Historic processing import plan hash does not match.');
         }
+
+        $this->bindings->verifyTarget($plan->productionBinding, true);
 
         if ($plan->classification === 'already_present' && $plan->existingProcessingLogId !== null) {
             $existing = MediaProcessingLog::query()->findOrFail($plan->existingProcessingLogId);
@@ -143,9 +155,10 @@ class HistoricProcessingResultBundleImporter
 
     /**
      * @param  array<string, mixed>  $service
+     * @param  array<string, mixed>|null  $binding
      * @return array{classification: 'already_present'|'create'|'safe_enrichment'|'blocked_difference'|'conflict', reason: string, existing_processing_log_id: int|null}
      */
-    private function classify(array $service, ?HistoricImportOperation $operation = null): array
+    private function classify(array $service, ?HistoricImportOperation $operation = null, ?array $binding = null): array
     {
         $graph = $service['media_graph'];
         $run = $graph['run'];
@@ -157,11 +170,11 @@ class HistoricProcessingResultBundleImporter
             : null;
 
         if ($existing instanceof MediaProcessingLog) {
-            $existingHash = $this->inventory->build($existing)['logical_hash'];
+            $existingHash = $this->bindings->comparableHash($this->inventory->build($existing), $binding);
 
-            if ($existingHash === $graph['logical_hash']) {
+            if ($existingHash === $this->bindings->comparableHash($graph, $binding)) {
                 try {
-                    $this->persister->verifyExisting($this->verificationPlan($service, $operation), $existing);
+                    $this->persister->verifyExisting($this->verificationPlan($service, $operation, $binding), $existing);
 
                     return [
                         'classification' => HistoricImportClassification::AlreadyPresent->value,
@@ -184,7 +197,13 @@ class HistoricProcessingResultBundleImporter
             ];
         }
 
-        if ($hashMatch instanceof MediaProcessingLog) {
+        $boundTargetId = $binding['target_sermon_id'] ?? null;
+        $hashBelongsOnlyToTarget = $boundTargetId !== null && is_string($fileHash)
+            && ! MediaProcessingLog::query()->where('file_hash', $fileHash)
+                ->where(fn ($query) => $query->whereNull('sermon_id')->orWhere('sermon_id', '!=', $boundTargetId))
+                ->exists();
+
+        if ($hashMatch instanceof MediaProcessingLog && ! $hashBelongsOnlyToTarget) {
             return [
                 'classification' => HistoricImportClassification::Conflict->value,
                 'reason' => 'The source media hash belongs to a different processing identity.',
@@ -199,10 +218,14 @@ class HistoricProcessingResultBundleImporter
         ];
     }
 
-    /** @param array<string, mixed> $service */
+    /**
+     * @param  array<string, mixed>  $service
+     * @param  array<string, mixed>|null  $binding
+     */
     private function verificationPlan(
         array $service,
         ?HistoricImportOperation $operation = null,
+        ?array $binding = null,
     ): HistoricProcessingResultImportPlan {
         /** @var list<array{path: string, size: int, sha256: string, kind: string, roles: list<string>}> $assets */
         $assets = $service['assets'];
@@ -218,6 +241,7 @@ class HistoricProcessingResultBundleImporter
             // keys the apply allocated, or every already-present service
             // reclassifies as a blocked difference.
             historicImportOperationId: $operation?->id,
+            productionBinding: $binding,
         );
     }
 }

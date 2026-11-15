@@ -11,7 +11,7 @@ use RuntimeException;
 class HistoricProcessingResultBundleFiles
 {
     /** @param array<string, mixed> $bundle */
-    public function write(string $path, array $bundle): string
+    public function write(string $path, array $bundle, bool $overwrite = true): string
     {
         $resolved = $this->resolveWritablePath($path);
         $temporary = $resolved.'.'.Str::uuid().'.tmp';
@@ -26,7 +26,8 @@ class HistoricProcessingResultBundleFiles
                 throw new RuntimeException('Historic processing bundle could not be written securely.');
             }
 
-            if (! rename($temporary, $resolved)) {
+            $published = $overwrite ? rename($temporary, $resolved) : @link($temporary, $resolved);
+            if (! $published) {
                 throw new RuntimeException('Historic processing bundle could not be moved into place.');
             }
         } finally {

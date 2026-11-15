@@ -192,6 +192,7 @@ class Sermon extends Model implements Sitemapable
     protected function casts(): array
     {
         return [
+            'media_replacement_history' => 'array',
             'id' => 'integer',
             'date' => 'date',
             'points' => 'array',

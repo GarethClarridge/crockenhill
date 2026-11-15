@@ -1989,6 +1989,35 @@ class MediaProcessingLog extends Model
     }
 
     /**
+     * The record of what purging this retired run deleted, written beside the retirement
+     * record, or null when the run was never purged. `status` is `files_pending` while
+     * files named in the record may still exist and `completed` once none do.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function purgeRecord(): ?array
+    {
+        $record = data_get($this->processing_metadata?->toArray() ?? [], 'purge');
+
+        return is_array($record) ? $record : null;
+    }
+
+    /**
+     * Replace this run's purge record. The caller owns the whole record: a purge is
+     * written once with its inventory and rewritten as the file deletions settle.
+     *
+     * @param  array<string, mixed>  $record
+     */
+    public function putPurge(array $record): void
+    {
+        $this->writeProcessingMetadata(static function (array $processingMetadata) use ($record): array {
+            $processingMetadata['purge'] = $record;
+
+            return $processingMetadata;
+        });
+    }
+
+    /**
      * The operator's correction of this run's service identity — the date and
      * slot it was imported under, the ones it was moved to, and what that
      * withdrew — or null when its identity was never corrected.

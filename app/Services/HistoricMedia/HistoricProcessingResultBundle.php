@@ -69,6 +69,7 @@ class HistoricProcessingResultBundle
             'processing_fingerprint',
             'services',
             'bundle_hash',
+            ...(array_key_exists('production_binding', $bundle) ? ['production_binding'] : []),
         ], 'bundle');
 
         if ($bundle['format'] !== self::FORMAT || $bundle['version'] !== self::VERSION) {
@@ -116,7 +117,11 @@ class HistoricProcessingResultBundle
             $processingKeys[$processingKey] = true;
         }
 
-        $this->guardPortable($bundle);
+        if (array_key_exists('production_binding', $bundle)) {
+            app(ProductionSermonBinding::class)->validate($bundle);
+        }
+
+        $this->guardPortable(array_diff_key($bundle, ['production_binding' => true]));
 
         return $bundle;
     }

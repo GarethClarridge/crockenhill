@@ -420,10 +420,27 @@ jobs:
             : "${DB_USERNAME:?Missing DB_USERNAME in .env.production}"
             : "${DB_PASSWORD:?Missing DB_PASSWORD in .env.production}"
 
-            mkdir -p "$(dirname "$BACKUP_FILE")"
-            docker compose -f docker-compose.prod.yml --env-file .env.production exec -T -e MYSQL_PWD="${DB_PASSWORD}" mysql \
-              mysqldump --no-tablespaces -u"${DB_USERNAME}" "${DB_DATABASE}" \
-              | gzip > "$BACKUP_FILE"
+            # Pre-migration backup. Runs in an explicit bash so pipefail is
+            # guaranteed whatever the SSH user's login shell is. The dump is a
+            # consistent InnoDB snapshot that takes no table locks, is written
+            # to a .partial name, and is only moved to its final name once
+            # mysqldump, gzip -t and a non-empty-content check have all passed. Any
+            # failure exits non-zero here, before migrations run. DB_* come from
+            # the exported .env.production values above; nothing is echoed.
+            bash -euo pipefail -c '
+              partial="${BACKUP_FILE}.partial"
+              trap "rm -f \"$partial\"" EXIT
+              mkdir -p "$(dirname "$BACKUP_FILE")"
+              docker compose -f docker-compose.prod.yml --env-file .env.production exec -T -e MYSQL_PWD="${DB_PASSWORD}" mysql \
+                mysqldump --single-transaction --quick --skip-lock-tables --no-tablespaces --set-gtid-purged=OFF \
+                  --triggers --hex-blob \
+                  -u"${DB_USERNAME}" "${DB_DATABASE}" \
+                | gzip > "$partial"
+              gzip -t "$partial"
+              [ "$(gzip -dc "$partial" | wc -c)" -gt 0 ] || { echo "Backup is empty." >&2; exit 1; }
+              mv "$partial" "$BACKUP_FILE"
+              trap - EXIT
+            '
             ls -t backups/*.sql.gz | tail -n +6 | xargs -r rm
 
             docker compose -f docker-compose.prod.yml --env-file .env.production run --rm app \

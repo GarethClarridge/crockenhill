@@ -168,7 +168,7 @@ class HistoricProcessingResultInventory
             'metadata' => $metadata,
         ];
 
-        $inventory['logical_hash'] = CanonicalJson::hash($this->portableHashProjection($inventory));
+        $inventory['logical_hash'] = $this->logicalHash($inventory);
 
         return $inventory;
     }
@@ -812,6 +812,14 @@ class HistoricProcessingResultInventory
             'selected_thumbnail_candidate_id',
             'id',
         ], true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $inventory
+     */
+    public function logicalHash(array $inventory): string
+    {
+        return CanonicalJson::hash($this->portableHashProjection($inventory));
     }
 
     /**

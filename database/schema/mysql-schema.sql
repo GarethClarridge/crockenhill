@@ -1095,7 +1095,7 @@ CREATE TABLE `scripture_passages` (
   `display_reference` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `html_content` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `copyright` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
-  `fums_token` text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci,
+  `fums_token` text COLLATE utf8mb4_unicode_ci,
   `fetched_at` timestamp NOT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL,
@@ -1205,6 +1205,7 @@ CREATE TABLE `sermons` (
   `summary` text CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci,
   `meta_description` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT NULL,
   `show_summary` tinyint(1) NOT NULL DEFAULT '0',
+  `media_replacement_history` json DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `sermons_slug_unique` (`slug`),
   KEY `sermons_date_service_index` (`date`,`service`),
@@ -1850,15 +1851,16 @@ INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_08_31_211617_add_a
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_02_184415_drop_historic_import_usage_entries_table',98);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_03_104053_add_occasion_to_church_services_table',99);
 INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_18_111240_drop_alternative_title_from_songs_table',100);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_205555_widen_sermons_content_type_to_talk_types',100);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_212016_rename_sermons_nav_page_to_talks',101);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_215702_rename_childrens_talk_section_type_to_short_talk',102);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_215704_move_short_talk_section_metadata_keys',102);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_061346_restamp_short_talk_classification_signatures',103);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073158_confirm_talk_type_of_approved_short_talks',104);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073200_stamp_candidate_media_signatures',104);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_25_222923_add_audio_timeline_path_to_media_processing_logs_table',105);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_10_22_120331_add_partial_recording_to_sermons_table',106);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_01_222802_add_quiet_recording_to_song_videos_table',107);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_05_184631_widen_fums_token_on_scripture_passages_table',108);
-INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_12_100000_add_church_update_talk_type',109);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_205555_widen_sermons_content_type_to_talk_types',101);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_212016_rename_sermons_nav_page_to_talks',102);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_215702_rename_childrens_talk_section_type_to_short_talk',103);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_23_215704_move_short_talk_section_metadata_keys',103);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_061346_restamp_short_talk_classification_signatures',104);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073158_confirm_talk_type_of_approved_short_talks',105);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_24_073200_stamp_candidate_media_signatures',105);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_09_25_222923_add_audio_timeline_path_to_media_processing_logs_table',106);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_10_22_120331_add_partial_recording_to_sermons_table',107);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_01_222802_add_quiet_recording_to_song_videos_table',108);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_05_184631_widen_fums_token_on_scripture_passages_table',109);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_12_100000_add_church_update_talk_type',110);
+INSERT INTO `migrations` (`migration`, `batch`) VALUES ('2026_11_14_184435_add_media_replacement_history_to_sermons_table',111);

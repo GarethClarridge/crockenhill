@@ -220,6 +220,15 @@ class ProductionCensusExporter
     }
 
     /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    public function observeSermon(array $row): array
+    {
+        return $this->identityRow('sermons', $row, false);
+    }
+
+    /**
      * @param  array<string|int, mixed>  $metadata
      * @param  array<string, mixed>  $assets
      */

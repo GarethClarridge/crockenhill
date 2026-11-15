@@ -518,8 +518,8 @@ class HistoricNormalOutputContract
                     'preacher_id' => $this->field('nullable', 'deterministically_rebuilt', 'natural_key'),
                 ],
                 /**
-                 * `publication_state`, `asset_disk`, `historic_import_operation_id`
-                 * and `title_provenance` are deliberately outside the
+                 * `publication_state`, `asset_disk`, `historic_import_operation_id`,
+                 * `media_replacement_history` and `title_provenance` are deliberately outside the
                  * portable contract. The audience boundary is a destination
                  * decision: every apply lands quarantined on the destination's
                  * own private disk and is released by a separately authorised
@@ -530,6 +530,7 @@ class HistoricNormalOutputContract
                 excluded: [
                     'id', 'scripture_passage_id', 'download_count', 'created_at', 'updated_at',
                     'publication_state', 'asset_disk', 'historic_import_operation_id', 'title_provenance',
+                    'media_replacement_history',
                 ],
             ),
             'media_processing_logs' => $this->table(
