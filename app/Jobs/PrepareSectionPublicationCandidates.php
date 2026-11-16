@@ -445,22 +445,16 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
         $cutPlans = app(CueSafeExtractionPlan::class);
         if ($this->shouldReuseExtractedMedia($section, $handler)) {
             // Provenance written before cuts were recorded has no segments to judge.
-            $recorded = $section->metadata->raw['publication_candidate_extraction']['segments'] ?? null;
+            $candidate = $section->metadata?->raw['publication_candidate_extraction'] ?? [];
+            $recorded = $candidate['segments'] ?? null;
             if (! is_array($recorded)) {
                 return;
             }
-            // A malformed recorded edge reads as NAN, which the validator refuses.
-            $recorded = array_values(array_map(static fn (mixed $segment): array => [
-                'start_time' => is_array($segment) && is_numeric($segment['start_time'] ?? null) ? (float) $segment['start_time'] : NAN,
-                'end_time' => is_array($segment) && is_numeric($segment['end_time'] ?? null) ? (float) $segment['end_time'] : NAN,
-            ], $recorded));
+            $recorded = PublicationCandidate::canonicalSegments($recorded);
             // The bounds and media version match, but the cut also follows the transcript,
             // edge words and cutting rules (I4): media is reused only for the cut it holds.
             $planned = $cutPlans->forSection($section);
-            $recordedFade = $section->metadata->raw['publication_candidate_extraction']['audio_fade_out'] ?? null;
-            if ($this->sameCut($recorded, $planned['segments'])
-                && (is_numeric($recordedFade) ? (float) $recordedFade : null) === $planned['audio_fade_out']
-                && $this->sameVoiceRemoval($section->metadata->raw['publication_candidate_extraction']['audio_voice_removal'] ?? null, $planned['audio_voice_removal'] ?? null)) {
+            if (PublicationCandidate::sameMediaPlan($candidate, $planned)) {
                 $this->refuseInvalidCut($section, $recorded, $planned['cue_edge_widening']);
 
                 return;
@@ -582,37 +576,6 @@ class PrepareSectionPublicationCandidates extends ProcessingJob implements Shoul
                 $storageHelper->cleanupTempFile($instrumentsPath);
             }
         }
-    }
-
-    /**
-     * Whether a candidate was cut with the voice removal the plan now asks for (E29). JSON round
-     * trips can move a float in its last digits, so times compare to the millisecond.
-     *
-     * @param  array{from: float, instruments: array{disk: string, path: string}, instruments_start: float}|null  $planned
-     */
-    private function sameVoiceRemoval(mixed $recorded, ?array $planned): bool
-    {
-        if ($planned === null || $recorded === null) {
-            return $planned === $recorded;
-        }
-
-        return is_array($recorded) && is_numeric($recorded['from'] ?? null) && is_numeric($recorded['instruments_start'] ?? null)
-            && abs((float) $recorded['from'] - $planned['from']) < 0.001
-            && abs((float) $recorded['instruments_start'] - $planned['instruments_start']) < 0.001
-            && ($recorded['instruments'] ?? null) == $planned['instruments'];
-    }
-
-    /**
-     * @param  list<array{start_time: float, end_time: float}>  $recorded
-     * @param  list<array{start_time: float, end_time: float}>  $planned
-     */
-    private function sameCut(array $recorded, array $planned): bool
-    {
-        return count($recorded) === count($planned) && array_all(
-            $planned,
-            static fn (array $span, int $index): bool => abs($span['start_time'] - $recorded[$index]['start_time']) < 0.01
-                && abs($span['end_time'] - $recorded[$index]['end_time']) < 0.01,
-        );
     }
 
     /**

@@ -22,6 +22,67 @@ use App\Services\Media\Audio\AudioTreatmentSettings;
  */
 final class PublicationCandidate
 {
+    /**
+     * The media comparison used by extraction reuse and recorded-cut boundary evidence.
+     * End reasons are assessed separately: extraction reuse historically compares only sound/spans.
+     *
+     * @param array<string, mixed> $recorded
+     * @param array<string, mixed> $planned
+     */
+    public static function sameMediaPlan(array $recorded, array $planned): bool
+    {
+        $spans = self::canonicalSegments($recorded['segments'] ?? null);
+        $expected = self::canonicalSegments($planned['segments'] ?? null);
+        $fade = $recorded['audio_fade_out'] ?? null;
+
+        return count($spans) === count($expected) && array_all(
+            $expected,
+            static fn (array $span, int $index): bool => abs($span['start_time'] - $spans[$index]['start_time']) < 0.01
+                && abs($span['end_time'] - $spans[$index]['end_time']) < 0.01,
+        ) && (is_numeric($fade) ? (float) $fade : null) === ($planned['audio_fade_out'] ?? null)
+            && self::sameVoiceRemoval($recorded['audio_voice_removal'] ?? null, $planned['audio_voice_removal'] ?? null);
+    }
+
+    /**
+     * Malformed edges become NAN so comparisons and the extraction validator refuse them.
+     *
+     * @return list<array{start_time: float, end_time: float}>
+     */
+    public static function canonicalSegments(mixed $segments): array
+    {
+        return is_array($segments) ? array_values(array_map(static fn (mixed $segment): array => [
+            'start_time' => is_array($segment) && is_numeric($segment['start_time'] ?? null) ? (float) $segment['start_time'] : NAN,
+            'end_time' => is_array($segment) && is_numeric($segment['end_time'] ?? null) ? (float) $segment['end_time'] : NAN,
+        ], $segments)) : [];
+    }
+
+    /** @param array<string, mixed> $plan */
+    public static function finalEndReason(array $plan): ?string
+    {
+        $reason = null;
+        foreach ($plan['cue_edge_widening'] ?? [] as $entry) {
+            if (is_array($entry) && ($entry['edge'] ?? null) === 'end' && is_string($entry['reason'] ?? null)) {
+                $reason = $entry['reason'];
+            }
+        }
+
+        return $reason;
+    }
+
+    /** JSON round trips can move a float in its last digits; reuse compares times to the millisecond (E29). */
+    private static function sameVoiceRemoval(mixed $recorded, mixed $planned): bool
+    {
+        if ($planned === null || $recorded === null) {
+            return $planned === $recorded;
+        }
+
+        return is_array($recorded) && is_array($planned) && is_numeric($recorded['from'] ?? null) && is_numeric($recorded['instruments_start'] ?? null)
+            && is_numeric($planned['from'] ?? null) && is_numeric($planned['instruments_start'] ?? null)
+            && abs((float) $recorded['from'] - (float) $planned['from']) < 0.001
+            && abs((float) $recorded['instruments_start'] - (float) $planned['instruments_start']) < 0.001
+            && ($recorded['instruments'] ?? null) == ($planned['instruments'] ?? null);
+    }
+
     /** Why the section's candidate may not publish as it is, or null when it may. */
     public static function staleReason(ServiceSection $section, AudioProfile $profile): ?string
     {

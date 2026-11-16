@@ -9,6 +9,14 @@ use App\Data\SuspectTranscriptBlock;
 use App\Enums\ChurchServiceItemSource;
 use App\Enums\ServiceSectionSongMatchType;
 use App\Enums\ServiceSectionType;
+use App\Exceptions\OutputEdgeTimingsMissing;
+use App\Services\ChurchService\CueSafeExtractionPlan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Process;
+use OpenAI\Laravel\Facades\OpenAI;
 use App\Models\ChurchService;
 use App\Models\ChurchServiceItem;
 use App\Models\MediaProcessingLog;
@@ -16,6 +24,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\ChurchService\SectionPublication\SongLoopedTranscript;
+use App\Services\ChurchService\SectionPublication\SongPublicationBoundaryEvidenceService;
 use App\Services\ChurchService\SectionPublication\SongPublicationReviewPolicy;
 use App\Services\ChurchService\SectionPublication\SongQuietIntroduction;
 use App\Services\ChurchService\SectionPublication\SongSectionWithoutMusic;
@@ -593,6 +602,448 @@ class SongPublicationReviewPolicyTest extends TestCase
             'song_boundary_trailing_content',
             array_column($assessment['reasons'], 'kind'),
         );
+    }
+
+    /**
+     * RA3 R1 (plan §4.1d, 11-09): the hold judges the clip that publishes. 921 and 1986: the planner
+     * cut the song off before its spoken tail, but the stored end still held the tail.
+     */
+    #[Test]
+    public function it_releases_a_song_whose_published_cut_ends_before_its_spoken_tail(): void
+    {
+        $section = $this->spokenTailSection();
+
+        $this->assertContains('song_boundary_trailing_content', array_column($this->policy->assess($section)['reasons'], 'kind'));
+
+        $section = $this->recordCandidate($section, 100.0, 250.0, 'song_end_silence');
+        $assessment = $this->policy->assess($section);
+
+        $this->assertNotContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertSame('recorded_candidate', $assessment['boundary_evidence']['published_cut']['source']);
+        $this->assertSame(250.0, $assessment['boundary_evidence']['published_cut']['end_time']);
+        $this->assertSame(300.0, $assessment['boundary_evidence']['candidate']['end_time']);
+    }
+
+    /** The tail is measured to the cut's end, not the stored end. */
+    #[Test]
+    public function it_still_holds_a_published_cut_that_reaches_its_tail(): void
+    {
+        $section = $this->recordCandidate($this->spokenTailSection(), 100.0, 295.0, 'song_end_silence');
+        $assessment = $this->policy->assess($section);
+
+        $this->assertContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertEqualsWithDelta(35.0, $assessment['boundary_evidence']['end_evidence']['trailing_content_seconds'], 0.01);
+        $this->assertSame(295.0, $assessment['boundary_evidence']['published_cut']['end_time']);
+    }
+
+    /** 4134: the cut runs past the stored end into speech that the stored bounds never saw. */
+    #[Test]
+    public function it_holds_a_cut_that_runs_past_the_stored_end_into_speech(): void
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: 375.0, end: 595.0);
+        $this->storeBoundaryArtifacts($section, [
+            ['start' => 375.0, 'end' => 440.0, 'text' => 'The song begins.'],
+            ['start' => 441.0, 'end' => 585.0, 'text' => 'The song continues.'],
+            ['start' => 596.0, 'end' => 610.0, 'text' => 'Let us pray.'],
+        ], [['time' => 585.0, 'rms' => -20.0], ['time' => 590.0, 'rms' => -20.0], ['time' => 596.0, 'rms' => -20.0]], 700.0);
+
+        $this->assertNotContains('song_boundary_trailing_content', array_column($this->policy->assess($section)['reasons'], 'kind'));
+
+        $section = $this->recordCandidate($section, 375.0, 610.1, 'song_start_digital_silence');
+        $assessment = $this->policy->assess($section);
+
+        $this->assertContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertEqualsWithDelta(14.1, $assessment['boundary_evidence']['end_evidence']['trailing_content_seconds'], 0.01);
+    }
+
+    /**
+     * The 5 s cliff is tested against the stored end, the bound the transcript was segmented to, not
+     * the cut: judged against a cut 8 s later the last cue (282.5) would look short and release.
+     */
+    #[Test]
+    public function it_judges_reach_against_the_stored_end_not_the_cut(): void
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 285.0);
+        $this->storeBoundaryArtifacts($section, [
+            ['start' => 100.0, 'end' => 230.0, 'text' => 'The song begins.'],
+            ['start' => 236.0, 'end' => 282.5, 'text' => 'The song continues.'],
+        ], [['time' => 230.0, 'rms' => -20.0], ['time' => 233.0, 'rms' => -20.0], ['time' => 236.0, 'rms' => -20.0]], 400.0);
+
+        $section = $this->recordCandidate($section, 100.0, 293.0, 'song_end_silence');
+        $assessment = $this->policy->assess($section);
+
+        $this->assertContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertEqualsWithDelta(57.0, $assessment['boundary_evidence']['end_evidence']['trailing_content_seconds'], 0.01);
+    }
+
+    /**
+     * 94692 (class B, named residue with its hold kept). Judged on the cut alone the prayer cue that
+     * starts at the stored end makes a new last gap and an 8.3 s tail, so the hold would vanish; the
+     * guard keeps the stored-bounds hold for a cut ending on `song_end_voice_track_talking`.
+     */
+    #[Test]
+    public function it_keeps_the_hold_when_a_voice_track_talking_end_leaves_a_short_spoken_tail(): void
+    {
+        $section = $this->recordCandidate($this->shortSpokenTailSection(), 100.0, 293.3, 'song_end_voice_track_talking');
+        $assessment = $this->policy->assess($section);
+
+        $this->assertContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertSame('class_b_voice_track_talking', $assessment['boundary_evidence']['published_cut']['guard']);
+    }
+
+    #[Test]
+    public function it_releases_the_same_short_tail_for_another_end_reason(): void
+    {
+        $section = $this->recordCandidate($this->shortSpokenTailSection(), 100.0, 293.3, 'song_end_silence');
+        $assessment = $this->policy->assess($section);
+
+        $this->assertNotContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertNull($assessment['boundary_evidence']['published_cut']['guard']);
+    }
+
+    #[Test]
+    public function it_ignores_a_candidate_cut_that_no_longer_matches_the_section(): void
+    {
+        $section = $this->recordCandidate($this->spokenTailSection(), 100.0, 250.0, 'song_end_silence', signature: 'stale');
+        $assessment = $this->policy->assess($section);
+
+        $this->assertContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertSame('stored_bounds', $assessment['boundary_evidence']['published_cut']['source']);
+    }
+
+    #[Test]
+    public function the_inputs_fingerprint_changes_when_the_recorded_cut_changes(): void
+    {
+        $section = $this->spokenTailSection();
+        $service = app(SongPublicationBoundaryEvidenceService::class);
+
+        $first = $service->inputsFingerprint($this->recordCandidate($section, 100.0, 250.0, 'song_end_silence'));
+        $second = $service->inputsFingerprint($this->recordCandidate($section->fresh(), 100.0, 255.0, 'song_end_silence'));
+
+        $this->assertNotSame($first, $second);
+    }
+
+    #[Test]
+    public function it_applies_an_operators_end_answer_through_the_recorded_cut(): void
+    {
+        $section = $this->spokenTailSection();
+        $section->metadata = ServiceSectionMetadata::fromArray([...($section->metadata?->toArray() ?? []),
+            OutputEdgeAnswers::METADATA_KEY => ['end' => ['time' => 262.0, 'set_by_user_id' => 1, 'set_at' => '2026-10-24T08:24:17+00:00', 'from_time' => 300.0, 'section_span' => ['start_time' => 100.0, 'end_time' => 300.0]]],
+        ]);
+        $section->save();
+
+        $section = $this->recordCandidate($section->fresh(), 100.0, 262.0, 'operator_edge');
+        $assessment = $this->policy->assess($section);
+
+        $this->assertSame(262.0, $assessment['boundary_evidence']['published_cut']['end_time']);
+        $this->assertSame(262.0, $assessment['boundary_evidence']['candidate']['end_time']);
+    }
+
+    /** WP69: §94692's recorded end/reason; isolate reason staleness by keeping its spans/fade. */
+    #[Test]
+    public function it_refuses_a_recorded_cut_when_only_the_current_end_reason_differs(): void
+    {
+        $section = $this->freshnessCase(3741.42, 3929.68, 3876.78);
+        $section = $this->recordCandidate($section, 3741.43, 3937.79, 'song_end_fade');
+        $section->metadata = ServiceSectionMetadata::fromArray(array_replace_recursive($section->metadata->toArray(), [
+            'publication_candidate_extraction' => ['audio_fade_out' => 1.5],
+        ]));
+        $plan = $section->metadata->raw['publication_candidate_extraction'];
+        $plan['cue_edge_widening'][0]['reason'] = 'song_end_voice_track_talking';
+        $this->currentPlan($plan);
+
+        $assessment = $this->policy->assess($section);
+
+        $this->assertContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertSame('stored_bounds', $assessment['boundary_evidence']['published_cut']['source']);
+        $this->assertSame('stale_plan', $assessment['boundary_evidence']['published_cut']['status']);
+        $this->assertSame(3929.68, $assessment['boundary_evidence']['published_cut']['end_time']);
+    }
+
+    /** WP69: §1265's stored and current spans, same silence reason. */
+    #[Test]
+    public function it_refuses_a_recorded_span_beyond_the_extraction_reuse_tolerance(): void
+    {
+        $section = $this->freshnessCase(1210.0, 1385.82, 1330.04);
+        $section = $this->recordCandidate($section, 1210.0, 1394.35, 'song_end_silence');
+        $plan = $section->metadata->raw['publication_candidate_extraction'];
+        $plan['segments'][0]['end_time'] = 1386.13;
+        $this->currentPlan($plan);
+
+        $assessment = $this->policy->assess($section);
+
+        $this->assertContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertSame('stale_plan', $assessment['boundary_evidence']['published_cut']['status']);
+        $this->assertSame(1385.82, $assessment['boundary_evidence']['published_cut']['end_time']);
+    }
+
+    #[Test]
+    public function it_uses_a_recorded_cut_within_the_extraction_reuse_tolerance(): void
+    {
+        $section = $this->recordCandidate($this->spokenTailSection(), 100.0, 250.0, 'song_end_silence');
+        $plan = $section->metadata->raw['publication_candidate_extraction'];
+        $plan['segments'][0] = ['start_time' => 100.009, 'end_time' => 250.009];
+        $this->currentPlan($plan);
+
+        $assessment = $this->policy->assess($section);
+
+        $this->assertNotContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertSame('used', $assessment['boundary_evidence']['published_cut']['status']);
+        $this->assertSame(250.0, $assessment['boundary_evidence']['published_cut']['end_time']);
+    }
+
+    #[Test]
+    public function it_falls_back_when_banked_planner_evidence_is_unavailable(): void
+    {
+        $section = $this->recordCandidate($this->spokenTailSection(), 100.0, 250.0, 'song_end_silence');
+        $this->mock(CueSafeExtractionPlan::class)->shouldReceive('forSection')->once()
+            ->andThrow(new OutputEdgeTimingsMissing('edge_word_timings_missing: regression fixture'));
+
+        $assessment = $this->policy->assess($section);
+
+        $this->assertContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        $this->assertSame('plan_unavailable', $assessment['boundary_evidence']['published_cut']['status']);
+        $this->assertSame('stored_bounds', $assessment['boundary_evidence']['published_cut']['source']);
+    }
+
+    #[Test]
+    public function it_does_not_silently_swallow_an_unexpected_planner_failure(): void
+    {
+        $section = $this->recordCandidate($this->spokenTailSection(), 100.0, 250.0, 'song_end_silence');
+        $this->mock(CueSafeExtractionPlan::class)->shouldReceive('forSection')->once()
+            ->andThrow(new \LogicException('unexpected planner defect'));
+
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessage('unexpected planner defect');
+        $this->policy->assess($section);
+    }
+
+    #[Test]
+    public function the_fingerprint_includes_the_recorded_cut_status_even_on_fallback(): void
+    {
+        $section = $this->recordCandidate($this->spokenTailSection(), 100.0, 250.0, 'song_end_silence', signature: 'stale');
+        $service = app(SongPublicationBoundaryEvidenceService::class);
+        $signatureMismatch = $service->assess($section);
+        $section->metadata = ServiceSectionMetadata::fromArray(array_replace_recursive($section->metadata->toArray(), [
+            'publication_candidate_extraction' => ['media_signature' => $section->mediaSignature()],
+        ]));
+        $this->mock(CueSafeExtractionPlan::class)->shouldReceive('forSection')
+            ->andThrow(new OutputEdgeTimingsMissing('missing banked words'));
+        $unavailable = $service->assess($section);
+        $plan = $section->metadata->raw['publication_candidate_extraction'];
+        $plan['segments'][0]['end_time'] = 255.0;
+        $this->currentPlan($plan);
+        $stale = $service->assess($section);
+
+        $this->assertSame('signature_mismatch', $signatureMismatch['published_cut']['status']);
+        $this->assertSame('plan_unavailable', $unavailable['published_cut']['status']);
+        $this->assertSame('stale_plan', $stale['published_cut']['status']);
+        $this->assertCount(3, array_unique(array_column([$signatureMismatch, $unavailable, $stale], 'inputs_fingerprint')));
+        $this->assertSame($stale['inputs_fingerprint'], $service->inputsFingerprint($section));
+    }
+
+    #[Test]
+    public function it_refuses_a_changed_fade_or_voice_removal_even_with_matching_spans(): void
+    {
+        $section = $this->recordCandidate($this->spokenTailSection(), 100.0, 250.0, 'song_end_silence');
+        $plan = $section->metadata->raw['publication_candidate_extraction'];
+        foreach ([
+            ['audio_fade_out' => 0.1],
+            ['audio_voice_removal' => ['from' => 245.0, 'instruments_start' => 240.0, 'instruments' => ['disk' => 'local', 'path' => 'stems.wav']]],
+        ] as $change) {
+            $this->currentPlan([...$plan, ...$change]);
+            $assessment = $this->policy->assess($section);
+            $this->assertSame('stale_plan', $assessment['boundary_evidence']['published_cut']['status']);
+            $this->assertContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+        }
+    }
+
+    #[Test]
+    public function assessing_a_real_current_plan_performs_only_selects_and_no_external_work(): void
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
+        $this->storeBoundaryArtifacts($section, [['start' => 110.0, 'end' => 290.0, 'text' => 'Praise the Lord.']], [['time' => 150.0, 'rms' => -20.0]], 400.0);
+        $section = $section->fresh();
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+        $section->metadata = ServiceSectionMetadata::fromArray(['publication_candidate_extraction' => [
+            ...$plan, 'media_signature' => $section->mediaSignature(),
+        ]]);
+        $section->save();
+        $section = $section->fresh();
+        $before = $section->getRawOriginal();
+        $files = Storage::disk('local')->allFiles();
+        $contents = array_map(fn (string $path): string => Storage::disk('local')->get($path), $files);
+        foreach (['local', 'public'] as $name) {
+            $disk = \Mockery::mock(Storage::disk($name));
+            foreach (['put', 'putFile', 'putFileAs', 'writeStream', 'delete', 'deleteDirectory', 'makeDirectory', 'copy', 'move', 'setVisibility'] as $method) {
+                $disk->shouldNotReceive($method);
+            }
+            Storage::set($name, $disk);
+        }
+        $queries = [];
+        $writes = [];
+        DB::connection()->beforeExecuting(static function (string $sql) use (&$queries, &$writes): void {
+            if (! preg_match('/^\\s*select\\b/i', $sql)) {
+                $writes[] = $sql;
+                throw new \LogicException('Assessment attempted a non-SELECT: '.$sql);
+            }
+            $queries[] = $sql;
+        });
+        Http::preventStrayRequests();
+        OpenAI::fake([]);
+        Bus::fake();
+        Queue::fake();
+        Process::fake();
+
+        $assessment = app(SongPublicationBoundaryEvidenceService::class)->assess($section);
+
+        $this->assertSame('used', $assessment['published_cut']['status']);
+        $this->assertNotEmpty($queries);
+        $this->assertSame([], $writes);
+        $this->assertSame($before, $section->fresh()->getRawOriginal());
+        $this->assertSame($files, Storage::disk('local')->allFiles());
+        $this->assertSame($contents, array_map(fn (string $path): string => Storage::disk('local')->get($path), $files));
+        Bus::assertNothingDispatched();
+        Queue::assertNothingPushed();
+        Http::assertNothingSent();
+        Process::assertNothingRan();
+        OpenAI::assertNothingSent();
+    }
+
+    #[Test]
+    public function it_checks_every_canonical_span_and_both_voice_removal_times_and_identity(): void
+    {
+        $section = $this->recordCandidate($this->spokenTailSection(), 100.0, 250.0, 'song_end_silence');
+        $candidate = $section->metadata->raw['publication_candidate_extraction'];
+        $candidate['segments'] = [['start_time' => 100, 'end_time' => 180], ['start_time' => 190, 'end_time' => 250]];
+        $candidate['audio_voice_removal'] = ['from' => 245.0, 'instruments_start' => 240.0, 'instruments' => ['disk' => 'local', 'path' => 'stems.wav']];
+        $section->metadata = ServiceSectionMetadata::fromArray(['publication_candidate_extraction' => $candidate]);
+        foreach ([
+            [[], 'used'],
+            [['segments' => [['start_time' => '100', 'end_time' => '180'], ['start_time' => '190', 'end_time' => '250']]], 'used'],
+            [['segments' => [['start_time' => 100.0, 'end_time' => 180.02], ['start_time' => 190.0, 'end_time' => 250.0]]], 'stale_plan'],
+            [['segments' => [['start_time' => 100.0, 'end_time' => 250.0]]], 'stale_plan'],
+            [['segments' => [['start_time' => 100.01, 'end_time' => 180.0], ['start_time' => 190.0, 'end_time' => 250.0]]], 'stale_plan'],
+            [['audio_voice_removal' => [...$candidate['audio_voice_removal'], 'from' => 245.0009, 'instruments_start' => 240.0009]], 'used'],
+            [['audio_voice_removal' => [...$candidate['audio_voice_removal'], 'from' => 245.002]], 'stale_plan'],
+            [['audio_voice_removal' => [...$candidate['audio_voice_removal'], 'instruments_start' => 240.002]], 'stale_plan'],
+            [['audio_voice_removal' => [...$candidate['audio_voice_removal'], 'instruments' => ['disk' => 'local', 'path' => 'other.wav']]], 'stale_plan'],
+        ] as [$change, $status]) {
+            $this->currentPlan([...$candidate, ...$change]);
+            $this->assertSame($status, $this->policy->assess($section)['boundary_evidence']['published_cut']['status']);
+        }
+    }
+
+    #[Test]
+    public function it_records_missing_and_invalid_candidates_and_missing_transcript_without_accepting_them(): void
+    {
+        $section = $this->spokenTailSection();
+        $this->assertSame('not_recorded', $this->policy->assess($section)['boundary_evidence']['published_cut']['status']);
+        $section = $this->recordCandidate($section, 100.0, 250.0, 'song_end_silence');
+        $candidate = $section->metadata->raw['publication_candidate_extraction'];
+        foreach ([[], [['start_time' => 'bad', 'end_time' => 250.0]], [['start_time' => 250.0, 'end_time' => 100.0]]] as $segments) {
+            $section->metadata = ServiceSectionMetadata::fromArray(['publication_candidate_extraction' => [...$candidate, 'segments' => $segments]]);
+            $this->assertSame('invalid_candidate', $this->policy->assess($section)['boundary_evidence']['published_cut']['status']);
+        }
+        $section->metadata = ServiceSectionMetadata::fromArray(['publication_candidate_extraction' => $candidate]);
+        Storage::disk('local')->delete($section->processingLog->serviceTranscriptPath());
+        $this->mock(CueSafeExtractionPlan::class)->shouldNotReceive('forSection');
+        $assessment = $this->policy->assess($section);
+        $this->assertSame('plan_unavailable', $assessment['boundary_evidence']['published_cut']['status']);
+        $this->assertSame('stored_bounds', $assessment['boundary_evidence']['published_cut']['source']);
+    }
+
+    #[Test]
+    public function it_falls_back_when_the_planner_returns_a_refused_or_unresolved_edge(): void
+    {
+        $section = $this->recordCandidate($this->spokenTailSection(), 100.0, 250.0, 'song_end_silence');
+        $plan = $section->metadata->raw['publication_candidate_extraction'];
+        foreach ([CueSafeExtractionPlan::OPERATOR_EDGE_REFUSED, CueSafeExtractionPlan::AMBIGUOUS_CUE_ANCHOR] as $reason) {
+            $current = $plan;
+            array_unshift($current['cue_edge_widening'], [
+                'span_index' => 0, 'edge' => 'start', 'reason' => $reason,
+                'original_time' => 100.0, 'time' => 100.0, 'refusal' => 'banked edge cannot be applied',
+            ]);
+            $this->currentPlan($current);
+            $assessment = $this->policy->assess($section);
+            $this->assertContains('song_boundary_trailing_content', array_column($assessment['reasons'], 'kind'));
+            $this->assertSame('plan_unavailable', $assessment['boundary_evidence']['published_cut']['status']);
+            $this->assertSame('stored_bounds', $assessment['boundary_evidence']['published_cut']['source']);
+        }
+    }
+
+    #[Test]
+    public function it_propagates_an_unexpected_runtime_planner_failure(): void
+    {
+        $section = $this->recordCandidate($this->spokenTailSection(), 100.0, 250.0, 'song_end_silence');
+        $this->mock(CueSafeExtractionPlan::class)->shouldReceive('forSection')->once()
+            ->andThrow(new \RuntimeException('unexpected runtime planner defect'));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('unexpected runtime planner defect');
+        $this->policy->assess($section);
+    }
+
+    private function freshnessCase(float $start, float $end, float $gapEnd): ServiceSection
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: $start, end: $end);
+        $this->storeBoundaryArtifacts($section, [
+            ['start' => $start, 'end' => $gapEnd - 15.0, 'text' => 'The song continues.'],
+            ['start' => $gapEnd, 'end' => $end, 'text' => 'Let us pray together.'],
+        ], [['time' => $gapEnd - 14.0, 'rms' => -20.0], ['time' => $gapEnd - 7.0, 'rms' => -20.0], ['time' => $gapEnd, 'rms' => -20.0]]);
+
+        return $section->fresh();
+    }
+
+    /** @param array<string, mixed> $plan */
+    private function currentPlan(array $plan): void
+    {
+        $this->mock(CueSafeExtractionPlan::class)->shouldReceive('forSection')->andReturn($plan);
+    }
+
+    private function spokenTailSection(): ServiceSection
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 300.0);
+        $this->storeBoundaryArtifacts($section, [
+            ['start' => 100.0, 'end' => 180.0, 'text' => 'The song begins.'],
+            ['start' => 181.0, 'end' => 245.0, 'text' => 'The song continues.'],
+            ['start' => 260.0, 'end' => 300.0, 'text' => 'Let us pray together now.'],
+        ], [['time' => 245.0, 'rms' => -20.0], ['time' => 252.0, 'rms' => -20.0], ['time' => 260.0, 'rms' => -20.0]]);
+
+        return $section->fresh();
+    }
+
+    private function shortSpokenTailSection(): ServiceSection
+    {
+        $section = $this->section('full', ['livestream'], metadata: [], start: 100.0, end: 285.0);
+        $this->storeBoundaryArtifacts($section, [
+            ['start' => 100.0, 'end' => 225.0, 'text' => 'The song begins.'],
+            ['start' => 236.0, 'end' => 280.0, 'text' => 'The song continues.'],
+            ['start' => 285.0, 'end' => 293.3, 'text' => 'Let us pray.'],
+        ], [
+            ['time' => 225.0, 'rms' => -20.0], ['time' => 230.0, 'rms' => -20.0], ['time' => 236.0, 'rms' => -20.0],
+            ['time' => 280.0, 'rms' => -20.0], ['time' => 283.0, 'rms' => -20.0], ['time' => 285.0, 'rms' => -20.0],
+        ], 400.0);
+
+        return $section->fresh();
+    }
+
+    /** Records the cut the planner chose, as `PrepareSectionPublicationCandidates` does. */
+    private function recordCandidate(ServiceSection $section, float $start, float $end, string $reason, ?string $signature = null): ServiceSection
+    {
+        $section->metadata = ServiceSectionMetadata::fromArray([...($section->metadata?->toArray() ?? []),
+            'publication_candidate_extraction' => [
+                'segments' => [['start_time' => $start, 'end_time' => $end]],
+                'cue_edge_widening' => [['span_index' => 0, 'edge' => 'end', 'reason' => $reason, 'original_time' => $end, 'time' => $end]],
+                'audio_fade_out' => null,
+                'media_signature' => $signature ?? $section->mediaSignature(),
+                'candidate_id' => 'test',
+            ],
+        ]);
+        $section->save();
+        $this->currentPlan($section->metadata->raw['publication_candidate_extraction']);
+
+        return $section->fresh();
     }
 
     /**

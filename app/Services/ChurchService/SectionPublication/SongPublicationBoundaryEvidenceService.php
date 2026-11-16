@@ -7,6 +7,12 @@ namespace App\Services\ChurchService\SectionPublication;
 use App\Data\ChurchServiceTranscript;
 use App\Data\SuspectTranscriptBlock;
 use App\Models\ServiceSection;
+use App\Exceptions\OutputEdgeTimingsMissing;
+use App\Exceptions\OutputPlanInvalid;
+use App\Exceptions\OutputSpanCrossesHeldSection;
+use App\Support\PublicationCandidate;
+use League\Flysystem\UnableToReadFile;
+use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
@@ -16,6 +22,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
+ * @phpstan-type PublishedCutSelection array{status: string, cut: array{start_time: float, end_time: float, end_reason: string|null}|null}
  * @phpstan-type BoundaryEvidenceInputs array{
  *     transcript: ChurchServiceTranscript|null,
  *     transcript_input: array{path: string|null, status: string},
@@ -29,6 +36,7 @@ use Illuminate\Support\Facades\Storage;
  * @phpstan-type BoundaryEvidencePayload array{
  *     version: int,
  *     candidate: array{kind: 'inclusive', start_time: float, end_time: float},
+ *     published_cut: array{status: string, source: 'recorded_candidate'|'stored_bounds', start_time: float, end_time: float, end_reason: string|null, guard: string|null},
  *     action: 'retain_inclusive_candidate',
  *     inputs: array{
  *         service_transcript: array{path: string|null, status: string},
@@ -49,6 +57,7 @@ use Illuminate\Support\Facades\Storage;
  * @phpstan-type BoundaryEvidence array{
  *     version: int,
  *     candidate: array{kind: 'inclusive', start_time: float, end_time: float},
+ *     published_cut: array{status: string, source: 'recorded_candidate'|'stored_bounds', start_time: float, end_time: float, end_reason: string|null, guard: string|null},
  *     action: 'retain_inclusive_candidate',
  *     inputs: array{
  *         service_transcript: array{path: string|null, status: string},
@@ -108,13 +117,25 @@ final class SongPublicationBoundaryEvidenceService
      * S9 lowers the automatic duration floor to 55 seconds.
      * 12 (2026-10-31): records {@see SongSectionWithoutMusic} under `song_music`, so a clip the
      * classifier hears no music in (992 §163678, the words read before the song) reaches a reviewer.
-     * Evidence banked under an earlier version is stale, and the backfill re-assesses it.
+     * 13 (2026-11-16): the trailing hold judges the cut that publishes (RA3 R1, plan §4.1d):
+     * the recorded candidate's end, with reach tested against the stored end, recorded under
+     * `published_cut`. Evidence banked under an earlier version is stale, and the backfill
+     * re-assesses it. Only a recorded cut matching the current banked-evidence plan is accepted;
+     * otherwise the stored-bounds judgement stands, with the selection status fingerprinted.
      */
-    public const VERSION = 12;
+    public const VERSION = 13;
 
     private const LEADING_CUE_WINDOW_SECONDS = 5.0;
 
-    private const CANDIDATE_END_TOLERANCE_SECONDS = 5.0;
+    private const STORED_END_REACH_TOLERANCE_SECONDS = 5.0;
+
+    /**
+     * Class B residue (plan row 3): a cut ending on the voice track's own talking can carry a short
+     * spoken tail the cut-based judgement cannot see (94692), so the stored-bounds hold stays.
+     * Delete this guard, and {@see self::judgeTrailing()}'s second judgement, when class B has its
+     * own design or the plan records the class as settled.
+     */
+    private const GUARD_CLASS_B_VOICE_TRACK_TALKING = 'class_b_voice_track_talking';
 
     /**
      * Statuses that mean the storage layer itself failed rather than that the
@@ -141,10 +162,13 @@ final class SongPublicationBoundaryEvidenceService
      */
     public function assess(ServiceSection $section): array
     {
+        $recorded = $section;
         $section = $this->asCut($section);
         $start = (float) $section->start_time;
         $end = (float) $section->end_time;
         $inputs = $this->loadInputs($section);
+        $selection = $this->publishedCut($recorded, $inputs);
+        $publishedCut = $selection['cut'];
 
         // Read from the run's own metadata rather than the transcript artifact, so a screen
         // still speaks for the section when the file behind it can no longer be reached.
@@ -170,6 +194,7 @@ final class SongPublicationBoundaryEvidenceService
                     'start_time' => $start,
                     'end_time' => $end,
                 ],
+                'published_cut' => $this->publishedCutEvidence($selection, $start, $end, null),
                 'action' => 'retain_inclusive_candidate',
                 'inputs' => [
                     'service_transcript' => $inputs['transcript_input'],
@@ -184,7 +209,7 @@ final class SongPublicationBoundaryEvidenceService
                 'speech_under_loop' => null,
                 'song_ends' => [],
                 'quiet_introduction' => null,
-                'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
+                'inputs_fingerprint' => $this->fingerprintOf($section, $inputs, $selection),
                 'risks' => [
                     [
                         'kind' => $storageError
@@ -228,7 +253,7 @@ final class SongPublicationBoundaryEvidenceService
             }
         }
 
-        $trailing = $this->trailingObservation($inputs, $cues, $gaps, $end);
+        [$trailing, $guard] = $this->judgeTrailing($inputs, $cues, $gaps, $end, $publishedCut);
 
         if ($trailing !== null) {
             $endEvidence = $trailing['evidence'];
@@ -301,6 +326,7 @@ final class SongPublicationBoundaryEvidenceService
                 'start_time' => $start,
                 'end_time' => $end,
             ],
+            'published_cut' => $this->publishedCutEvidence($selection, $start, $end, $guard),
             'action' => 'retain_inclusive_candidate',
             'inputs' => [
                 'service_transcript' => $inputs['transcript_input'],
@@ -315,7 +341,7 @@ final class SongPublicationBoundaryEvidenceService
             'speech_under_loop' => $speechUnderLoop,
             'song_ends' => $songEnds,
             'quiet_introduction' => $quietIntroduction,
-            'inputs_fingerprint' => $this->fingerprintOf($section, $inputs),
+            'inputs_fingerprint' => $this->fingerprintOf($section, $inputs, $selection),
             'risks' => $risks,
             'decision' => $risks === [] ? 'release_eligible' : 'review',
         ]);
@@ -330,9 +356,11 @@ final class SongPublicationBoundaryEvidenceService
      */
     public function inputsFingerprint(ServiceSection $section): string
     {
+        $recorded = $section;
         $section = $this->asCut($section);
+        $inputs = $this->loadInputs($section);
 
-        return $this->fingerprintOf($section, $this->loadInputs($section));
+        return $this->fingerprintOf($section, $inputs, $this->publishedCut($recorded, $inputs));
     }
 
     /**
@@ -379,11 +407,13 @@ final class SongPublicationBoundaryEvidenceService
 
     /**
      * @param  BoundaryEvidenceInputs  $inputs
+     * @param PublishedCutSelection $selection
      */
-    private function fingerprintOf(ServiceSection $section, array $inputs): string
+    private function fingerprintOf(ServiceSection $section, array $inputs, array $selection): string
     {
         return hash('sha256', json_encode([
             'candidate' => [(float) $section->start_time, (float) $section->end_time],
+            'published_cut' => $selection,
             'service_transcript' => [$inputs['transcript_input']['status'], $inputs['transcript_sha256']],
             'rms_log' => [$inputs['rms_input']['status'], $inputs['rms_sha256']],
             'lyric_inputs' => $this->lyricsOutsideSection->inputs($section),
@@ -752,6 +782,82 @@ final class SongPublicationBoundaryEvidenceService
     }
 
     /**
+     * A signature binds stored bounds/settings, not planner code or evidence. Accept only a cut
+     * the current planner would produce from banked evidence. forSection() reads that evidence;
+     * it never prepares decodes, asks a model, extracts media or persists its result.
+     *
+     * @param BoundaryEvidenceInputs $inputs
+     * @return PublishedCutSelection
+     */
+    private function publishedCut(ServiceSection $section, array $inputs): array
+    {
+        $candidate = $section->metadata?->raw['publication_candidate_extraction'] ?? null;
+        if (! is_array($candidate)) {
+            return ['status' => 'not_recorded', 'cut' => null];
+        }
+        if (($candidate['media_signature'] ?? null) !== $section->mediaSignature()) {
+            return ['status' => 'signature_mismatch', 'cut' => null];
+        }
+        $segments = PublicationCandidate::canonicalSegments($candidate['segments'] ?? null);
+        if ($segments === [] || array_any($segments, static fn (array $span): bool => ! is_finite($span['start_time'])
+            || ! is_finite($span['end_time']) || $span['end_time'] <= $span['start_time'])) {
+            return ['status' => 'invalid_candidate', 'cut' => null];
+        }
+        if ($inputs['transcript_input']['status'] !== 'available') {
+            return ['status' => 'plan_unavailable', 'cut' => null];
+        }
+
+        try {
+            $planned = app(CueSafeExtractionPlan::class)->forSection($section);
+        } catch (OutputEdgeTimingsMissing|OutputPlanInvalid|OutputSpanCrossesHeldSection|UnableToReadFile|\JsonException|\UnexpectedValueException) {
+            return ['status' => 'plan_unavailable', 'cut' => null];
+        } catch (\RuntimeException $exception) {
+            // The planner's two untyped evidence failures predate OutputEdgeTimingsMissing.
+            // Other runtime failures must reach the caller, as they do in candidate preparation.
+            if ($exception->getMessage() !== 'The transcript required for cue-safe cuts could not be read.'
+                && ! str_starts_with($exception->getMessage(), 'edge_word_timings_invalid:')) {
+                throw $exception;
+            }
+
+            return ['status' => 'plan_unavailable', 'cut' => null];
+        }
+
+        if (CueSafeExtractionPlan::unresolvedEdges($planned['cue_edge_widening']) !== []
+            || CueSafeExtractionPlan::refusedOperatorEdges($planned['cue_edge_widening']) !== []) {
+            return ['status' => 'plan_unavailable', 'cut' => null];
+        }
+
+        $reason = PublicationCandidate::finalEndReason($candidate);
+        if (! PublicationCandidate::sameMediaPlan($candidate, $planned) || $reason !== PublicationCandidate::finalEndReason($planned)) {
+            return ['status' => 'stale_plan', 'cut' => null];
+        }
+
+        return ['status' => 'used', 'cut' => [
+            'start_time' => $segments[0]['start_time'],
+            'end_time' => $segments[array_key_last($segments)]['end_time'],
+            'end_reason' => $reason,
+        ]];
+    }
+
+    /**
+     * @param PublishedCutSelection $selection
+     * @return array{status: string, source: 'recorded_candidate'|'stored_bounds', start_time: float, end_time: float, end_reason: string|null, guard: string|null}
+     */
+    private function publishedCutEvidence(array $selection, float $start, float $end, ?string $guard): array
+    {
+        $cut = $selection['cut'];
+
+        return ['status' => $selection['status'], ...($cut === null
+            ? ['source' => 'stored_bounds', 'start_time' => $start, 'end_time' => $end, 'end_reason' => null, 'guard' => $guard]
+            : ['source' => 'recorded_candidate', ...$cut, 'guard' => $guard])];
+    }
+
+    /**
+     * The trailing observation on the clip that publishes: gaps and tail measured to the recorded
+     * cut's end, reach tested against the stored end. With no recorded cut it is the stored-bounds
+     * judgement. A cut ending on the voice track's own talking is also judged on the stored bounds,
+     * and holds if either does ({@see self::GUARD_CLASS_B_VOICE_TRACK_TALKING}).
+     *
      * @param  BoundaryEvidenceInputs  $inputs
      * @param  list<array{start: float, end: float, text: string}>  $cues
      * @param  list<array{
@@ -763,9 +869,46 @@ final class SongPublicationBoundaryEvidenceService
      *     previous_cue_end: float,
      *     next_cue_start: float
      * }>  $gaps
+     * @param  array{start_time: float, end_time: float, end_reason: string|null}|null  $cut
+     * @return array{0: array{risk: bool, evidence: array<string, mixed>, reason: array{kind: string, detail: string}}|null, 1: string|null}
+     */
+    private function judgeTrailing(array $inputs, array $cues, array $gaps, float $end, ?array $cut): array
+    {
+        $stored = $this->trailingObservation($inputs, $cues, $gaps, $end, $end);
+
+        if ($cut === null) {
+            return [$stored, null];
+        }
+
+        $cutCues = $inputs['transcript'] instanceof ChurchServiceTranscript
+            ? $this->sectionCues($inputs['transcript'], $cut['start_time'], $cut['end_time'])
+            : [];
+        $cutGaps = $this->wordlessGaps($cutCues, $cut['start_time'], $cut['end_time']);
+        $published = $this->trailingObservation($inputs, $cutCues, $cutGaps, $cut['end_time'], $end);
+
+        if ($cut['end_reason'] === CueSafeExtractionPlan::SONG_END_VOICE_TRACK_TALKING && ($stored['risk'] ?? false) === true) {
+            return [($published['risk'] ?? false) === true ? $published : $stored, self::GUARD_CLASS_B_VOICE_TRACK_TALKING];
+        }
+
+        return [$published, null];
+    }
+
+    /**
+     * @param  BoundaryEvidenceInputs  $inputs
+     * @param  list<array{start: float, end: float, text: string}>  $cues
+     * @param  list<array{
+     *     start_time: float,
+     *     end_time: float,
+     *     duration: float,
+     *     previous_index: int,
+     *     next_index: int,
+     *     previous_cue_end: float,
+     *     next_cue_start: float
+     * }>  $gaps
+     * @param  float  $reachEnd  the stored end the transcript was segmented against, which the reach test uses
      * @return array{risk: bool, evidence: array<string, mixed>, reason: array{kind: string, detail: string}}|null
      */
-    private function trailingObservation(array $inputs, array $cues, array $gaps, float $end): ?array
+    private function trailingObservation(array $inputs, array $cues, array $gaps, float $end, float $reachEnd): ?array
     {
         if (count($cues) < 2 || $gaps === []) {
             return null;
@@ -788,7 +931,7 @@ final class SongPublicationBoundaryEvidenceService
 
         // Without timed content reaching the candidate's edge there is no tail
         // to judge, only a candidate that stops before its recorded end.
-        if ($lastCue['end'] < $end - self::CANDIDATE_END_TOLERANCE_SECONDS) {
+        if ($lastCue['end'] < $reachEnd - self::STORED_END_REACH_TOLERANCE_SECONDS) {
             return null;
         }
 
