@@ -300,6 +300,32 @@ class SermonExtractionPlanResolver
     }
 
     /**
+     * A section ending a fraction past the recording ends with it (1136, 1219 failed their cut).
+     * Evidence preparation takes its edges through this too, so it decodes where the plan looks.
+     */
+    public static function endWithinRecording(float $end, ?float $duration): float
+    {
+        return $duration !== null && $end > $duration && $end <= $duration + self::SOURCE_END_OVERRUN_SECONDS ? $duration : $end;
+    }
+
+    /**
+     * The parts of a sermon output as the plan starts and ends them: each selected section bounded
+     * by the recording, and the introduction's opening taken. Silent-gap joining is not applied,
+     * as the edges evidence preparation follows up are asked of every part seam.
+     *
+     * @param  list<ServiceSection>  $selectedSections  In output order
+     * @param  array{reading_section_id: int, start_time: float, end_time: float}|null  $introduction
+     * @return list<array{start_time: float, end_time: float}>
+     */
+    public function plannedParts(MediaProcessingLog $log, array $selectedSections, ?array $introduction): array
+    {
+        $spans = array_map(static fn (ServiceSection $section): array => ['start_time' => (float) $section->start_time,
+            'end_time' => self::endWithinRecording((float) $section->end_time, $log->duration)], $selectedSections);
+
+        return $this->withIntroduction($spans, $selectedSections, $introduction);
+    }
+
+    /**
      * Consecutive parts with a gap of at most {@see self::SILENT_GAP_SECONDS} that no other section
      * claims play straight through (amended D1, operator 2026-10-11): a cut over a pause of a few
      * seconds is a visible jump for nothing (992's 5.2 s, 995's 1.8 s). The earlier part takes the
@@ -751,10 +777,7 @@ class SermonExtractionPlanResolver
             }
             $start = (float) $section->start_time;
             $end = (float) $section->end_time;
-            // A section ending a fraction past the recording ends with it (1136, 1219 failed their cut).
-            if ($processingLog->duration !== null && $end > $processingLog->duration && $end <= $processingLog->duration + self::SOURCE_END_OVERRUN_SECONDS) {
-                $end = (float) $processingLog->duration;
-            }
+            $end = self::endWithinRecording($end, $processingLog->duration);
             if (! is_finite($start) || ! is_finite($end) || self::nestsInPrevious($start, $end, $previousStart, $previousEnd) || $end <= $start
                 || ($processingLog->duration !== null && $end > $processingLog->duration + 0.001)) {
                 throw new InvalidArgumentException('Invalid selected section bounds: unordered, nested or outside source');

@@ -20,6 +20,7 @@ use App\Services\ChurchService\Structure\UntranscribedSpeechBeforeSection;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\UntranscribedSpeechRecovery;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\ServiceArtifactDisk;
 use App\Support\ServiceTimestamp;
 use Illuminate\Support\Collection;
@@ -31,9 +32,6 @@ class CueSafeExtractionPlan
 {
     /** Seconds within which an output edge counts as sitting on a cue's boundary. */
     private const CUE_BOUNDARY_TOLERANCE = 0.05;
-
-    /** The same source-end rounding allowance used by SermonExtractionPlanResolver. */
-    private const SOURCE_END_OVERRUN_SECONDS = 1.0;
 
     /**
      * An opening invitation or a reading's announcement (K19, T4): "do have your Bibles open at Luke
@@ -565,7 +563,7 @@ class CueSafeExtractionPlan
                     continue;
                 }
                 $entry = ['span_index' => $index, 'edge' => 'start', 'original_time' => $cut, 'time' => $cut,
-                    'seconds_added' => 0.0, 'seconds_moved' => 0.0, 'reason' => 'song_start_dependent',
+                    'seconds_added' => 0.0, 'seconds_moved' => 0.0, 'reason' => DependentSongOpening::AUDIT_REASON,
                     'text_disagreement' => false, 'dependent_opening' => $dependent];
                 if ($dependent['time'] > $cut) {
                     $decision = $this->afterDroppedWordSounds(['time' => $dependent['time'],
@@ -587,8 +585,7 @@ class CueSafeExtractionPlan
         $spans = $this->withUnresolvedIntervals($log, $sectionSpans, $spans, $audit);
         $spans = $this->withOperatorEdges($log, $sectionSpans, $spans, $audit, $edgeAnswers);
         foreach ($spans as $index => &$span) {
-            if ($log->duration !== null && $span['end_time'] > $log->duration
-                && $span['end_time'] <= $log->duration + self::SOURCE_END_OVERRUN_SECONDS) {
+            if ($log->duration !== null && SermonExtractionPlanResolver::endWithinRecording($span['end_time'], $log->duration) !== $span['end_time']) {
                 $audit[] = ['span_index' => $index, 'edge' => 'end', 'original_time' => $span['end_time'],
                     'time' => (float) $log->duration, 'seconds_added' => $span['end_time'] - $log->duration,
                     'seconds_moved' => $log->duration - $span['end_time'], 'reason' => 'source_end', 'text_disagreement' => false];

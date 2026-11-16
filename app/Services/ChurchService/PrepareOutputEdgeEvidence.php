@@ -42,7 +42,7 @@ class PrepareOutputEdgeEvidence
         foreach ($run->serviceSections()->orderBy('start_time')->get() as $section) {
             if (in_array($section->id, $composition['selected_section_ids'], true)
                 || in_array($section->section_type->value, ['song', 'bible_reading', 'short_talk'], true)) {
-                $spans[] = ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time];
+                $spans[] = ['start_time' => (float) $section->start_time, 'end_time' => $this->plannedEnd($section, $run, $composition['selected_section_ids'])];
             }
             if ($section->section_type === ServiceSectionType::Song) {
                 foreach ($this->cutPlans->songEndSpeechEdges($run, [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]]) as $edge) {
@@ -51,7 +51,7 @@ class PrepareOutputEdgeEvidence
             }
         }
         $sermonSections = array_values($run->serviceSections()->whereIn('id', $composition['selected_section_ids'])->orderBy('start_time')->get()->all());
-        $sermonSpans = array_map(static fn (ServiceSection $section): array => ['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time], $sermonSections);
+        $sermonSpans = array_map(fn (ServiceSection $section): array => ['start_time' => (float) $section->start_time, 'end_time' => $this->plannedEnd($section, $run, $composition['selected_section_ids'])], $sermonSections);
         $spans = [...$spans, ...$this->resolver->withIntroduction($sermonSpans, $sermonSections, $composition['introduction'] ?? null)];
         // Where the sermon ends beside a song (K16) is answered first, so its words are decoded.
         $introduction = $this->introductionCheck->prepare($run, $sermonSpans);
@@ -67,7 +67,7 @@ class PrepareOutputEdgeEvidence
         $summary = ['song_introduction' => $introduction, ...($innerParts === [] ? [] : ['part_song_introductions' => $innerParts])] + $this->prepare->prepare($run->fresh() ?? throw new \RuntimeException('Processing run disappeared'), $spans);
         $run->refresh();
         $knownEdges = array_merge(...array_map(array_values(...), $spans));
-        $exposed = $this->sentenceCheck->outputEdges($run, array_values($run->serviceSections()->orderBy('start_time')->get()->all()), $composition['selected_section_ids']);
+        $exposed = $this->sentenceCheck->outputEdges($run, array_values($run->serviceSections()->orderBy('start_time')->get()->all()), $composition['selected_section_ids'], $composition['introduction'] ?? null);
         // A kept line its own decode did not hear is looked for at its later copies (1219).
         $copies = array_map(static fn (float $time): array => [null, $time], $this->cutPlans->spokenEndsBesideSongs($run, $sermonSpans));
         $followup = [];
@@ -93,7 +93,6 @@ class PrepareOutputEdgeEvidence
             $summary['song_tails'] = $this->prepare->prepareWindows($run, $tailWindows);
             $run->refresh();
         }
-        $cues = $evidence->cues($run);
         $dependent = app(DependentSongOpening::class);
         $windows = [];
         $fadeCutWindows = [];
@@ -102,11 +101,8 @@ class PrepareOutputEdgeEvidence
             $songId = $section->resolvedSongId();
             $plan = $this->cutPlans->forSpans($run, [['start_time' => (float) $section->start_time, 'end_time' => (float) $section->end_time]], songEnds: true,
                 songLyrics: $songId === null ? null : Song::query()->whereKey($songId)->value('lyrics_plain'));
-            foreach ($plan['segments'] as $span) {
-                $window = $dependent->window($run, $cues, (float) $span['start_time']);
-                if ($window !== null) {
-                    $windows[$evidence->kind($evidence->identity($run, $window))] = $window;
-                }
+            foreach ($dependent->plannedWindows($plan['cue_edge_widening']) as $window) {
+                $windows[$evidence->kind($evidence->identity($run, $window))] = $window;
             }
             // A song faded into speech is decoded again on its cut (RA3, heard 11-07), so the speech's
             // agreed first words can move the cut past the outro's last note.
@@ -138,11 +134,23 @@ class PrepareOutputEdgeEvidence
             }
         }
         // Asked of the cuts the decoded words place, so only once they are decoded.
-        $summary['sentence_check'] = $this->sentenceCheck->prepare($run, $composition['selected_section_ids']);
+        $summary['sentence_check'] = $this->sentenceCheck->prepare($run, $composition['selected_section_ids'], $composition['introduction'] ?? null);
         $run->refresh();
         $this->resolver->compose($run);
 
         return $summary;
+    }
+
+    /**
+     * A selected section's end as the sermon plan cuts it ({@see SermonExtractionPlanResolver::endWithinRecording()}).
+     *
+     * @param  list<int>  $selectedIds
+     */
+    private function plannedEnd(ServiceSection $section, MediaProcessingLog $run, array $selectedIds): float
+    {
+        $end = (float) $section->end_time;
+
+        return in_array($section->id, $selectedIds, true) ? SermonExtractionPlanResolver::endWithinRecording($end, $run->duration) : $end;
     }
 
     /**

@@ -11,6 +11,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
 use App\Services\Media\Audio\ServiceArtifactStorage;
+use App\Services\Sermon\SermonExtractionPlanResolver;
 use App\Support\MediaProcessingVersion;
 use App\Support\OpenAiChatPayload;
 use App\Support\OpenAiFlexFallback;
@@ -73,9 +74,10 @@ TXT;
      * boundary is not known to be right, only not asked.
      *
      * @param  list<int>  $sermonSectionIds  The sermon output's sections, as composed for this run
+     * @param  array{reading_section_id: int, start_time: float, end_time: float}|null  $introduction  The composition's introduction
      * @return array{edges: int, asked: int, agreed_moves: int, unchecked: int}
      */
-    public function prepare(MediaProcessingLog $log, array $sermonSectionIds = []): array
+    public function prepare(MediaProcessingLog $log, array $sermonSectionIds = [], ?array $introduction = null): array
     {
         $plans = app(CueSafeExtractionPlan::class);
         $evidence = app(OutputEdgeWordTimings::class);
@@ -89,7 +91,7 @@ TXT;
             $edges[sprintf('end@%.3f', (float) $section->end_time)] = ['end', (float) $section->end_time];
         }
 
-        $exposed = $this->outputEdges($log, array_values($sections->all()), $sermonSectionIds);
+        $exposed = $this->outputEdges($log, array_values($sections->all()), $sermonSectionIds, $introduction);
         foreach ($exposed as [$edge, $time]) {
             $edges[sprintf('%s@%.3f', $edge, $time)] = [$edge, $time];
         }
@@ -146,17 +148,18 @@ TXT;
      *
      * @param  list<ServiceSection>  $sections
      * @param  list<int>  $sermonSectionIds
+     * @param  array{reading_section_id: int, start_time: float, end_time: float}|null  $introduction  The composition's, which opens the output's first part
      * @return list<array{0: 'start'|'end', 1: float, 2?: 'dead_feed_opening'}>
      */
-    public function outputEdges(MediaProcessingLog $log, array $sections, array $sermonSectionIds): array
+    public function outputEdges(MediaProcessingLog $log, array $sections, array $sermonSectionIds, ?array $introduction = null): array
     {
         $handlers = app(SectionPublicationHandlerFactory::class);
         $pairing = app(TalkReadingPairing::class);
         $edges = [];
-        $parts = [];
+        $selected = [];
 
         foreach ($sections as $section) {
-            [$start, $end] = [(float) $section->start_time, (float) $section->end_time];
+            $end = (float) $section->end_time;
 
             if ($handlers->forSection($section) !== null) {
                 // A talk cut with its reading opens at the reading, and plays on through the join.
@@ -165,13 +168,15 @@ TXT;
             }
 
             if (in_array($section->id, $sermonSectionIds, true)) {
-                $parts[] = ['start_time' => $start, 'end_time' => $end];
+                $selected[] = $section;
             }
         }
 
-        if ($parts === []) {
+        if ($selected === []) {
             return $edges;
         }
+
+        $parts = app(SermonExtractionPlanResolver::class)->plannedParts($log, $selected, $introduction);
 
         try {
             $planned = app(CueSafeExtractionPlan::class)->forSpans($log, $parts, sermonEnd: true);

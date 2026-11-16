@@ -13,6 +13,9 @@ use App\Models\Song;
 /** Follow-on evidence for the linking announcements left at song starts (10-29 study). */
 class DependentSongOpening
 {
+    /** The audit reason {@see CueSafeExtractionPlan::forSpans()} records a review under. */
+    public const AUDIT_REASON = 'song_start_dependent';
+
     private const LINKING = ['and', 'but', 'or', 'because', 'then'];
 
     /**
@@ -91,6 +94,27 @@ class DependentSongOpening
         }
 
         return ['start' => $cut, 'end' => $end, 'window_rule' => 'dependent-song-opening-pause-0.8-cap-15-v1'];
+    }
+
+    /**
+     * The windows a song plan asked for ({@see CueSafeExtractionPlan::forSpans()} reviews each start
+     * before any later override moves it), read from its audit so preparation decodes where
+     * planning looks, whatever the plan went on to do with the cut.
+     *
+     * @param  list<array<string, mixed>>  $audit
+     * @return list<array{start: float, end: float, window_rule: string}>
+     */
+    public function plannedWindows(array $audit): array
+    {
+        $windows = [];
+        foreach ($audit as $entry) {
+            $window = ($entry['reason'] ?? null) === self::AUDIT_REASON ? ($entry['dependent_opening']['window'] ?? null) : null;
+            if (is_array($window) && isset($window['start'], $window['end'], $window['window_rule'])) {
+                $windows[] = ['start' => (float) $window['start'], 'end' => (float) $window['end'], 'window_rule' => (string) $window['window_rule']];
+            }
+        }
+
+        return $windows;
     }
 
     /**

@@ -13,6 +13,7 @@ use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\DeadFeedExcision;
+use App\Services\ChurchService\DependentSongOpening;
 use App\Services\ChurchService\OutputEdgeDecodeWindow;
 use App\Services\ChurchService\OutputEdgeWordTimings;
 use App\Services\ChurchService\PrepareOutputEdgeEvidence;
@@ -178,6 +179,88 @@ class PrepareOutputEdgeEvidenceTest extends TestCase
 
         self::assertTrue(array_any($windows, static fn (array $window): bool => abs($window[0] - $expected[0]) < 0.000001
             && abs($window[1] - $expected[1]) < 0.000001), 'The missing section-edge window must be enumerated.');
+    }
+
+    /** WP62 item 1: the planner ends a selected section a fraction past the recording at the recording's end. */
+    #[Test]
+    public function preparation_enumerates_a_selected_section_end_as_the_planner_bounds_it(): void
+    {
+        $section = ServiceSection::factory()->make(['id' => 1, 'media_processing_log_id' => null,
+            'church_service_item_id' => null, 'section_type' => ServiceSectionType::Sermon,
+            'start_time' => 100.0, 'end_time' => 1000.004]);
+        $query = Mockery::mock(HasMany::class);
+        $query->shouldReceive('orderBy', 'whereIn')->andReturnSelf();
+        $query->shouldReceive('get')->andReturn(new Collection([$section]));
+        $run = Mockery::mock(MediaProcessingLog::class)->makePartial();
+        $run->setRawAttributes(MediaProcessingLog::factory()->livestream()->make(['duration' => 1000.0])->getAttributes());
+        $run->shouldReceive('serviceSections')->andReturn($query);
+        $run->shouldReceive('refresh', 'fresh')->andReturnSelf();
+        $cutPlans = Mockery::mock(CueSafeExtractionPlan::class);
+        $cutPlans->shouldReceive('spokenEndsBesideSongs')->andReturn([]);
+        $deadFeed = Mockery::mock(DeadFeedExcision::class);
+        $deadFeed->shouldReceive('prepare')->once();
+
+        $spans = $this->captureSpans($run, Mockery::mock(SermonExtractionPlanResolver::class)->makePartial(), ['selected_section_ids' => [1]], $cutPlans, $deadFeed);
+
+        self::assertNotEmpty($spans);
+        foreach ($spans as $span) {
+            self::assertSame(1000.0, $span['end_time'], 'Preparation must ask for the end the plan cuts at, not the raw section end.');
+        }
+    }
+
+    /** WP62 item 2: the dependent opening is decoded where the plan reviewed it, not where an override left the cut. */
+    #[Test]
+    public function preparation_decodes_the_dependent_opening_window_the_plan_asked_for(): void
+    {
+        $song = ServiceSection::factory()->make(['id' => 1, 'media_processing_log_id' => null,
+            'church_service_item_id' => null, 'section_type' => ServiceSectionType::Song,
+            'start_time' => 100.0, 'end_time' => 400.0]);
+        $song->setRelation('churchServiceItem', null);
+        $query = Mockery::mock(HasMany::class);
+        $query->shouldReceive('orderBy', 'whereIn', 'where')->andReturnSelf();
+        $query->shouldReceive('get')->andReturn(new Collection([$song]));
+        $run = Mockery::mock(MediaProcessingLog::class)->makePartial();
+        $run->setRawAttributes(MediaProcessingLog::factory()->livestream()->make(['duration' => 1000.0])->getAttributes());
+        $run->setRelation('churchService', null);
+        $run->shouldReceive('serviceSections')->andReturn($query);
+        $run->shouldReceive('refresh', 'fresh')->andReturnSelf();
+        $decodeWindows = new OutputEdgeDecodeWindow;
+        $this->app->instance(OutputEdgeDecodeWindow::class, $decodeWindows);
+        $cues = [['start' => 100.2, 'end' => 103.0, 'text' => 'And then let us sing together.'],
+            ['start' => 130.0, 'end' => 133.0, 'text' => 'The next verse follows on.']];
+        $timings = Mockery::mock(OutputEdgeWordTimings::class, [$decodeWindows])->makePartial();
+        $timings->shouldReceive('cues')->andReturn($cues);
+        $this->app->instance(OutputEdgeWordTimings::class, $timings);
+        $this->app->instance(OutputEdgeDecodeWindow::class, $decodeWindows);
+        $planned = app(DependentSongOpening::class)->window($run, $cues, 100.0);
+        self::assertNotNull($planned, 'The plan reviewed the cut at 100.0, where a linking announcement opens the song.');
+        $cutPlans = Mockery::mock(CueSafeExtractionPlan::class);
+        $cutPlans->shouldReceive('spokenEndsBesideSongs', 'songEndSpeechEdges')->andReturn([]);
+        $cutPlans->shouldReceive('forSpans')->andReturn(['segments' => [['start_time' => 130.0, 'end_time' => 400.0]],
+            'cue_edge_widening' => [['span_index' => 0, 'edge' => 'start', 'original_time' => 100.0, 'time' => 130.0,
+                'reason' => 'song_start_dependent', 'dependent_opening' => ['window' => $planned]]]]);
+        $deadFeed = Mockery::mock(DeadFeedExcision::class);
+        $deadFeed->shouldReceive('prepare')->once();
+        $resolver = Mockery::mock(SermonExtractionPlanResolver::class)->makePartial();
+        $resolver->shouldReceive('compose')->andReturn(['selected_section_ids' => []]);
+        $introductionCheck = Mockery::mock(SermonSongIntroductionCheck::class);
+        $introductionCheck->shouldReceive('prepare')->andReturn([]);
+        $introductionCheck->shouldReceive('innerParts')->andReturn([]);
+        $sentenceCheck = Mockery::mock(SpokenEdgeSentenceCheck::class);
+        $sentenceCheck->shouldReceive('outputEdges')->andReturn([]);
+        $sentenceCheck->shouldReceive('prepare')->andReturn([]);
+        $prepare = Mockery::mock(PrepareOutputEdgeWordTimings::class);
+        $prepare->shouldReceive('prepare')->andReturn([]);
+        $asked = [];
+        $prepare->shouldReceive('prepareWindows')->andReturnUsing(function (MediaProcessingLog $log, array $windows) use (&$asked): array {
+            array_push($asked, ...array_values($windows));
+
+            return [];
+        });
+
+        (new PrepareOutputEdgeEvidence($prepare, $resolver, $cutPlans, $sentenceCheck, $introductionCheck, $deadFeed, Mockery::mock(StorageAdapterHelper::class)))->prepare($run);
+
+        self::assertContains($planned, $asked, 'Preparation must decode the window the plan requests for the dependent opening.');
     }
 
     /**
