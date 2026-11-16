@@ -112,6 +112,12 @@ or re-cutting runs before the freeze, on current outputs and the final-code repl
 - the detector/transcript evaluation;
 - song protocol stage 2/M2/M4.
 
+**Added 11-16 (register R13, R14; video plan §4.1f rows 9 and 10).** The fresh sample includes a
+declared draw from the services recorded from 2026-08-30 onward, run through the ordinary upload
+route: no rule was tuned on them. Weekly runs on production with the OpenAI Whisper API, so
+where a check depends on transcription or edge evidence, report it on that backend as well as
+the local one.
+
 Declare the sample, seed and denominators first, as §5 requires. Each finding is fixed and
 measured, held, or recorded as residue before the freeze. Checks that need the final bytes (full
 decode, hashes, delivery, thumbnails, editorial fields) stay after the round, where the same lanes

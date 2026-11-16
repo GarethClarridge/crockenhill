@@ -407,7 +407,11 @@ change frozen membership mid-pass. State the round's purpose and stopping condit
 
 0. The video plan's §4.1f last-round checklist is closed: every row done or disposed of, including the
    edge evidence and complete replay, the moved acceptance checks, the stopped runs' routes and the
-   production census (added 11-10).
+   production census (added 11-10). From 11-16 that includes rows 9–15: the rules are shown on
+   production's transcription backend (R13), the frozen revision is one CI has passed, missing
+   songs are added and synced (no catalogue edit is allowed once the round starts, §2.4), and the
+   canary shows the round's measurements being written (redraw changes; time, CPU and cost per
+   stage; questions per service).
 1. Freeze exact membership in the snapshot; settle transcript and structure dependencies before
    cutting; retain or exclude unresolved cases explicitly rather than widening the batch.
    Include every eligible sermon output in the K16 check, including runs whose last selected
