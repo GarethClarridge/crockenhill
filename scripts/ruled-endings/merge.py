@@ -13,6 +13,7 @@ Writes <out dir>/run-<run id>-<captured_on>.json.gz.
 import collections
 import glob
 import gzip
+import io
 import json
 import os
 import sys
@@ -50,6 +51,8 @@ for run_id, fixtures in sorted(by_run.items()):
         'rms': {**first['rms'], 'samples': [list(sample) for sample in samples]},
         'rulings': [{key: value for key, value in fixture.items() if key not in (*SHARED, 'rms')} for fixture in fixtures],
     }
-    with gzip.open(os.path.join(out_dir, merged['id'] + '.json.gz'), 'wt', compresslevel=9) as handle:
-        json.dump(merged, handle, separators=(',', ':'))
+    with open(os.path.join(out_dir, merged['id'] + '.json.gz'), 'wb') as output:
+        with gzip.GzipFile(filename='', mode='wb', compresslevel=9, fileobj=output, mtime=0) as compressed:
+            with io.TextIOWrapper(compressed) as handle:
+                json.dump(merged, handle, separators=(',', ':'))
     print(f"{merged['id']}: {len(fixtures)} rulings")
