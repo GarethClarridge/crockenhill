@@ -201,13 +201,7 @@ class ServiceSection extends Model
     }
 
     /**
-     * @return array{
-     *     church_service_item_id: int|null,
-     *     section_type: string,
-     *     title: ?string,
-     *     start_time: float,
-     *     end_time: float
-     * }
+     * @return array<string, mixed>
      */
     public function classificationSignaturePayload(): array
     {
@@ -226,6 +220,11 @@ class ServiceSection extends Model
             // candidate media stamped with it) is unchanged by the key's existence.
             if ($this->publicationTalkType() instanceof TalkType) {
                 $payload['talk_type'] = $this->publicationTalkType()->value;
+            }
+
+            // Present only once the operator accepted a series, so every other talk's approval stands.
+            if (($series = $this->publicationTalkSeries()) !== null) {
+                $payload['talk_series'] = $series;
             }
 
             // Present only for a talk cut with its reading, so every other talk's signature stands.
@@ -384,6 +383,14 @@ class ServiceSection extends Model
     public function publicationTalkType(): ?TalkType
     {
         return $this->metadata?->talkType?->publicationTalkType();
+    }
+
+    /**
+     * The series an operator accepted with the confirmed type; never the proposed series.
+     */
+    public function publicationTalkSeries(): ?string
+    {
+        return $this->metadata?->talkType?->publicationSeries();
     }
 
     public function hasResolvedTalkType(): bool

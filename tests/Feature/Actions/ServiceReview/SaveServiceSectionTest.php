@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Actions\ServiceReview;
 
 use App\Actions\HoldSectionForContentReview;
+use App\Actions\ProposeTalkType;
 use App\Actions\ServiceReview\SaveServiceSection;
+use App\Data\TalkTypeProposal;
 use App\Enums\SermonPublicationState;
 use App\Enums\SermonService;
 use App\Enums\ServiceSectionPublicationStatus;
@@ -20,6 +22,7 @@ use App\Models\ServiceSection;
 use App\Models\Song;
 use App\Models\SongVideo;
 use App\Models\User;
+use App\Services\ChurchService\TalkTypeInputBuilder;
 use App\Services\Sermon\SermonExtractionPlanResolver;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Bus;
@@ -621,6 +624,113 @@ class SaveServiceSectionTest extends TestCase
         $this->assertSame(TalkType::PartnerUpdate, $section->publicationTalkType());
         $this->assertSame($this->admin->id, $talkType?->reviewed['user_id'] ?? null);
         $this->assertNotEmpty($talkType?->reviewed['at'] ?? null);
+    }
+
+    #[Test]
+    public function an_accepted_series_is_a_reviewed_fact_distinct_from_the_proposed_series(): void
+    {
+        $section = $this->shortTalk(['talk_type' => ['proposed' => 'childrens_talk', 'proposed_series' => 'Names of God']]);
+        $before = $section->classificationSignature();
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => 'short_talk', 'title' => 'El Shaddai', 'talk_type' => 'childrens_talk', 'talk_series' => '  Names of God ']],
+            speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']],
+            userId: $this->admin->id,
+        );
+
+        $section->refresh();
+        $record = $section->metadata?->toArray()['talk_type'];
+        $this->assertSame('Names of God', $record['reviewed']['series']);
+        $this->assertSame($this->admin->id, $record['reviewed']['user_id']);
+        $this->assertSame('Names of God', $record['proposed_series']);
+        $this->assertSame('Names of God', $section->publicationTalkSeries());
+        $this->assertNotSame($before, $section->classificationSignature());
+    }
+
+    #[Test]
+    public function a_proposed_series_alone_is_never_a_reviewed_series(): void
+    {
+        $section = $this->shortTalk(['talk_type' => ['proposed' => 'childrens_talk', 'proposed_series' => 'Names of God']]);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => 'short_talk', 'title' => 'El Shaddai', 'talk_type' => 'childrens_talk']],
+            speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']],
+            userId: $this->admin->id,
+        );
+
+        $this->assertNull($section->refresh()->publicationTalkSeries());
+        $this->assertArrayNotHasKey('series', $section->metadata?->talkType?->reviewed ?? []);
+    }
+
+    #[Test]
+    public function an_accepted_series_does_not_publish_without_a_reviewed_type(): void
+    {
+        $section = $this->shortTalk(['talk_type' => ['proposed' => 'childrens_talk']]);
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => 'short_talk', 'title' => 'A talk', 'talk_series' => 'Names of God']],
+            speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']],
+            userId: $this->admin->id,
+        );
+        $this->assertNull($section->refresh()->publicationTalkSeries());
+
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => 'short_talk', 'title' => 'A talk', 'talk_type' => 'none', 'talk_series' => 'Names of God']],
+            speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']],
+            userId: $this->admin->id,
+        );
+        $this->assertNull($section->refresh()->publicationTalkSeries());
+    }
+
+    #[Test]
+    public function saving_again_keeps_the_series_and_the_approval_identity_and_a_blank_clears_it(): void
+    {
+        $section = $this->shortTalk(['talk_type' => ['reviewed' => ['value' => 'childrens_talk', 'series' => 'Names of God']]]);
+        $edit = ['section_type' => 'short_talk', 'title' => 'El Shaddai'];
+
+        $this->action->execute($section, [$section->id => $edit], [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']], $this->admin->id);
+        $this->assertSame('Names of God', $section->refresh()->publicationTalkSeries());
+        $signature = $section->classificationSignature();
+
+        $this->action->execute($section, [$section->id => $edit + ['talk_series' => 'Names of God']], [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']], $this->admin->id);
+        $unchanged = $section->refresh()->classificationSignature();
+
+        $this->action->execute($section, [$section->id => $edit + ['talk_series' => '']], [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']], $this->admin->id);
+        $this->assertNull($section->refresh()->publicationTalkSeries());
+        $this->assertNotSame($unchanged, $section->classificationSignature());
+        $this->assertSame($signature, $unchanged);
+    }
+
+    #[Test]
+    public function a_later_proposal_cannot_overwrite_a_reviewed_series(): void
+    {
+        $section = $this->shortTalk(['talk_type' => ['proposed' => 'childrens_talk', 'proposed_series' => 'Names of God']]);
+        $section->update(['start_time' => 100, 'end_time' => 140, 'duration' => 40]);
+        $this->action->execute(
+            section: $section,
+            sectionEdits: [$section->id => ['section_type' => 'short_talk', 'title' => 'El Shaddai', 'talk_type' => 'childrens_talk', 'talk_series' => 'Names of God']],
+            speakerEdits: [$section->id => ['preacher_id' => '', 'speaker_name' => 'Visiting Speaker']],
+            userId: $this->admin->id,
+        );
+        $section->refresh();
+        $signature = $section->classificationSignature();
+
+        $input = app(TalkTypeInputBuilder::class)->build($section, ['classifier' => 'b5']);
+        $outcome = app(ProposeTalkType::class)->persist($input, new TalkTypeProposal(
+            proposed: TalkType::ChurchUpdate, proposedSeries: 'Animals in the Bible', disposition: 'proposed',
+            confidence: 0.9, reasons: ['rule'], decidedBy: 'rule', ruleId: 'fixture',
+        ));
+
+        $this->assertSame('stored', $outcome);
+        $section->refresh();
+        $this->assertSame('Animals in the Bible', $section->metadata?->talkType?->proposal()?->proposedSeries);
+        $this->assertSame('Names of God', $section->publicationTalkSeries());
+        $this->assertSame(TalkType::ChildrensTalk, $section->publicationTalkType());
+        $this->assertSame($signature, $section->classificationSignature());
     }
 
     #[Test]

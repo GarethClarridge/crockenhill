@@ -20,6 +20,7 @@ use App\Models\Sermon;
 use App\Models\ServiceSection;
 use App\Services\Sermon\SermonCreationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Log;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\Attributes\TestWith;
 use RuntimeException;
@@ -1261,6 +1262,98 @@ class SermonCreationServiceTest extends TestCase
         $this->assertSame('audio/first.mp3', $published->fresh()->audio_file_path);
     }
 
+    #[Test]
+    public function a_reviewed_series_reaches_a_new_talk(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['extracted_date' => '2024-06-02', 'extracted_service' => SermonService::Morning]);
+        $section = ServiceSection::factory()->create();
+
+        $talk = $this->service->createSermon($log, $this->optionsForTestimony($log, $section, 'audio/new.mp3', TalkType::ChildrensTalk, 'Names of God'));
+
+        $this->assertSame('Names of God', $talk->series);
+        $this->assertSame('Names of God', $section->fresh()->metadata?->toArray()['talk_type']['series_publication']['value']);
+    }
+
+    #[Test]
+    public function a_reviewed_series_reaches_an_existing_talk_without_a_recut(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['extracted_date' => '2024-06-02', 'extracted_service' => SermonService::Morning]);
+        $section = ServiceSection::factory()->create();
+        $published = $this->service->createSermon($log, $this->optionsForTestimony($log, $section, 'audio/first.mp3', TalkType::ChildrensTalk));
+        $this->assertNull($published->series);
+        $this->markPublished($section, $published);
+
+        $again = $this->service->createSermon($log, $this->optionsForTestimony($log, $section->fresh(), 'audio/first.mp3', TalkType::ChildrensTalk, 'Names of God'));
+
+        $this->assertSame($published->id, $again->id);
+        $this->assertSame('Names of God', $again->series);
+        $this->assertSame('audio/first.mp3', $again->audio_file_path);
+    }
+
+    #[Test]
+    public function a_reviewed_series_reaches_an_existing_talk_on_the_enrich_path_too(): void
+    {
+        $existing = Sermon::factory()->create([
+            'date' => '2024-06-02', 'service' => SermonService::Morning, 'content_type' => TalkType::ChildrensTalk,
+            'audio_file_path' => 'audio/old.mp3', 'video_file_path' => null, 'livestream_processing_id' => null,
+            'source_type' => SermonSourceType::AudioUpload, 'series' => null,
+        ]);
+        $log = MediaProcessingLog::factory()->livestream()->create(['extracted_date' => '2024-06-02', 'extracted_service' => SermonService::Morning]);
+
+        $talk = $this->service->createSermon($log, $this->optionsForTestimony($log, ServiceSection::factory()->create(), 'audio/new.mp3', TalkType::ChildrensTalk, 'Names of God'));
+
+        $this->assertSame($existing->id, $talk->id);
+        $this->assertSame('Names of God', $talk->series);
+    }
+
+    #[Test]
+    public function a_curated_series_that_conflicts_with_the_reviewed_one_is_preserved_and_surfaced(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['extracted_date' => '2024-06-02', 'extracted_service' => SermonService::Morning]);
+        $section = ServiceSection::factory()->create();
+        $published = $this->service->createSermon($log, $this->optionsForTestimony($log, $section, 'audio/first.mp3', TalkType::ChildrensTalk));
+        $published->update(['series' => 'Hand-curated series']);
+        $this->markPublished($section, $published);
+        Log::spy();
+
+        $again = $this->service->createSermon($log, $this->optionsForTestimony($log, $section->fresh(), 'audio/first.mp3', TalkType::ChildrensTalk, 'Names of God'));
+
+        $this->assertSame('Hand-curated series', $again->series);
+        $conflict = $section->fresh()->metadata?->toArray()['talk_type']['series_publication'];
+        $this->assertSame('conflict', $conflict['status']);
+        $this->assertSame('Hand-curated series', $conflict['existing']);
+        $this->assertSame('Names of God', $conflict['reviewed']);
+        Log::shouldHaveReceived('warning')->withArgs(fn (string $message): bool => str_contains($message, 'series'))->once();
+    }
+
+    #[Test]
+    public function a_changed_reviewed_series_replaces_the_one_the_section_itself_published(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['extracted_date' => '2024-06-02', 'extracted_service' => SermonService::Morning]);
+        $section = ServiceSection::factory()->create();
+        $published = $this->service->createSermon($log, $this->optionsForTestimony($log, $section, 'audio/first.mp3', TalkType::ChildrensTalk, 'Names of God'));
+        $this->markPublished($section, $published);
+
+        $again = $this->service->createSermon($log, $this->optionsForTestimony($log, $section->fresh(), 'audio/first.mp3', TalkType::ChildrensTalk, 'Animals in the Bible'));
+
+        $this->assertSame('Animals in the Bible', $again->series);
+    }
+
+    #[Test]
+    public function no_reviewed_series_leaves_the_talks_series_alone(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create(['extracted_date' => '2024-06-02', 'extracted_service' => SermonService::Morning]);
+        $section = ServiceSection::factory()->create();
+        $published = $this->service->createSermon($log, $this->optionsForTestimony($log, $section, 'audio/first.mp3', TalkType::ChildrensTalk));
+        $published->update(['series' => 'Hand-curated series']);
+        $this->markPublished($section, $published);
+
+        $again = $this->service->createSermon($log, $this->optionsForTestimony($log, $section->fresh(), 'audio/second.mp3', TalkType::ChildrensTalk));
+
+        $this->assertSame('Hand-curated series', $again->series);
+        $this->assertArrayNotHasKey('series_publication', $section->fresh()->metadata?->toArray()['talk_type'] ?? []);
+    }
+
     private function markPublished(ServiceSection $section, Sermon $sermon): void
     {
         $section->update([
@@ -1278,6 +1371,7 @@ class SermonCreationServiceTest extends TestCase
         ServiceSection $section,
         string $audioPath,
         TalkType $type = TalkType::Testimony,
+        ?string $reviewedSeries = null,
     ): SermonCreationOptions {
         return new SermonCreationOptions(
             audioFilePath: $audioPath,
@@ -1290,6 +1384,7 @@ class SermonCreationServiceTest extends TestCase
             date: '2024-06-02',
             customTitle: 'Testimony',
             publishingSection: $section,
+            reviewedSeries: $reviewedSeries,
         );
     }
 

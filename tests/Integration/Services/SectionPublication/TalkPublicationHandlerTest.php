@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Mockery\MockInterface;
 use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\Attributes\TestWith;
 use Tests\Support\PublicationCandidateFixture;
 use Tests\TestCase;
 
@@ -283,6 +284,119 @@ class TalkPublicationHandlerTest extends TestCase
         // Assets should be promoted
         Storage::disk('public')->assertExists($section->extracted_video_path);
         Storage::disk('public')->assertExists($section->extracted_audio_path);
+    }
+
+    #[Test]
+    public function an_accepted_series_publishes_with_the_talk_it_was_approved_with(): void
+    {
+        [$section, $processingLog] = $this->approvedShortTalk(['reviewed' => ['value' => 'childrens_talk', 'series' => 'Names of God']]);
+        $this->identityResolver->shouldReceive('resolve')->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+        $this->publicationTransitions->shouldReceive('transition')->once()->andReturnUsing(function ($section, $status) {
+            $section->publication_status = $status;
+
+            return true;
+        });
+        $this->sermonCreationService->shouldReceive('createSermon')->once()
+            ->with(Mockery::any(), Mockery::on(fn ($options): bool => $options->reviewedSeries === 'Names of God'))
+            ->andReturn(Sermon::factory()->create());
+
+        $this->handler->publish($section);
+
+        $this->assertNotNull($section->refresh()->published_at);
+    }
+
+    #[Test]
+    public function changing_the_accepted_series_after_approval_requires_fresh_approval(): void
+    {
+        [$section] = $this->approvedShortTalk(['reviewed' => ['value' => 'childrens_talk', 'series' => 'Names of God']]);
+        $metadata = $section->metadata->toArray();
+        $metadata['talk_type']['reviewed']['series'] = 'Animals in the Bible';
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        $section->save();
+        $this->identityResolver->shouldReceive('resolve')->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+        $this->sermonCreationService->shouldNotReceive('createSermon');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Section classification changed since approval');
+
+        $this->handler->publish($section);
+    }
+
+    #[Test]
+    public function a_proposed_series_changing_after_approval_does_not_invalidate_it(): void
+    {
+        [$section] = $this->approvedShortTalk(['proposed_series' => 'Names of God', 'reviewed' => ['value' => 'childrens_talk']]);
+        $metadata = $section->metadata->toArray();
+        $metadata['talk_type']['proposed_series'] = 'Something else entirely';
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        $section->save();
+        $this->identityResolver->shouldReceive('resolve')->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+        $this->publicationTransitions->shouldReceive('transition')->once()->andReturnUsing(function ($section, $status) {
+            $section->publication_status = $status;
+
+            return true;
+        });
+        $this->sermonCreationService->shouldReceive('createSermon')->once()
+            ->with(Mockery::any(), Mockery::on(fn ($options): bool => $options->reviewedSeries === null))
+            ->andReturn(Sermon::factory()->create());
+
+        $this->handler->publish($section);
+    }
+
+    /**
+     * @param  array<string, mixed>  $talkType
+     */
+    #[Test]
+    #[TestWith([[]])]
+    #[TestWith([['proposed' => null, 'disposition' => 'none_of_these', 'proposed_series' => 'Names of God']])]
+    #[TestWith([['proposed' => 'childrens_talk', 'disposition' => 'proposed', 'proposed_series' => 'Names of God', 'signals' => ['testimony_risk' => true]]])]
+    #[TestWith([['proposed' => 'testimony', 'disposition' => 'proposed', 'proposed_series' => 'Names of God', 'reviewed' => ['value' => 'none', 'series' => 'Names of God']]])]
+    public function a_missing_none_or_testimony_risk_proposal_cannot_publish_itself(array $talkType): void
+    {
+        [$section] = $this->approvedShortTalk($talkType);
+        $this->identityResolver->shouldReceive('resolve')->andReturn(['date' => now()->toDateString(), 'service' => SermonService::Morning]);
+        $this->publicationTransitions->shouldNotReceive('transition');
+        $this->sermonCreationService->shouldNotReceive('createSermon');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Short talk type must be reviewed before publication');
+
+        $this->handler->publish($section);
+    }
+
+    /**
+     * A short talk with a resolved speaker, approved exactly as it stands.
+     *
+     * @param  array<string, mixed>  $talkType
+     * @return array{0: ServiceSection, 1: MediaProcessingLog}
+     */
+    private function approvedShortTalk(array $talkType): array
+    {
+        Storage::fake('public');
+        config(['media-processing.storage.sermon_disk' => 'public']);
+        $videoPath = 'section-publications/1-abcdef0123456789/video.mp4';
+        $audioPath = 'section-publications/1-abcdef0123456789/audio.mp3';
+        Storage::disk('public')->put($videoPath, 'video-content');
+        Storage::disk('public')->put($audioPath, 'audio-content');
+        $processingLog = MediaProcessingLog::factory()->audio()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $processingLog->id,
+            'section_type' => ServiceSectionType::ShortTalk->value,
+            'extracted_video_path' => $videoPath,
+            'extracted_audio_path' => $audioPath,
+            'publication_status' => ServiceSectionPublicationStatus::Approved->value,
+            'metadata' => [
+                'talk_speaker' => ['reviewed' => ['preacher_name' => 'Reviewed speaker', 'source' => 'manual']],
+                ...($talkType === [] ? [] : ['talk_type' => $talkType]),
+            ],
+        ]);
+        $metadata = $section->metadata->toArray();
+        $metadata['publication_candidate_extraction'] = PublicationCandidateFixture::current(AudioProfile::Speech);
+        $metadata['publication'] = ['approved_signature' => $section->classificationSignature()];
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        $section->save();
+
+        return [$section, $processingLog];
     }
 
     #[Test]

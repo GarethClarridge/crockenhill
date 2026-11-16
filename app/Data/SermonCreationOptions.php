@@ -68,6 +68,9 @@ final readonly class SermonCreationOptions
 
         // The service section publishing this talk; its identity outranks the date/service/type key
         public ?ServiceSection $publishingSection = null,
+
+        // The series an operator accepted in talk review; outranks ID3 and AI, never the curated series already on a talk
+        public ?string $reviewedSeries = null,
     ) {}
 
     /**
@@ -256,6 +259,7 @@ final readonly class SermonCreationOptions
             duration: (float) $section->duration,
             editorialFacts: $facts,
             publishingSection: $section,
+            reviewedSeries: $contentType === TalkType::Sermon ? null : $section->publicationTalkSeries(),
         );
     }
 

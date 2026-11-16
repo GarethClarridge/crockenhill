@@ -110,6 +110,43 @@ class SermonCreationOptionsTest extends TestCase
     }
 
     #[Test]
+    public function the_reviewed_series_reaches_the_options_but_a_proposed_series_never_does(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $reviewed = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::ShortTalk,
+            'extracted_audio_path' => 'sermons/audio/section-80.mp3',
+            'metadata' => ['talk_type' => ['proposed_series' => 'Animals in the Bible', 'reviewed' => ['value' => 'childrens_talk', 'series' => 'Names of God']]],
+        ]);
+        $proposedOnly = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::ShortTalk,
+            'extracted_audio_path' => 'sermons/audio/section-81.mp3',
+            'metadata' => ['talk_type' => ['proposed_series' => 'Animals in the Bible', 'reviewed' => ['value' => 'childrens_talk']]],
+        ]);
+
+        $this->assertSame('Names of God', SermonCreationOptions::fromServiceSection($reviewed, $log, date: '2026-05-10', service: SermonService::Morning)->reviewedSeries);
+        $this->assertNull(SermonCreationOptions::fromServiceSection($proposedOnly, $log, date: '2026-05-10', service: SermonService::Morning)->reviewedSeries);
+    }
+
+    #[Test]
+    public function a_series_with_no_reviewed_type_cannot_become_options(): void
+    {
+        $log = MediaProcessingLog::factory()->livestream()->create();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $log->id,
+            'section_type' => ServiceSectionType::ShortTalk,
+            'extracted_audio_path' => 'sermons/audio/section-82.mp3',
+            'metadata' => ['talk_type' => ['proposed' => 'childrens_talk', 'disposition' => 'proposed', 'proposed_series' => 'Names of God', 'signals' => ['testimony_risk' => true], 'reviewed' => ['value' => 'none', 'series' => 'Names of God']]],
+        ]);
+
+        $this->expectExceptionMessage('Short talk type must be reviewed before publication');
+
+        SermonCreationOptions::fromServiceSection($section, $log, date: '2026-05-10', service: SermonService::Morning);
+    }
+
+    #[Test]
     public function curated_facts_do_not_reach_a_childrens_talk_from_the_same_recording(): void
     {
         $processingLog = $this->historicLogWithCuratedFacts();

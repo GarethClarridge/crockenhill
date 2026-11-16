@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace App\Services\Sermon;
 
 use App\Data\SermonCreationOptions;
+use App\Data\ServiceSectionMetadata;
 use App\Enums\MediaType;
 use App\Enums\PreacherSource;
 use App\Enums\SermonPublicationState;
+use App\Enums\SermonReferenceProvenance;
 use App\Enums\SermonRichnessLevel;
 use App\Enums\SermonService;
 use App\Enums\SermonSourceType;
 use App\Enums\SermonTitleProvenance;
-use App\Enums\SermonReferenceProvenance;
 use App\Enums\SermonUpsertAction;
 use App\Enums\TitleGenerationStrategy;
 use App\Exceptions\SeedResidueException;
@@ -91,7 +92,7 @@ class SermonCreationService
             ?? $this->findByDateServiceAndType($sermonDate, $service, $options);
 
         if (blank($existing)) {
-            return $this->createFresh($processingLog, $options, $sermonDate, $service);
+            return $this->withReviewedSeries($this->createFresh($processingLog, $options, $sermonDate, $service), $options);
         }
 
         $this->assertNotSeeded($existing);
@@ -101,7 +102,7 @@ class SermonCreationService
         $incomingLevel = $this->detectIncomingRichness($processingLog, $options);
         $action = $this->decideUpsertAction($existingLevel, $incomingLevel);
 
-        return match ($action) {
+        return $this->withReviewedSeries(match ($action) {
             SermonUpsertAction::Enrich => $this->enrichExisting($existing, $processingLog, $options),
             SermonUpsertAction::Replace => $this->replaceExisting($existing, $processingLog, $options),
             SermonUpsertAction::Reject => $this->rejectOrForce(
@@ -112,7 +113,54 @@ class SermonCreationService
                 $existingLevel,
                 $incomingLevel,
             ),
-        };
+        }, $options);
+    }
+
+    /**
+     * Give the talk the series its section's operator accepted, whether the talk is new or
+     * already published, without a recut.
+     *
+     * A series already on the talk that differs is the curated or manual one unless this
+     * section itself last wrote it: it is kept, the refusal is logged, and the conflict is
+     * recorded on the section beside its other series facts for the operator to settle.
+     */
+    private function withReviewedSeries(Sermon $sermon, SermonCreationOptions $options): Sermon
+    {
+        $reviewed = $options->reviewedSeries;
+        $section = $options->publishingSection;
+
+        if (blank($reviewed) || ! $section instanceof ServiceSection) {
+            return $sermon;
+        }
+
+        $metadata = $section->metadata?->toArray() ?? [];
+        $record = is_array($metadata['talk_type']['series_publication'] ?? null) ? $metadata['talk_type']['series_publication'] : [];
+        $existing = $sermon->series;
+        $ownsExisting = ($record['status'] ?? null) === 'applied' && ($record['sermon_id'] ?? null) === $sermon->id && ($record['value'] ?? null) === $existing;
+
+        if (blank($existing) || $existing === $reviewed || $ownsExisting) {
+            if ($existing !== $reviewed) {
+                $sermon->forceFill(['series' => $reviewed])->save();
+            }
+
+            $metadata['talk_type']['series_publication'] = [
+                'status' => 'applied', 'sermon_id' => $sermon->id, 'value' => $reviewed, 'at' => now()->toIso8601String(),
+            ];
+        } else {
+            Log::warning('SermonCreationService: kept the talk\'s existing series over the reviewed series', $this->sanitizeArrayForLog([
+                'sermon_id' => $sermon->id,
+                'service_section_id' => $section->id,
+            ]));
+
+            $metadata['talk_type']['series_publication'] = [
+                'status' => 'conflict', 'sermon_id' => $sermon->id, 'existing' => $existing, 'reviewed' => $reviewed, 'at' => now()->toIso8601String(),
+            ];
+        }
+
+        $section->metadata = ServiceSectionMetadata::fromArray($metadata);
+        $section->save();
+
+        return $sermon->refresh();
     }
 
     /**
@@ -704,7 +752,9 @@ class SermonCreationService
 
         $curated = $options->curatedFacts();
 
-        if ($curated?->series !== null) {
+        if (filled($options->reviewedSeries)) {
+            $sermonData['series'] = $options->reviewedSeries;
+        } elseif ($curated?->series !== null) {
             $sermonData['series'] = $curated->series;
         } elseif ($options->id3Series) {
             $sermonData['series'] = $options->id3Series;

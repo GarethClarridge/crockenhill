@@ -41,7 +41,7 @@ class SaveServiceSection
      * Throws ValidationException on invalid input; throws \RuntimeException if the section
      * is no longer a review candidate.
      *
-     * @param  array<int, array{section_type:string,title:string,end_time?:string|int|float|null,talk_type?:string|null,church_service_item_id?:string|null}>  $sectionEdits
+     * @param  array<int, array{section_type:string,title:string,end_time?:string|int|float|null,talk_type?:string|null,talk_series?:string|null,church_service_item_id?:string|null}>  $sectionEdits
      * @param  array<int, array{preacher_id:string,speaker_name:string}>  $speakerEdits
      *
      * @throws ValidationException
@@ -61,6 +61,7 @@ class SaveServiceSection
             'preacher_id' => '',
             'speaker_name' => '',
             'talk_type' => $section->metadata?->talkType?->reviewed['value'] ?? '',
+            'talk_series' => $section->metadata?->talkType?->reviewed['series'] ?? '',
             'sermon_section_ids' => null,
             'sermon_composition_identity' => null,
             'church_service_item_id' => (string) ($section->church_service_item_id ?? ''),
@@ -89,6 +90,7 @@ class SaveServiceSection
                     ...array_map(static fn (TalkType $type): string => $type->value, TalkType::nonSermon()),
                     'none',
                 ])],
+                'talk_series' => ['nullable', 'string', 'max:255'],
                 'church_service_item_id' => $itemChanged
                     ? ['nullable', 'integer', Rule::exists('church_service_items', 'id')->where('church_service_id', $churchServiceId ?? 0)]
                     : ['nullable'],
@@ -232,6 +234,7 @@ class SaveServiceSection
             $section->section_type,
             $validated['talk_type'] ?? null,
             $userId,
+            $validated['talk_series'] ?? null,
         ));
 
         $compositionOnly = is_string($validated['sermon_section_ids'] ?? null);
@@ -361,10 +364,14 @@ class SaveServiceSection
      * when; a section retyped away from a short talk drops the whole record, as it
      * drops the speaker. Saving the same type again leaves the record untouched.
      *
+     * The series the operator accepts is recorded beside the confirmed type, apart from the
+     * proposed series: only a confirmed type carries one, a blank clears it, and a later
+     * proposal never touches it.
+     *
      * @param  array<string, mixed>  $metadata
      * @return array<string, mixed>
      */
-    private function withReviewedTalkType(array $metadata, ServiceSectionType $sectionType, ?string $talkType, int $userId): array
+    private function withReviewedTalkType(array $metadata, ServiceSectionType $sectionType, ?string $talkType, int $userId, ?string $series = null): array
     {
         if ($sectionType !== ServiceSectionType::ShortTalk) {
             unset($metadata['talk_type']);
@@ -377,6 +384,9 @@ class SaveServiceSection
         }
 
         $record = is_array($metadata['talk_type'] ?? null) ? $metadata['talk_type'] : ['proposed' => null];
+        $series = $talkType === 'none' || $series === null || trim($series) === ''
+            ? null
+            : trim((string) preg_replace('/\s+/u', ' ', $series));
 
         if (($record['reviewed']['value'] ?? null) !== $talkType) {
             $record['reviewed'] = [
@@ -384,6 +394,16 @@ class SaveServiceSection
                 'user_id' => $userId,
                 'at' => now()->toIso8601String(),
             ];
+        }
+
+        if (($record['reviewed']['series'] ?? null) !== $series) {
+            if ($series === null) {
+                unset($record['reviewed']['series'], $record['reviewed']['series_user_id'], $record['reviewed']['series_at']);
+            } else {
+                $record['reviewed']['series'] = $series;
+                $record['reviewed']['series_user_id'] = $userId;
+                $record['reviewed']['series_at'] = now()->toIso8601String();
+            }
         }
 
         $metadata['talk_type'] = $record;

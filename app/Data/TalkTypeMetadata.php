@@ -54,6 +54,19 @@ final readonly class TalkTypeMetadata extends JsonData
     }
 
     /**
+     * The series the operator accepted with the confirmed type, never the proposed
+     * series, and never without a confirmed type.
+     */
+    public function publicationSeries(): ?string
+    {
+        if (! $this->publicationTalkType() instanceof TalkType) {
+            return null;
+        }
+
+        return self::stringOrNull($this->reviewed['series'] ?? null);
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function toArray(): array
