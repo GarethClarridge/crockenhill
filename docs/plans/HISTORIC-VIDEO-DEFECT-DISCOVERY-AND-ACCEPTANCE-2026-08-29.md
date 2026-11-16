@@ -1943,8 +1943,23 @@ Planned work, in order:
    3 sermon titles, 3 slugs, 6 service-item titles and 1 section title, untouched. A
    members-only talk's media link is a storage URL that works for anyone who has it, as for
    other members-only talks.
-   **Still owed from T9:** the rules "morning family slot means family talk" and "evening
-   services have no children's talks", which belong to the type step (T8).
+   **Built 11-15/16, before run 944's re-import and the last round (operator, 11-15: make the code
+   changes first, so that later code-bound records are made once on final code):** steps 2 and 3
+   and both rules owed from T9, as packages B1–B5 of
+   `storage/scratch/talk-type-plan-20261114-wp34/plan.md` (`02bb450ee`, `69c5c3c68`, `ee8662968`,
+   `53f07e033`, `95825c7ca`; evidence in `storage/scratch/talk-type-build-20261115-b1` … `-b5`).
+   Ordered rules run first and name the rule that decided; the model (`media-processing.talk_type`,
+   the structure step's model, unmeasured) is asked only when they give no decision. A family-talk
+   answer for an evening or unknown service is recorded unresolved. `ProposeSectionTalkTypes` runs
+   in every chain after structure is settled and cannot fail a run; `service:propose-talk-types`
+   previews or applies over existing sections and **has not been run**. A series accepted in review
+   reaches the talk's `series` field; a differing series already on the sermon is kept and recorded
+   on the section. Nothing confirms a type or approves a talk (T2, G10 unchanged). Full suite
+   11,661 tests, no failure. **Not built:** the review-form field that accepts a series and shows a
+   series conflict; a mock classifier (without an API key each proposal fails and is logged).
+   **Consequences:** the main-address rule needs teaching and application in the text, so some
+   sermons in family services go to the model; the round will make paid talk-type calls for the
+   talks the rules leave undecided. Steps 4 and 5 (measurement, automatic confirmation) are open.
 2. **Apply T7 and record the series.** A talk in a catechism, hero-of-faith or Bible-character
    series is proposed as a children's talk, and the series is proposed beside the type and
    published in the talk's `series` field. Any other kind that step 1 answers "none of the four"
