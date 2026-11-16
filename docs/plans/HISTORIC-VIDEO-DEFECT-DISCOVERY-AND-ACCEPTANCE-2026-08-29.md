@@ -1876,6 +1876,12 @@ production. Each row below moves one of them ahead of the freeze.
   preparation job or the backfill's `--execute`, and removing a reason does not by itself clear
   `needs_manual_review` or `pending_approval`. The true release count shows only after the round
   recuts the 463. Evidence: `storage/scratch/sol-20261116/wp66`, `wp68`, `wp69`.
+  **Ruled 11-16 (register R15, G14):** §3163 and §3222 are held by backfill and demotion once the
+  round has recorded its cuts; §1730's release stands unheard; §1572 and §2718 keep their recorded
+  cuts as named residue. A released section already in pending approval stays there today (the
+  auto-publish job refuses pending to published; 10 of the 11 releases, and 69 of the 463 stale-cut
+  sections are pending with no reason). G14 removes that step for sections with no reason, flag or
+  hold: **design and build owed before the freeze**; C1's release batch is unchanged.
 - **Row 12 built 11-16 (`c0e81c4d6`, WP62):** clamped section ends
   (`SermonExtractionPlanResolver::endWithinRecording`), dependent-opening windows read from the
   plan's own audit (`DependentSongOpening::plannedWindows`), exposed edges from `plannedParts`
