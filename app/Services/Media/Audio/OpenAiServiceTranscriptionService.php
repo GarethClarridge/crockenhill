@@ -7,6 +7,7 @@ namespace App\Services\Media\Audio;
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Exceptions\NonRetryableTranscriptionException;
+use App\Exceptions\TranscriptionCapabilityUnavailable;
 use App\Exceptions\TranscriptionException;
 use App\Services\Processing\SermonProcessingLogger;
 use Exception;
@@ -80,7 +81,7 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
     public function transcribeEdgeWindow(string $audioPath, bool $aligned = false): array
     {
         if ($aligned) {
-            throw new NonRetryableTranscriptionException('OpenAI transcription does not align words');
+            throw new TranscriptionCapabilityUnavailable('openai', 'OpenAI transcription does not align words');
         }
         if (empty(config('media-processing.transcription.openai_api_key'))) {
             throw new NonRetryableTranscriptionException('OpenAI API key not configured for edge transcription');

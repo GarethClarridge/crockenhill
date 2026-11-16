@@ -7,11 +7,13 @@ namespace App\Services\ChurchService;
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Exceptions\OutputEdgeTimingsMissing;
+use App\Exceptions\TranscriptionCapabilityUnavailable;
 use App\Jobs\ClassifyServiceAudio;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use App\Services\Media\Audio\ServiceAudioWindowExtractor;
 use App\Services\Processing\StorageAdapterHelper;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
@@ -35,7 +37,8 @@ class PrepareOutputEdgeWordTimings
 
     /**
      * @param  array<string, array{start: float, end: float, window_rule?: string, word_timing?: string}>  $windows
-     * @return array{windows: int, decoded: int, compute_seconds: float}
+     * @return array{windows: int, decoded: int, compute_seconds: float, unavailable?: list<array{window: string, provider: string, reason: string}>}
+     *                                                                                                                                                A window the provider cannot decode as asked is listed under `unavailable` and left unbanked, which every reader already treats as missing evidence.
      */
     public function prepareWindows(MediaProcessingLog $log, array $windows): array
     {
@@ -64,6 +67,13 @@ class PrepareOutputEdgeWordTimings
                     $words = isset($window['word_timing'])
                         ? $this->transcription->transcribeEdgeWindow($clip, aligned: true)
                         : $this->transcription->transcribeEdgeWindow($clip);
+                } catch (TranscriptionCapabilityUnavailable $refusal) {
+                    $summary['unavailable'][] = ['window' => $kind, 'provider' => $refusal->provider, 'reason' => $refusal->getMessage()];
+                    Log::warning('Edge window unavailable: the transcription provider cannot decode it as asked', [
+                        'processing_id' => $log->processing_id, 'window' => $kind, 'start' => $window['start'], 'end' => $window['end'],
+                        'provider' => $refusal->provider, 'reason' => $refusal->getMessage()]);
+
+                    continue;
                 } finally {
                     $this->extractor->delete($clip);
                 }

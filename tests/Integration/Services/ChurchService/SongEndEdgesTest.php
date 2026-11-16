@@ -7,6 +7,7 @@ namespace Tests\Integration\Services\ChurchService;
 use App\Data\ChurchServiceTranscript;
 use App\Data\ServiceSectionMetadata;
 use App\Enums\ServiceSectionType;
+use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Models\Song;
@@ -19,6 +20,7 @@ use App\Services\ChurchService\SongEndSpeechOnset;
 use App\Services\ChurchService\SongEndSpokenWords;
 use App\Services\ChurchService\SongEndStems;
 use App\Services\ChurchService\SongTailSpeechOnset;
+use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\ServiceArtifactStorage;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Config;
@@ -1869,6 +1871,32 @@ class SongEndEdgesTest extends TestCase
         $plan = app(CueSafeExtractionPlan::class)->forSection($this->outroIntoPrayer());
 
         $this->assertSame('song_end_speech', $this->endEdge($plan)['reason']);
+    }
+
+    /**
+     * WP64: a provider that cannot align words never banks the song-end windows, which the rule reads as
+     * the same missing decodes as above: no onset, the planner's cut stands, and nothing throws.
+     */
+    #[Test]
+    public function a_song_end_whose_aligned_windows_the_provider_cannot_decode_keeps_its_cut(): void
+    {
+        config(['media-processing.service_structure.transcription_service' => 'openai']);
+        $section = $this->outroIntoPrayer();
+        $log = $section->processingLog->fresh();
+        $cut = app(CueSafeExtractionPlan::class)->forSection($section)['segments'][0]['end_time'];
+
+        foreach (app(SongEndSpeechOnset::class)->windows($cut, $log->duration) as $window) {
+            try {
+                app(OutputEdgeWordTimings::class)->read($log, $window);
+                $this->fail('The aligned window was never banked.');
+            } catch (OutputEdgeTimingsMissing) {
+                $this->addToAssertionCount(1);
+            }
+        }
+        $this->assertNull(app(SongEndSpeechOnset::class)->onset($log, $cut, AudioTimeline::fromJson(Storage::disk('local')->get('service-transcripts/song-end.classes.json'))));
+        $plan = app(CueSafeExtractionPlan::class)->forSection($section);
+        $this->assertSame('song_end_speech', $this->endEdge($plan)['reason']);
+        $this->assertEqualsWithDelta($cut, $plan['segments'][0]['end_time'], 0.001);
     }
 
     /**

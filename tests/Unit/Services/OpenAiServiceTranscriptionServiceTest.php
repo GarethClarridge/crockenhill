@@ -7,6 +7,7 @@ namespace Tests\Unit\Services;
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Exceptions\NonRetryableTranscriptionException;
+use App\Exceptions\TranscriptionCapabilityUnavailable;
 use App\Exceptions\TranscriptionException;
 use App\Services\Media\Audio\AudioChunkingService;
 use App\Services\Media\Audio\OpenAiServiceTranscriptionService;
@@ -247,6 +248,18 @@ class OpenAiServiceTranscriptionServiceTest extends TestCase
         $this->expectExceptionMessage('no timestamped segments');
 
         $this->service->transcribeService($sourcePath, 'proc-3');
+    }
+
+    #[Test]
+    public function it_refuses_aligned_edge_windows_as_a_capability_the_provider_lacks(): void
+    {
+        try {
+            $this->service->transcribeEdgeWindow($this->makeTempFile('bytes'), aligned: true);
+            $this->fail('An aligned decode must be refused.');
+        } catch (TranscriptionCapabilityUnavailable $refusal) {
+            $this->assertSame('openai', $refusal->provider);
+            $this->assertInstanceOf(NonRetryableTranscriptionException::class, $refusal);
+        }
     }
 
     #[Test]
