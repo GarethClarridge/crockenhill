@@ -6,20 +6,20 @@ namespace App\Services\ChurchService\SectionPublication;
 
 use App\Data\ChurchServiceTranscript;
 use App\Data\SuspectTranscriptBlock;
-use App\Models\ServiceSection;
 use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Exceptions\OutputPlanInvalid;
 use App\Exceptions\OutputSpanCrossesHeldSection;
-use App\Support\PublicationCandidate;
-use League\Flysystem\UnableToReadFile;
+use App\Models\ServiceSection;
 use App\Services\ChurchService\CueSafeExtractionPlan;
 use App\Services\ChurchService\OutputEdgeAnswers;
 use App\Services\Media\Audio\AudioTimeline;
 use App\Services\Media\Audio\RmsAnalysisService;
 use App\Services\Media\Audio\SustainedSound;
+use App\Support\PublicationCandidate;
 use App\Support\ServiceArtifactDisk;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\UnableToReadFile;
 
 /**
  * @phpstan-type PublishedCutSelection array{status: string, cut: array{start_time: float, end_time: float, end_reason: string|null}|null}
@@ -407,7 +407,7 @@ final class SongPublicationBoundaryEvidenceService
 
     /**
      * @param  BoundaryEvidenceInputs  $inputs
-     * @param PublishedCutSelection $selection
+     * @param  PublishedCutSelection  $selection
      */
     private function fingerprintOf(ServiceSection $section, array $inputs, array $selection): string
     {
@@ -786,7 +786,7 @@ final class SongPublicationBoundaryEvidenceService
      * the current planner would produce from banked evidence. forSection() reads that evidence;
      * it never prepares decodes, asks a model, extracts media or persists its result.
      *
-     * @param BoundaryEvidenceInputs $inputs
+     * @param  BoundaryEvidenceInputs  $inputs
      * @return PublishedCutSelection
      */
     private function publishedCut(ServiceSection $section, array $inputs): array
@@ -840,7 +840,7 @@ final class SongPublicationBoundaryEvidenceService
     }
 
     /**
-     * @param PublishedCutSelection $selection
+     * @param  PublishedCutSelection  $selection
      * @return array{status: string, source: 'recorded_candidate'|'stored_bounds', start_time: float, end_time: float, end_reason: string|null, guard: string|null}
      */
     private function publishedCutEvidence(array $selection, float $start, float $end, ?string $guard): array

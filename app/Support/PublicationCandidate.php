@@ -26,8 +26,8 @@ final class PublicationCandidate
      * The media comparison used by extraction reuse and recorded-cut boundary evidence.
      * End reasons are assessed separately: extraction reuse historically compares only sound/spans.
      *
-     * @param array<string, mixed> $recorded
-     * @param array<string, mixed> $planned
+     * @param  array<string, mixed>  $recorded
+     * @param  array<string, mixed>  $planned
      */
     public static function sameMediaPlan(array $recorded, array $planned): bool
     {
