@@ -1862,6 +1862,33 @@ production. Each row below moves one of them ahead of the freeze.
   `CANDIDATE_END_TOLERANCE_SECONDS` is still in `SongPublicationBoundaryEvidenceService`. With the
   silence fix in (`741918dbd`), R1 holds 107 and still releases §94692 with speech in its tail,
   so it waits on class B or an explicit guard.
+  **Built 11-16 (`02ede61fa`, evidence VERSION 13).** The trailing hold is judged on the recorded
+  cut only when today's planner, run from banked evidence, makes the same spans, fade and voice
+  removal (the tolerances extraction reuse uses, now shared in `PublicationCandidate::sameMediaPlan`)
+  and the same final end reason; a stale, refused or unavailable plan keeps the stored-bounds
+  judgement, and `published_cut.status` records which. The named class B guard stays. The
+  freshness test was added because a recorded cut carries no planner version and the round does
+  not re-record every cut (702 reused, 462 recut, 10 unrecorded, 2 blocked — §1572, §2718 — on
+  11-16), and `RecordDeferredCorpusRerunMedia` judges before it cuts. Read-only census of 1,176
+  historic songs: 123 → 116 trailing risks, 11 released, 4 newly held (2072, 3163, 3222, 3561);
+  707 cuts used, 463 stale, 6 signature mismatch; §94692 and §1265 stay held. §1730 releases on a
+  7.2 s tail and has not been listened to. No hold was changed: nothing reassesses without a
+  preparation job or the backfill's `--execute`, and removing a reason does not by itself clear
+  `needs_manual_review` or `pending_approval`. The true release count shows only after the round
+  recuts the 463. Evidence: `storage/scratch/sol-20261116/wp66`, `wp68`, `wp69`.
+- **Row 12 built 11-16 (`c0e81c4d6`, WP62):** clamped section ends
+  (`SermonExtractionPlanResolver::endWithinRecording`), dependent-opening windows read from the
+  plan's own audit (`DependentSongOpening::plannedWindows`), exposed edges from `plannedParts`
+  (clamp and introduction), each with a red-to-green test. Residue: silent-gap joining is not
+  applied to exposed edges (extra asks only, never missing evidence). Row 1's evidence top-up is
+  owed for runs where a selected sermon section ends within a second past the recording end or a
+  song start's dependent window differs from the plan-final start; not yet counted.
+- **Row 9, first part built 11-16 (`c6f90e508`, WP64):** a song-end window the transcriber cannot
+  align (`TranscriptionCapabilityUnavailable`) is recorded as unavailable and the edge step carries
+  on; every other failure still stops it. With no aligned window the song-end speech rule returns
+  nothing and the planner keeps its own cut, so production does not yet reproduce the 11-08
+  aligned-timing endings. Giving production aligned word ends, and the paid measurement (c), are
+  still open. Deployed with CI green on `c628d066b`.
 - Lyric-ended tail exemption with its speech guard: measured 11-09, not built.
 - Class B, speech inside a fade end (94692, 2303, 3666 bad; 3628 soft): no design. Stems cover
   132 of 1,175 ends, so its size is unknown until row 1 has run. Design it after row 1, or record
