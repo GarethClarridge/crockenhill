@@ -24,12 +24,14 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeFullService;
 use App\Jobs\TranscribeOutputEdges;
 use App\Models\MediaProcessingLog;
+use App\Services\HistoricMedia\HistoricProcessingThroughput;
 use App\Services\Processing\ProcessingPhaseRegistry;
 use App\Services\Processing\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -433,21 +435,21 @@ class ProcessingPhaseRegistryTest extends TestCase
         $this->assertSame($detectPhase['job_offset'], $plan['job_offset']);
         $this->assertSame('service_structure_validation', $plan['reset_scope']);
     }
+
     #[Test]
     public function talk_type_retry_starts_at_the_proposal_job_without_upstream_reset(): void
     {
-        $throughput = app(\App\Services\HistoricMedia\HistoricProcessingThroughput::class);
+        $throughput = app(HistoricProcessingThroughput::class);
         $this->assertSame('llm', $throughput->stageForStep('propose_section_talk_types'));
-        $this->assertSame(config('media-processing.historic_import.stages.llm.queue'), $throughput->queueFor(new \App\Jobs\ProposeSectionTalkTypes(MediaProcessingLog::factory()->livestream()->make())));
+        $this->assertSame(config('media-processing.historic_import.stages.llm.queue'), $throughput->queueFor(new ProposeSectionTalkTypes(MediaProcessingLog::factory()->livestream()->make())));
         foreach (['livestream', 'video_auto_trim'] as $profile) {
             $log = MediaProcessingLog::factory()->failed()->create(['processing_type' => $profile === 'livestream' ? 'livestream' : 'video', 'current_step' => 'propose_section_talk_types', 'processing_metadata' => $profile === 'livestream' ? [] : ['video_processing_mode' => MediaProcessingLog::VIDEO_PROCESSING_MODE_AUTO_TRIM]]);
             $plan = app(ProcessingPhaseRegistry::class)->retryPlanFor($log);
             $builder = app(ProcessingPipelineBuilder::class);
             $jobs = $profile === 'livestream' ? $builder->buildLivestreamChainJobs($log) : $builder->buildAutoTrimVideoPipeline($log);
-            $this->assertSame(\App\Jobs\ProposeSectionTalkTypes::class, $jobs[$plan['job_offset']]::class);
+            $this->assertSame(ProposeSectionTalkTypes::class, $jobs[$plan['job_offset']]::class);
             $this->assertSame('none', $plan['reset_scope']);
             $this->assertSame($profile === 'livestream' ? 'dispatch_livestream_chain' : 'dispatch_chain', $plan['action']);
         }
     }
-
 }

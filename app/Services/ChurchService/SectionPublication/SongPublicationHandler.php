@@ -13,6 +13,7 @@ use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
+use App\Services\HistoricMedia\HistoricAssetPromotion;
 use App\Services\Media\ExtractedMediaDurationProbe;
 use App\Services\Processing\StorageAdapterHelper;
 use App\Services\Song\SongVideoService;
@@ -256,7 +257,7 @@ class SongPublicationHandler implements SectionPublicationHandler
          * already hold in quarantine, and promotion refuses a differing destination unless told the
          * replacement was meant. This tells it, for this cut's bytes only: run 1306's recut was
          * refused for want of it, because the only other authority is the run-wide one a sermon
-         * re-extraction issues. Read by {@see \App\Services\HistoricMedia\HistoricAssetPromotion}, which spends it.
+         * re-extraction issues. Read by {@see HistoricAssetPromotion}, which spends it.
          */
         if ($previousPath === $promotedPath) {
             $metadata['song_video_extraction'][self::PROMOTION_REPLACEMENT] = [

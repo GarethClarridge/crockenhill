@@ -61,7 +61,7 @@ class OutputEdgeDecodeWindow
     }
 
     /**
-     * @param list<array{time: float, rms: float}> $samples
+     * @param  list<array{time: float, rms: float}>  $samples
      * @return array{start: float, end: float, left_boundary: string, right_boundary: string}
      */
     public function bounds(array $samples, float $threshold, float $edge, ?float $duration): array

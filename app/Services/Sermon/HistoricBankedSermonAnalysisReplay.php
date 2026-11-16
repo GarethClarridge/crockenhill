@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Sermon;
 
-use App\Enums\SermonTitleProvenance;
 use App\Enums\SermonReferenceProvenance;
+use App\Enums\SermonTitleProvenance;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
 use Illuminate\Support\Facades\Log;

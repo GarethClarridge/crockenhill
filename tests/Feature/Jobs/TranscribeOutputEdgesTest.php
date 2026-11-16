@@ -167,7 +167,8 @@ class TranscribeOutputEdgesTest extends TestCase
         ServiceSection::factory()->create(['media_processing_log_id' => $log->id, 'section_type' => ServiceSectionType::Song, 'start_time' => 90.0, 'end_time' => 200.0]);
         $this->partialMock(CueSafeExtractionPlan::class, function (MockInterface $mock): void {
             $mock->shouldReceive('songEndSpeechEdges')->andReturn([]);
-            $mock->shouldReceive('forSpans')->once()->andReturn(['segments' => [['start_time' => 100.0, 'end_time' => 200.0]], 'cue_edge_widening' => []]);
+            $mock->shouldReceive('forSpans')->once()->andReturn(['segments' => [['start_time' => 100.0, 'end_time' => 200.0]], 'cue_edge_widening' => [['span_index' => 0, 'edge' => 'start', 'original_time' => 100.0, 'time' => 100.0, 'reason' => 'song_start_dependent',
+                'dependent_opening' => ['window' => ['start' => 100.0, 'end' => 111.0, 'window_rule' => 'dependent-song-opening-pause-0.8-cap-15-v1']]]]]);
         });
         $order = [];
         $this->mock(PrepareOutputEdgeWordTimings::class, function (MockInterface $mock) use (&$order): void {

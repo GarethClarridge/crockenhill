@@ -168,10 +168,10 @@ class SongEndFadeSpeechTest extends TestCase
 
         return (new ReflectionMethod(CueSafeExtractionPlan::class, $method))->invoke(app(CueSafeExtractionPlan::class), $log, ...$args);
     }
+
     /** Restore whole-second timing floats, which JSON otherwise reads as integers. */
     private function timingFloats(mixed $value): mixed
     {
         return is_array($value) ? array_map($this->timingFloats(...), $value) : (is_int($value) ? (float) $value : $value);
     }
-
 }

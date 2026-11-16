@@ -51,6 +51,7 @@ class ProposeTalkTypesCommand extends Command
                 $reasons = $proposer->ineligibleReasons($input);
                 if ($reasons !== []) {
                     $this->line($section->id.' skipped: '.implode(', ', $reasons));
+
                     continue;
                 }
                 $old = $section->metadata?->talkType?->raw['input_hash'] ?? null;
@@ -78,6 +79,7 @@ class ProposeTalkTypesCommand extends Command
 
         return $failed ? self::FAILURE : self::SUCCESS;
     }
+
     private function proposalSummary(ServiceSection $section): string
     {
         $proposal = $section->metadata?->talkType?->proposal();
@@ -89,5 +91,4 @@ class ProposeTalkTypesCommand extends Command
             .' reviewed_type='.($section->publicationTalkType()->value ?? 'none')
             .' publication_status='.$section->publication_status->value;
     }
-
 }

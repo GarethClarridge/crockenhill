@@ -120,6 +120,7 @@ class ProposeTalkTypesCommandTest extends TestCase
                 if ($input->sectionId === $first->id) {
                     throw new \RuntimeException('Temporary provider failure');
                 }
+
                 return $this->answer();
             });
         $this->artisan('service:propose-talk-types', ['--section' => [$first->id, $second->id], '--apply' => true])->assertFailed();
@@ -172,6 +173,7 @@ class ProposeTalkTypesCommandTest extends TestCase
         $section = $this->section();
         $this->mock(TalkTypeClassifier::class)->shouldReceive('classify')->once()->andReturnUsing(function () use ($section): TalkTypeProposal {
             $section->processingLog->update(['status' => ProcessingStatus::Processing]);
+
             return $this->answer();
         });
         $this->assertSame('ineligible', app(TalkTypeProposer::class)->propose($section));
@@ -241,6 +243,7 @@ class ProposeTalkTypesCommandTest extends TestCase
         $run = MediaProcessingLog::factory()->livestream()->completed()->create(['extracted_service' => 'morning', 'current_step' => 'cleanup']);
         Storage::disk('b4')->put('service-transcripts/b4-'.$run->id.'.json', json_encode(['cues' => [['start' => 100, 'end' => 160, 'text' => 'An update about the event.'], ['start' => 200, 'end' => 260, 'text' => 'Another event report.']], 'duration' => 300, 'source' => 'sidecar'], JSON_THROW_ON_ERROR));
         $run->putServiceTranscriptPath('service-transcripts/b4-'.$run->id.'.json');
+
         return ServiceSection::factory()->create(['media_processing_log_id' => $run->id, 'church_service_item_id' => null, 'section_order' => 1, 'section_type' => ServiceSectionType::ShortTalk, 'title' => 'Update', 'start_time' => 100, 'end_time' => 160, 'metadata' => ['transcript' => 'An update about the event.']]);
     }
 

@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Integration\Services\HistoricMedia;
 
 use App\Enums\SermonPublicationState;
+use App\Exceptions\SeedResidueException;
 use App\Models\HistoricImportOperation;
 use App\Models\MediaProcessingLog;
 use App\Models\Preacher;
+use App\Models\ScripturePassage;
 use App\Models\Sermon;
 use App\Services\HistoricMedia\HistoricProcessingResultBundle;
 use App\Services\HistoricMedia\HistoricProcessingResultBundleImporter;
@@ -52,8 +54,8 @@ class ProductionSermonBindingTest extends TestCase
     #[TestWith([false])]
     public function an_explicit_reference_correction_rebuilds_passage_and_filters(bool $cached): void
     {
-        $old = \App\Models\ScripturePassage::factory()->create(['normalized_reference' => '3 John 1:10-11']);
-        $correct = $cached ? \App\Models\ScripturePassage::factory()->create(['normalized_reference' => '2 John 1:10-11']) : null;
+        $old = ScripturePassage::factory()->create(['normalized_reference' => '3 John 1:10-11']);
+        $correct = $cached ? ScripturePassage::factory()->create(['normalized_reference' => '2 John 1:10-11']) : null;
         [$target, $bundle] = $this->fixture(null, ['reference' => '3 John 1:10-11', 'scripture_passage_id' => $old->id]);
         $bound = $this->bind($bundle, $target->id, ['reference' => '2 John 1:10-11']);
         $importer = app(HistoricProcessingResultBundleImporter::class);
@@ -121,7 +123,7 @@ class ProductionSermonBindingTest extends TestCase
         $publication['title'] = 'The Birth of Our Saviour';
         unset($publication);
         $bundle['services'][0]['media_graph']['logical_hash'] = app(HistoricProcessingResultInventory::class)->logicalHash($bundle['services'][0]['media_graph']);
-        $this->expectException(\App\Exceptions\SeedResidueException::class);
+        $this->expectException(SeedResidueException::class);
         $this->expectExceptionMessage('seeded');
         $this->bind($this->rehash($bundle), $target->id, ['reference' => '2 John 1:10-11']);
     }

@@ -639,7 +639,7 @@ class ServiceReviewDashboardQuery
 
     /**
      * The base predicate for review-candidate sections (contract C1). Shared with
-     * {@see \App\Queries\ServiceReviewInventoryQuery} so the inventory counts exactly
+     * {@see ServiceReviewInventoryQuery} so the inventory counts exactly
      * the sections the dashboard does.
      *
      * @return Builder<ServiceSection>

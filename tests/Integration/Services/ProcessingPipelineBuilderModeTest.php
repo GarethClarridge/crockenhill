@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Jobs\DetectServiceStructure;
+use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Jobs\TranscribeFullService;
+use App\Jobs\TranscribeOutputEdges;
 use App\Models\MediaProcessingLog;
 use App\Services\Processing\ProcessingPipelineBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,6 +72,7 @@ class ProcessingPipelineBuilderModeTest extends TestCase
         $this->assertSame($postReviewChains['shadow'], $postReviewChains['primary']);
         $this->assertNotContains(DetectServiceStructure::class, $postReviewChains['primary']);
     }
+
     #[Test]
     public function proposal_placement_follows_settled_structure_in_all_modes_and_resume_paths(): void
     {
@@ -78,20 +82,19 @@ class ProcessingPipelineBuilderModeTest extends TestCase
             config(['media-processing.service_structure.mode' => $mode]);
             foreach ([$builder->buildLivestreamChainJobs($log), $builder->buildLivestreamDetectionOnlyChainJobs($log), $builder->buildAutoTrimVideoPipeline($log), $builder->buildLivestreamPostReviewChainJobs($log), $builder->buildAutoTrimVideoPostReviewChainJobs($log)] as $jobs) {
                 $classes = array_map(get_class(...), $jobs);
-                $index = array_search(\App\Jobs\ProposeSectionTalkTypes::class, $classes, true);
+                $index = array_search(ProposeSectionTalkTypes::class, $classes, true);
                 $this->assertIsInt($index);
-                $this->assertSame(1, count(array_filter($classes, fn (string $class): bool => $class === \App\Jobs\ProposeSectionTalkTypes::class)));
+                $this->assertSame(1, count(array_filter($classes, fn (string $class): bool => $class === ProposeSectionTalkTypes::class)));
                 if ($index > 0) {
-                    $this->assertContains($classes[$index - 1], [\App\Jobs\ProjectLivestreamServiceStructure::class, DetectServiceStructure::class]);
+                    $this->assertContains($classes[$index - 1], [ProjectLivestreamServiceStructure::class, DetectServiceStructure::class]);
                 }
-                if (in_array(\App\Jobs\TranscribeOutputEdges::class, $classes, true)) {
-                    $this->assertSame(\App\Jobs\TranscribeOutputEdges::class, $classes[$index + 1]);
+                if (in_array(TranscribeOutputEdges::class, $classes, true)) {
+                    $this->assertSame(TranscribeOutputEdges::class, $classes[$index + 1]);
                 }
             }
             foreach ([$builder->buildAudioPipeline($log), $builder->buildDirectVideoPipeline($log), $builder->buildSermonlessServiceChainJobs($log), $builder->buildAdoptedSermonServiceChainJobs($log), $builder->buildLivestreamTranscriptionOnlyChainJobs($log)] as $jobs) {
-                $this->assertNotContains(\App\Jobs\ProposeSectionTalkTypes::class, array_map(get_class(...), $jobs));
+                $this->assertNotContains(ProposeSectionTalkTypes::class, array_map(get_class(...), $jobs));
             }
         }
     }
-
 }

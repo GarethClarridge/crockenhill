@@ -910,7 +910,7 @@ class ServiceSectionSyncService
             if (Storage::disk($disk)->exists($path)) {
                 Storage::disk($disk)->delete($path);
             }
-        } catch (\Throwable $throwable) {
+        } catch (Throwable $throwable) {
             Log::warning('Failed to clean up extracted section asset on disk', $this->sanitizeArrayForLog([
                 'disk' => $disk,
                 'path' => $path,
