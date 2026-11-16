@@ -1732,21 +1732,21 @@ class HistoricVideoImporter
 
     private function existenceDetail(Carbon $date, SermonService $service, string $tag): ?string
     {
-        $log = MediaProcessingLog::query()
+        $processingId = MediaProcessingLog::query()
             ->where('extracted_date', $date->toDateString())
             ->where('extracted_service', $service->value)
             ->where('processing_type', MediaType::Livestream->value)
             ->orderByDesc('created_at')
-            ->first();
+            ->value('processing_id');
 
-        if ($log === null) {
+        if ($processingId === null) {
             return null;
         }
 
         return match ($tag) {
-            'skip-exists' => "livestream already processed (log #{$log->processing_id})",
-            'skip-inflight' => "livestream already in pipeline (processing_id={$log->processing_id})",
-            'skip-pending-review' => "awaiting manual sermon review (log #{$log->processing_id})",
+            'skip-exists' => "livestream already processed (log #{$processingId})",
+            'skip-inflight' => "livestream already in pipeline (processing_id={$processingId})",
+            'skip-pending-review' => "awaiting manual sermon review (log #{$processingId})",
             default => null,
         };
     }

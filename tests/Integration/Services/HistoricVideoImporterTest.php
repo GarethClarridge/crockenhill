@@ -26,6 +26,7 @@ use App\Services\Processing\UnifiedMediaProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
 use Mockery;
@@ -1151,6 +1152,38 @@ SH;
         $this->assertSame(0, $metrics['resumed_completed']);
         $this->assertSame(1, $metrics['skipped_exists']);
         $this->assertSame(0, $metrics['dispatched']);
+    }
+
+    /**
+     * The skip detail needs only the run's identifier. Loading whole rows to sort them for
+     * `limit 1` overflowed MySQL's sort buffer on the wide log rows and aborted the dry run.
+     */
+    #[Test]
+    public function the_existing_service_detail_sorts_only_the_identifier_not_whole_log_rows(): void
+    {
+        $this->createFakeVideo($this->temporaryDirectory.'/2022-01-16 10-38-15.mkv');
+
+        MediaProcessingLog::factory()->create([
+            'processing_type' => MediaType::Livestream,
+            'extracted_date' => '2022-01-16',
+            'extracted_service' => SermonService::Morning,
+            'status' => ProcessingStatus::Completed,
+            'dedup_key' => 'some-other-run-'.hash('sha256', 'foreign'),
+        ]);
+
+        $sorted = [];
+        DB::listen(function ($query) use (&$sorted): void {
+            if (str_contains($query->sql, 'from `media_processing_logs`') && str_contains($query->sql, 'order by `created_at`')) {
+                $sorted[] = $query->sql;
+            }
+        });
+
+        $this->runImport();
+
+        $this->assertNotEmpty($sorted);
+        foreach ($sorted as $sql) {
+            $this->assertStringNotContainsString('select *', $sql);
+        }
     }
 
     /**
