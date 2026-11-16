@@ -15,6 +15,7 @@ use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\MergeSongContinuations;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
@@ -147,6 +148,7 @@ class RedetectForCorpusRerunCommandTest extends TestCase
             MergeSongContinuations::class,
             ExtendSongsOverOwnLyrics::class,
             ProjectLivestreamServiceStructure::class,
+            ProposeSectionTalkTypes::class,
             RecordDeferredCorpusRerunMedia::class,
             CleanupTemporaryFiles::class,
         ]);

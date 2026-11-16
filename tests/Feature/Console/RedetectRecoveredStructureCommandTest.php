@@ -25,6 +25,7 @@ use App\Jobs\PromoteHistoricAssets;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeOutputEdges;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -138,6 +139,7 @@ class RedetectRecoveredStructureCommandTest extends TestCase
             MergeSongContinuations::class,
             ExtendSongsOverOwnLyrics::class,
             ProjectLivestreamServiceStructure::class,
+            ProposeSectionTalkTypes::class,
             TranscribeOutputEdges::class,
             ExtractSermon::class,
             SubmitToProcessing::class,

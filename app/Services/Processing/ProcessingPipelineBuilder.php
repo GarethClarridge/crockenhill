@@ -25,6 +25,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Jobs\RecordCorpusRerunTranscription;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
 use App\Jobs\SendCompletionNotification;
@@ -103,6 +104,7 @@ class ProcessingPipelineBuilder
             new TranscribeFullService($log),
             new ClassifyServiceAudio($log),
             new DetectServiceStructure($log),
+            new ProposeSectionTalkTypes($log),
             new TranscribeOutputEdges($log),
             new ExtractSermon($log),
             new CreateSermonRecord($log),
@@ -152,6 +154,7 @@ class ProcessingPipelineBuilder
             // settled, so this pass can anchor on song identity — and it is the
             // one that reports on the quality of the merge.
             new ProjectLivestreamServiceStructure($log, refining: true),
+            new ProposeSectionTalkTypes($log),
             new TranscribeOutputEdges($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
@@ -267,6 +270,7 @@ class ProcessingPipelineBuilder
     public function buildLivestreamPostReviewChainJobs(MediaProcessingLog $log): array
     {
         return [
+            new ProposeSectionTalkTypes($log),
             new TranscribeOutputEdges($log),
             new ExtractSermon($log),
             new SubmitToProcessing($log),
@@ -291,6 +295,7 @@ class ProcessingPipelineBuilder
     public function buildAutoTrimVideoPostReviewChainJobs(MediaProcessingLog $log): array
     {
         return [
+            new ProposeSectionTalkTypes($log),
             new TranscribeOutputEdges($log),
             new ExtractSermon($log),
             new CreateSermonRecord($log),

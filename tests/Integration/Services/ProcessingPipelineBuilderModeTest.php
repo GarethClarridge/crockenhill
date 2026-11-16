@@ -69,4 +69,29 @@ class ProcessingPipelineBuilderModeTest extends TestCase
         $this->assertSame($postReviewChains['shadow'], $postReviewChains['primary']);
         $this->assertNotContains(DetectServiceStructure::class, $postReviewChains['primary']);
     }
+    #[Test]
+    public function proposal_placement_follows_settled_structure_in_all_modes_and_resume_paths(): void
+    {
+        $builder = new ProcessingPipelineBuilder;
+        $log = MediaProcessingLog::factory()->livestream()->make();
+        foreach (['primary', 'shadow'] as $mode) {
+            config(['media-processing.service_structure.mode' => $mode]);
+            foreach ([$builder->buildLivestreamChainJobs($log), $builder->buildLivestreamDetectionOnlyChainJobs($log), $builder->buildAutoTrimVideoPipeline($log), $builder->buildLivestreamPostReviewChainJobs($log), $builder->buildAutoTrimVideoPostReviewChainJobs($log)] as $jobs) {
+                $classes = array_map(get_class(...), $jobs);
+                $index = array_search(\App\Jobs\ProposeSectionTalkTypes::class, $classes, true);
+                $this->assertIsInt($index);
+                $this->assertSame(1, count(array_filter($classes, fn (string $class): bool => $class === \App\Jobs\ProposeSectionTalkTypes::class)));
+                if ($index > 0) {
+                    $this->assertContains($classes[$index - 1], [\App\Jobs\ProjectLivestreamServiceStructure::class, DetectServiceStructure::class]);
+                }
+                if (in_array(\App\Jobs\TranscribeOutputEdges::class, $classes, true)) {
+                    $this->assertSame(\App\Jobs\TranscribeOutputEdges::class, $classes[$index + 1]);
+                }
+            }
+            foreach ([$builder->buildAudioPipeline($log), $builder->buildDirectVideoPipeline($log), $builder->buildSermonlessServiceChainJobs($log), $builder->buildAdoptedSermonServiceChainJobs($log), $builder->buildLivestreamTranscriptionOnlyChainJobs($log)] as $jobs) {
+                $this->assertNotContains(\App\Jobs\ProposeSectionTalkTypes::class, array_map(get_class(...), $jobs));
+            }
+        }
+    }
+
 }

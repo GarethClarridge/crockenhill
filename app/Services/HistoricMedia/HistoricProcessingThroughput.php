@@ -21,6 +21,7 @@ use App\Jobs\MergeSongContinuations;
 use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Jobs\TranscribeAudio;
 use App\Jobs\TranscribeFullService;
 use App\Jobs\TranscribeOutputEdges;
@@ -65,6 +66,7 @@ final class HistoricProcessingThroughput
             ExtendSongsOverOwnLyrics::class,
             ProcessTranscriptWithAI::class,
             ProjectLivestreamServiceStructure::class,
+            ProposeSectionTalkTypes::class,
         ],
     ];
 
@@ -108,6 +110,7 @@ final class HistoricProcessingThroughput
         'transcription' => 'whisper',
         'detect_service_structure' => 'llm',
         'project_livestream_service_structure' => 'llm',
+        'propose_section_talk_types' => 'llm',
         'match_songs_from_transcript' => 'llm',
         'merging_song_continuations' => 'llm',
         'analyzing_transcript' => 'llm',

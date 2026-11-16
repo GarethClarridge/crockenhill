@@ -14,6 +14,7 @@ use App\Jobs\MatchSongsFromTranscript;
 use App\Jobs\MergeSongContinuations;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\RecordDeferredCorpusRerunMedia;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Models\MediaProcessingLog;
 use App\Services\ChurchService\Structure\EnsembleReviewGate;
 use App\Services\ChurchService\Structure\ServiceStructureEnsembleReplay;
@@ -125,6 +126,7 @@ class RecomposeForCorpusRerunCommandTest extends TestCase
             MergeSongContinuations::class,
             ExtendSongsOverOwnLyrics::class,
             ProjectLivestreamServiceStructure::class,
+            ProposeSectionTalkTypes::class,
             RecordDeferredCorpusRerunMedia::class,
             CleanupTemporaryFiles::class,
         ]);

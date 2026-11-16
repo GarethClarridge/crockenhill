@@ -7,7 +7,7 @@ namespace Tests\Feature\Api;
 use App\Actions\ConfirmLivestreamSermonSegment;
 use App\Enums\ApiTokenAbility;
 use App\Enums\ProcessingStatus;
-use App\Jobs\TranscribeOutputEdges;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\User;
@@ -146,7 +146,7 @@ class ConfirmSegmentApiTest extends TestCase
         $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
-        Queue::assertPushed(TranscribeOutputEdges::class, function (TranscribeOutputEdges $job): bool {
+        Queue::assertPushed(ProposeSectionTalkTypes::class, function (ProposeSectionTalkTypes $job): bool {
             return $job->queue === config('media-processing.queues.audio', 'audio-processing');
         });
     }

@@ -33,7 +33,7 @@ class ProductionSermonBindingTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->folder = base_path('storage/scratch/reference-correction-20261115-wp51/test-'.bin2hex(random_bytes(8)));
+        $this->folder = storage_path('scratch/reference-correction-20261115-wp51/test-'.bin2hex(random_bytes(8)));
         mkdir($this->folder, 0700, true);
         Storage::fake('binding_old', ['root' => $this->folder.'/old']);
         Storage::fake('historic_staging', ['root' => $this->folder.'/staging']);

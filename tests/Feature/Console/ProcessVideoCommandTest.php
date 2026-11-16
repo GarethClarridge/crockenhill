@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use App\Enums\ProcessingStatus;
-use App\Jobs\TranscribeOutputEdges;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Models\LivestreamSegment;
 use App\Models\MediaProcessingLog;
 use App\Models\Sermon;
@@ -61,7 +61,7 @@ class ProcessVideoCommandTest extends TestCase
         $this->assertSame(ProcessingStatus::Pending, $log->status);
         $this->assertSame('manual_review_confirmed', $log->current_step);
         $this->assertSame($segment->id, $log->manuallyConfirmedSegmentId());
-        Queue::assertPushed(TranscribeOutputEdges::class);
+        Queue::assertPushed(ProposeSectionTalkTypes::class);
         $this->assertDatabaseCount('sermons', 0);
     }
 

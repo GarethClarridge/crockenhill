@@ -22,6 +22,7 @@ use App\Jobs\PrepareSectionPublicationCandidates;
 use App\Jobs\ProcessTranscriptWithAI;
 use App\Jobs\ProjectLivestreamServiceStructure;
 use App\Jobs\PromoteHistoricAssets;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeAudio;
@@ -449,6 +450,7 @@ class ProcessingPhaseRegistry
             $this->phase('transcribe_full_service', TranscribeFullService::class, 'transcribe_full_service'),
             $this->phase('classify_service_audio', ClassifyServiceAudio::class, 'classify_service_audio'),
             $this->phase('detect_service_structure', DetectServiceStructure::class, 'detect_service_structure'),
+            $this->phase('propose_section_talk_types', ProposeSectionTalkTypes::class, 'propose_section_talk_types'),
             $this->phase('transcribe_output_edges', TranscribeOutputEdges::class, 'transcribe_output_edges'),
             $this->phase('manual_review', ExtractSermon::class, 'manual_review_required'),
             $this->phase('extract_sermon', ExtractSermon::class, 'extraction', progress: 57),
@@ -479,6 +481,7 @@ class ProcessingPhaseRegistry
             $this->phase('detect_service_structure', DetectServiceStructure::class, 'detect_service_structure', retryAction: 'dispatch_livestream_chain'),
             $this->phase('project_livestream_service_structure', ProjectLivestreamServiceStructure::class, 'project_livestream_service_structure', retryAction: 'dispatch_livestream_chain'),
             $this->phase('match_songs_from_transcript', MatchSongsFromTranscript::class, 'match_songs_from_transcript', retryAction: 'dispatch_livestream_chain'),
+            $this->phase('propose_section_talk_types', ProposeSectionTalkTypes::class, 'propose_section_talk_types', retryAction: 'dispatch_livestream_chain'),
             $this->phase('transcribe_output_edges', TranscribeOutputEdges::class, 'transcribe_output_edges', retryAction: 'dispatch_livestream_chain'),
             $this->phase('manual_review', ExtractSermon::class, 'manual_review_required'),
             $this->phase('extract_sermon', ExtractSermon::class, 'extraction', progress: 57, retryAction: 'dispatch_livestream_chain'),

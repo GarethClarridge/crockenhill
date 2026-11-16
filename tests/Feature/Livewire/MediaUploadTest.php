@@ -28,6 +28,7 @@ use App\Jobs\SendCompletionNotification;
 use App\Jobs\SubmitToProcessing;
 use App\Jobs\TranscribeFullService;
 use App\Jobs\TranscribeOutputEdges;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Livewire\Admin\MediaUpload;
 use App\Models\ChurchService;
 use App\Models\MediaProcessingLog;
@@ -553,6 +554,7 @@ class MediaUploadTest extends TestCase
             MergeSongContinuations::class,
             ExtendSongsOverOwnLyrics::class,
             ProjectLivestreamServiceStructure::class,
+            ProposeSectionTalkTypes::class,
             TranscribeOutputEdges::class,
             ExtractSermon::class,
             SubmitToProcessing::class,

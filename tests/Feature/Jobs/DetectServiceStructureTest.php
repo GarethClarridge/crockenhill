@@ -20,6 +20,7 @@ use App\Jobs\ExtractSermon;
 use App\Jobs\GenerateRmsLog;
 use App\Jobs\TranscribeFullService;
 use App\Jobs\TranscribeOutputEdges;
+use App\Jobs\ProposeSectionTalkTypes;
 use App\Jobs\ValidateVideoFile;
 use App\Livewire\Admin\ChurchServices\ShowChurchService;
 use App\Mail\ManualReviewRequired;
@@ -550,11 +551,12 @@ class DetectServiceStructureTest extends TestCase
             TranscribeFullService::class,
             ClassifyServiceAudio::class,
             DetectServiceStructure::class,
+            ProposeSectionTalkTypes::class,
             TranscribeOutputEdges::class,
             ExtractSermon::class,
         ], array_map(
             static fn (object $job): string => $job::class,
-            array_slice($pipeline, 0, 8),
+            array_slice($pipeline, 0, 9),
         ));
 
         $this->runJob($log);
