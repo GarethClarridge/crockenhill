@@ -1816,7 +1816,7 @@ the state column here in place; no diaries.
 | 4 Stopped runs | 11-17: 954 corrected to 2 John 1:10-11 (curated); 844's Luke 1:26–56 confirmed from its analysis, X13 clean-up has run. Owed: operator review of 569 then re-extract; 945's review (`named-runs-20261117-wp08/report.md`) | W8 |
 | 5 Bytes and tags | Done; 49 sermons and 6 songs re-encode in the round (`peak-1055-20261112/pns-manifest.json`) | W13 |
 | 6 Production census and rehearsal | Tooling built; server visit owed | W10 |
-| 7 Talk-type detection and confirmation | 11-17: proposals stored on 283 of 334 (255 by model, $0.31); 201 of 225 typed match the labels, no exposing error. Bar ruled (T12). Automatic confirmation and the approval change being built (`talk-types-20261117-wp11/report.md`) | W11 |
+| 7 Talk-type detection and confirmation | 11-17: proposals stored on 283 of 334 (255 by model, $0.31); 201 of 225 typed match the labels, no exposing error. Bar ruled (T12); automatic confirmation, T11 withholding and the approval change built (`31b5d9278`) and applied: 165 confirmed, 6 withheld, 163 of 334 still questions. **W11 done.** Talks still wait on a named speaker (P8, W12) (`talk-types-20261117-wp11/report.md`) | W11 |
 | 8 Repair route | Done 11-14 | — |
 | 9 Weekly backend | 11-17: W3 measured ($0.15): no word rule fails; whisper-1 timing matches local aligned ends on 27 of 31 (R18: operator hears the four differences before the route is chosen). W4 not started | W3, W4 |
 | 10 Fresh-services trial | Moved after the round as the take-over validation (R16, 11-17) | W17 |
