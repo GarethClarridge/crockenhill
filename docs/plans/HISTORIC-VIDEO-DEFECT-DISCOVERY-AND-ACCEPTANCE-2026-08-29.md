@@ -1818,11 +1818,11 @@ the state column here in place; no diaries.
 | 6 Production census and rehearsal | Tooling built; server visit owed | W10 |
 | 7 Talk-type detection and confirmation | 11-17: proposals stored on 283 of 334 (255 by model, $0.31); 201 of 225 typed match the labels, no exposing error. Bar ruled (T12); automatic confirmation, T11 withholding and the approval change built (`31b5d9278`) and applied: 165 confirmed, 6 withheld, 163 of 334 still questions. **W11 done.** Talks still wait on a named speaker (P8, W12) (`talk-types-20261117-wp11/report.md`) | W11 |
 | 8 Repair route | Done 11-14 | — |
-| 9 Weekly backend | 11-17: W3 measured ($0.15): no word rule fails; whisper-1 timing matches local aligned ends on 27 of 31 (R18: operator hears the four differences before the route is chosen). W4 not started | W3, W4 |
+| 9 Weekly backend | 11-17: W3 decided (R20): production song ends use whisper-1 word ends through the same rule (sample: speech left in 3 of 149, upper bound 5.8%, accepted as residue); build in progress. W4 not started | W3, W4 |
 | 10 Fresh-services trial | Moved after the round as the take-over validation (R16, 11-17) | W17 |
 | 11 CI-validated revision | 11-17: green again from `213a433cc` (W1 done: parallel-token disk roots in two tests, the song handler's audio rule); owed again on the candidate | W13 |
 | 12 Windows derived twice | Built (`c0e81c4d6`); evidence top-up not counted | W13 |
-| 13 Missing songs | 11-17: six added locally (1163–1168) and listed for OpenLP; 1165's title and 4345 ("Welcome Home") wait on the operator's listening page (S13) | W7 |
+| 13 Missing songs | 11-17: seven added locally (1163–1169; 1165's title and 4345 = "Welcome Home" confirmed by ear) and listed for OpenLP; they bind at W13's replay. **W7 done.** | W7 |
 | 14 Round measures | 11-17: redraw comparison built in `structure:ensemble-batch-report` (`ebd7b718f`); CPU (wall × width) and cost from logged tokens still to be wired into the canary | W6 |
 | 15 Pending production actions | Not reconciled since 10-16 | W10 |
 | 16 Production configuration and capacity (new) | Unknown: droplet size, `.env.production` values, image contents, time per service | W10 |

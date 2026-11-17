@@ -273,12 +273,13 @@ replace them. `import_metadata.local_addition` records the evidence.
 | 1162 | Rejoice | 1363 §4534 |
 | 1163 | My God, How Wonderful Thou Art | 4516, 4451 |
 | 1164 | Great Providence of Heaven | 4140 |
-| 1165 | Christ the Word from Everlasting (census: "Praise the Word from everlasting"; confirm title) | 4327 |
+| 1165 | Christ the Word from Everlasting (title confirmed by ear 11-17) | 4327 |
 | 1166 | Did You Know? | 4342 |
 | 1167 | Strength Will Rise | 4372 |
 | 1168 | Creation Sings the Father's Song | 4070 |
+| 1169 | Welcome Home (Phil Moore and Tim Chester; confirmed by ear 11-17) | 4345 |
 
-"Welcome Home" (section 4345) is not added: it awaits confirmation that the section is that song.
+Section 4345 is still bound to song 248; it rebinds to 1169 at the next song matching (W13's replay).
 
 **3. Alternative titles (6):** ST3's table (712, 254, 644, 606, 996, 980).
 
