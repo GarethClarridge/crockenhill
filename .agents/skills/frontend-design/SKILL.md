@@ -10,14 +10,13 @@ description: >-
 
 This skill is project-specific and overrides generic frontend-design advice. Follow it exactly.
 
-> **⚠️ Staleness note (2026-07-20):** the approved
-> `docs/plans/DESIGN-SYSTEM-REFRESH-2026-07-20.md` will change some of what this skill and
-> `docs/design-style-guide.md` say (gray/slate token aliasing with a "write `gray-*`"
-> convention, button-variant consolidation removing `featureOutline`, font-face repairs, and a
-> full style-guide rewrite in its PR 5 — which also refreshes this skill). Until that plan's
-> PRs land, verify token and component-variant claims against the live code
-> (`resources/css/app.css` `@theme` block, `resources/views/components/button.blade.php`)
-> when they matter, and delete this note as part of PR 5.
+> **⚠️ Staleness note (2026-11-17):** `docs/design-style-guide.md` was replaced by the combined
+> church guide (website + projector notices): Montserrat only, flat colour, square corners and a
+> wider `cbc-*` palette grown from the existing teal, navy and crimson. Where this skill disagrees
+> with the guide, **the guide wins on direction**, but the site has not been migrated yet: until
+> the guide's §B11 step 1 lands, the new tokens and font do not exist, so verify against the live
+> code (`resources/css/app.css` `@theme` block, `resources/views/components/button.blade.php`).
+> This skill is rewritten in §B11 step 7; delete this note then.
 
 ## Before writing any UI code
 

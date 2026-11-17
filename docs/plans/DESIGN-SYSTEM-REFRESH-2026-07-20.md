@@ -1,5 +1,11 @@
 # Design System Refresh (2026-07-20) — defects, consistency, and visual polish
 
+> **Partly superseded (2026-11-17).** The rewritten [design style guide](../design-style-guide.md)
+> adopts the notices' brand (Montserrat only, flat colour, square corners, a wider `cbc-*` palette)
+> and lifts this plan's "no new fonts or colours" limit. Its §B11 table says which items below still
+> stand (1.1 ordinals, 2.1 for admin, 2.4 nav-link extraction, 3.1 prose rail) and which are
+> replaced or dropped. Read that table before starting any phase here.
+
 > **Comprehensive reconciliation (2026-08-12): approved and still not started.** The defects and
 > live-code targets remain present: the ordinal title path, broken Lato bold declaration,
 > synthesised Oswald weight, `featureOutline`, mixed gray/slate ramp, centred prose and stale guide
