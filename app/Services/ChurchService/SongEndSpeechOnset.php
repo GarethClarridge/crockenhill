@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ChurchService;
 
+use App\Contracts\ServiceTranscriptionInterface;
 use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Models\MediaProcessingLog;
 use App\Services\Media\Audio\AudioTimeline;
@@ -29,6 +30,7 @@ class SongEndSpeechOnset
     /** v2 (11-08): decoded on the aligned server, words timed by their aligned ends. */
     public const RULE = 'song-end-slide-12-step-2-dtw-v2';
 
+    /** The local aligned server's word timing; the configured provider decides what windows carry ({@see self::windows()}). */
     public const WORD_TIMING = 'dtw';
 
     public const REASON = 'song_end_agreed_speech_onset';
@@ -61,12 +63,13 @@ class SongEndSpeechOnset
     {
         $limit = $duration ?? INF;
         $windows = [];
+        $wordTiming = app(ServiceTranscriptionInterface::class)->alignedEdgeWordTiming();
 
         foreach (self::SLIDES as $offset) {
             $start = max(0.0, $cut + $offset);
             $end = min($limit, $start + self::SLIDE_SECONDS);
             if ($end > $start) {
-                $windows['cut-slide-'.(int) -$offset] = ['start' => $start, 'end' => $end, 'window_rule' => self::RULE, 'word_timing' => self::WORD_TIMING];
+                $windows['cut-slide-'.(int) -$offset] = ['start' => $start, 'end' => $end, 'window_rule' => self::RULE, 'word_timing' => $wordTiming];
             }
         }
 

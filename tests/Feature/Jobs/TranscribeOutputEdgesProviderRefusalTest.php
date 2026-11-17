@@ -7,7 +7,6 @@ namespace Tests\Feature\Jobs;
 use App\Data\ChurchServiceTranscript;
 use App\Enums\ServiceSectionType;
 use App\Exceptions\NonRetryableTranscriptionException;
-use App\Exceptions\OutputEdgeTimingsMissing;
 use App\Jobs\TranscribeOutputEdges;
 use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
@@ -29,8 +28,9 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * WP64 (option C): a provider that cannot decode a window as asked, such as the OpenAI API refusing the
- * aligned song-end windows, leaves that window unavailable and the step carries on (register R13, G2).
+ * WP64 (option C, register R13): a provider that cannot decode a window as asked leaves it unavailable and the
+ * step carries on. R20: the OpenAI provider now serves the aligned song-end windows with whisper-1 word ends, so
+ * none is unavailable there; a different non-retryable failure still fails the step.
  */
 class TranscribeOutputEdgesProviderRefusalTest extends TestCase
 {
@@ -89,35 +89,32 @@ class TranscribeOutputEdgesProviderRefusalTest extends TestCase
     }
 
     #[Test]
-    public function a_provider_that_cannot_align_leaves_the_song_end_windows_unavailable_and_the_step_completes(): void
+    public function an_openai_run_banks_the_song_end_windows_with_whisper_1_word_ends_and_none_is_unavailable(): void
     {
         $log = $this->fadedSongRun();
 
         app()->call([new TranscribeOutputEdges($log), 'handle']);
 
         $evidence = app(OutputEdgeWordTimings::class);
-        foreach (app(SongEndSpeechOnset::class)->windows(203.4, 5000.0) as $window) {
-            try {
-                $evidence->read($log->fresh(), $window);
-                $this->fail('An aligned window the provider refused must not be banked.');
-            } catch (OutputEdgeTimingsMissing) {
-                $this->addToAssertionCount(1);
-            }
+        $windows = app(SongEndSpeechOnset::class)->windows(203.4, 5000.0);
+        $this->assertCount(4, $windows);
+        foreach ($windows as $window) {
+            $this->assertSame('whisper-1-word-end', $window['word_timing']);
+            $this->assertNotEmpty($evidence->read($log->fresh(), $window)['tokens'], 'Each aligned window is banked.');
         }
         $tail = array_values(app(SongTailSpeechOnset::class)->windows(200.0, 5000.0))[0];
-        $this->assertNotEmpty($evidence->read($log->fresh(), $tail)['words'], 'The windows the provider can decode are still banked.');
+        $this->assertNotEmpty($evidence->read($log->fresh(), $tail)['words']);
     }
 
     #[Test]
-    public function the_step_summary_names_each_unavailable_window_with_its_provider_and_reason(): void
+    public function the_step_summary_lists_no_unavailable_window_on_the_openai_provider(): void
     {
         $log = $this->fadedSongRun();
         $summary = app(PrepareOutputEdgeEvidence::class)->prepare($log);
 
         $this->assertSame(4, $summary['song_fade_cuts']['windows']);
-        $this->assertCount(4, $summary['song_fade_cuts']['unavailable']);
-        $this->assertSame('openai', $summary['song_fade_cuts']['unavailable'][0]['provider']);
-        $this->assertStringContainsString('align', $summary['song_fade_cuts']['unavailable'][0]['reason']);
+        $this->assertSame(4, $summary['song_fade_cuts']['decoded']);
+        $this->assertArrayNotHasKey('unavailable', $summary['song_fade_cuts']);
         $this->assertArrayNotHasKey('unavailable', $summary['song_tails']);
     }
 

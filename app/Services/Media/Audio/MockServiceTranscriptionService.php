@@ -7,6 +7,7 @@ namespace App\Services\Media\Audio;
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Jobs\ClassifyServiceAudio;
+use App\Services\ChurchService\SongEndSpeechOnset;
 use App\Services\Processing\SermonProcessingLogger;
 
 /**
@@ -41,6 +42,11 @@ class MockServiceTranscriptionService implements ServiceTranscriptionInterface
     public function transcribeEdgeWindow(string $audioPath, bool $aligned = false): array
     {
         return [];
+    }
+
+    public function alignedEdgeWordTiming(): string
+    {
+        return SongEndSpeechOnset::WORD_TIMING;
     }
 
     public function transcribeService(string $audioOrVideoPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript

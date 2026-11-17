@@ -1330,6 +1330,43 @@ class WordTimedOutputEdgesTest extends TestCase
         $evidence->read($log->fresh(), array_diff_key($aligned, ['word_timing' => true]));
     }
 
+    /**
+     * R20: the two kinds of aligned word timing never stand in for each other.
+     */
+    #[Test]
+    public function words_banked_as_dtw_are_not_read_for_the_openai_word_timing_and_vice_versa(): void
+    {
+        $cue = ['start' => 99.0, 'end' => 101.0, 'text' => 'Amen'];
+        $log = $this->log($cue);
+        $evidence = app(OutputEdgeWordTimings::class);
+        $dtw = ['start' => 98.0, 'end' => 110.0, 'window_rule' => SongEndSpeechOnset::RULE, 'word_timing' => 'dtw'];
+        $openai = [...$dtw, 'word_timing' => 'whisper-1-word-end'];
+        $words = [['start' => 99.0, 'end' => 99.5, 'word' => ' Amen', 'aligned_end' => 99.5]];
+
+        $bank = function (array $window) use ($evidence, $log, $words): void {
+            $identity = $evidence->identity($log, $window);
+            app(ServiceArtifactStorage::class)->putJson($log->processing_id, $evidence->kind($identity), ['identity' => $identity, 'words' => $words,
+                'compute_seconds' => 0.1, 'recorded_at' => now()->toIso8601String()], ['model' => $identity['model']]);
+        };
+        $missing = function (array $window) use ($evidence, $log): bool {
+            try {
+                $evidence->read($log->fresh(), $window);
+
+                return false;
+            } catch (OutputEdgeTimingsMissing) {
+                return true;
+            }
+        };
+
+        $bank($dtw);
+        $this->assertFalse($missing($dtw));
+        $this->assertTrue($missing($openai), 'A dtw bank must not satisfy a whisper-1 read.');
+
+        $bank($openai);
+        $this->assertFalse($missing($openai));
+        $this->assertFalse($missing($dtw));
+    }
+
     #[Test]
     public function preparation_uses_the_configured_openai_provider_without_local_whisper(): void
     {

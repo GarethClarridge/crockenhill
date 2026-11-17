@@ -8,6 +8,7 @@ use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Exceptions\NonRetryableTranscriptionException;
 use App\Exceptions\TranscriptionException;
+use App\Services\ChurchService\SongEndSpeechOnset;
 use App\Services\Processing\SermonProcessingLogger;
 use Exception;
 use Illuminate\Support\Facades\Http;
@@ -154,6 +155,11 @@ class LocalWhisperServiceTranscriptionService implements ServiceTranscriptionInt
         }
 
         return EdgeWindowWords::refitted($words);
+    }
+
+    public function alignedEdgeWordTiming(): string
+    {
+        return SongEndSpeechOnset::WORD_TIMING;
     }
 
     private function artifacts(): ServiceArtifactStorage

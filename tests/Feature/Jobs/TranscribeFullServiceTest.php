@@ -373,6 +373,11 @@ class TranscribeFullServiceTest extends TestCase
                 return [];
             }
 
+            public function alignedEdgeWordTiming(): string
+            {
+                return 'dtw';
+            }
+
             public function transcribeService(string $audioOrVideoPath, string $processingId, ?string $prompt = null): ChurchServiceTranscript
             {
                 app(ServiceArtifactStorage::class)->putJson($processingId, 'raw', ['segments' => []]);

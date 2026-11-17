@@ -7,7 +7,6 @@ namespace App\Services\Media\Audio;
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Exceptions\NonRetryableTranscriptionException;
-use App\Exceptions\TranscriptionCapabilityUnavailable;
 use App\Exceptions\TranscriptionException;
 use App\Services\Processing\SermonProcessingLogger;
 use Exception;
@@ -26,6 +25,13 @@ use OpenAI\Responses\Audio\TranscriptionResponse;
  */
 class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
 {
+    /**
+     * Register R20 (arm b1): whisper-1 cannot align words, so an aligned edge request returns its
+     * word timestamps with each word's own end as `aligned_end`. Distinct from the local server's
+     * 'dtw', so the two kinds of evidence never satisfy each other's reads.
+     */
+    public const EDGE_WORD_TIMING = 'whisper-1-word-end';
+
     public function __construct(
         private readonly SermonProcessingLogger $logger,
         private readonly AudioChunkingService $chunkingService,
@@ -77,12 +83,13 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         }
     }
 
-    /** @return list<array{start: float, end: float, word: string, aligned_end?: float}> */
+    /**
+     * Aligned (R20), each word's `aligned_end` is its own end: whisper-1 offers nothing finer.
+     *
+     * @return list<array{start: float, end: float, word: string, aligned_end?: float}>
+     */
     public function transcribeEdgeWindow(string $audioPath, bool $aligned = false): array
     {
-        if ($aligned) {
-            throw new TranscriptionCapabilityUnavailable('openai', 'OpenAI transcription does not align words');
-        }
         if (empty(config('media-processing.transcription.openai_api_key'))) {
             throw new NonRetryableTranscriptionException('OpenAI API key not configured for edge transcription');
         }
@@ -110,7 +117,11 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
             }
             $words = [];
             foreach ($response->words as $word) {
-                $words[] = ['start' => $word->start, 'end' => $word->end, 'word' => $word->word];
+                $timed = ['start' => $word->start, 'end' => $word->end, 'word' => $word->word];
+                if ($aligned) {
+                    $timed['aligned_end'] = $word->end;
+                }
+                $words[] = $timed;
             }
 
             return EdgeWindowWords::refitted($words);
@@ -119,6 +130,11 @@ class OpenAiServiceTranscriptionService implements ServiceTranscriptionInterface
         } finally {
             fclose($handle);
         }
+    }
+
+    public function alignedEdgeWordTiming(): string
+    {
+        return self::EDGE_WORD_TIMING;
     }
 
     private function artifacts(): ServiceArtifactStorage

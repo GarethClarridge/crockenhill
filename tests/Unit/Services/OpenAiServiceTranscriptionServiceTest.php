@@ -7,8 +7,8 @@ namespace Tests\Unit\Services;
 use App\Contracts\ServiceTranscriptionInterface;
 use App\Data\ChurchServiceTranscript;
 use App\Exceptions\NonRetryableTranscriptionException;
-use App\Exceptions\TranscriptionCapabilityUnavailable;
 use App\Exceptions\TranscriptionException;
+use App\Services\ChurchService\SongEndSpeechOnset;
 use App\Services\Media\Audio\AudioChunkingService;
 use App\Services\Media\Audio\OpenAiServiceTranscriptionService;
 use App\Services\Processing\SermonProcessingLogger;
@@ -251,15 +251,29 @@ class OpenAiServiceTranscriptionServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_refuses_aligned_edge_windows_as_a_capability_the_provider_lacks(): void
+    public function an_aligned_edge_request_returns_whisper_1_word_timestamps_with_each_words_own_end_as_its_aligned_end(): void
     {
-        try {
-            $this->service->transcribeEdgeWindow($this->makeTempFile('bytes'), aligned: true);
-            $this->fail('An aligned decode must be refused.');
-        } catch (TranscriptionCapabilityUnavailable $refusal) {
-            $this->assertSame('openai', $refusal->provider);
-            $this->assertInstanceOf(NonRetryableTranscriptionException::class, $refusal);
-        }
+        Config::set('media-processing.service_structure.transcription_model', 'whisper-1');
+        OpenAI::fake([TranscriptionResponse::fake(['words' => [
+            ['start' => 0.2, 'end' => 0.8, 'word' => 'Amen'],
+            ['start' => 1.0, 'end' => 1.4, 'word' => 'Let'],
+        ]])]);
+
+        $words = $this->service->transcribeEdgeWindow($this->makeTempFile('bytes'), aligned: true);
+
+        $this->assertSame([
+            ['start' => 0.2, 'end' => 0.8, 'word' => 'Amen', 'aligned_end' => 0.8],
+            ['start' => 1.0, 'end' => 1.4, 'word' => 'Let', 'aligned_end' => 1.4],
+        ], $words);
+        OpenAI::assertSent(Audio::class, fn (string $method, array $parameters): bool => $method === 'transcribe'
+            && $parameters['timestamp_granularities'] === ['word']);
+    }
+
+    #[Test]
+    public function the_provider_declares_a_word_timing_distinct_from_the_local_servers(): void
+    {
+        $this->assertSame('whisper-1-word-end', $this->service->alignedEdgeWordTiming());
+        $this->assertNotSame(SongEndSpeechOnset::WORD_TIMING, $this->service->alignedEdgeWordTiming());
     }
 
     #[Test]

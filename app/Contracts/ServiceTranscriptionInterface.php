@@ -14,12 +14,19 @@ interface ServiceTranscriptionInterface
      *
      * Aligned, each word also carries `aligned_end`: where the decoder's cross-attention places the
      * word's end (whisper.cpp DTW). The decoder's own times stretch a word back over music before
-     * it; the aligned end does not (RA3, video plan §4.1d, 11-08). A provider that cannot align
-     * refuses rather than returning unaligned words.
+     * it; the aligned end does not (RA3, video plan §4.1d, 11-08). A provider without true alignment
+     * returns its own word end as the aligned end and says so in {@see self::alignedEdgeWordTiming()}
+     * (register R20).
      *
      * @return list<array{start: float, end: float, word: string, aligned_end?: float}>
      */
     public function transcribeEdgeWindow(string $audioPath, bool $aligned = false): array;
+
+    /**
+     * The kind of word timing this provider's aligned edge decode carries: it is part of an edge
+     * window's identity, so words banked under one kind never satisfy a read of another (R20).
+     */
+    public function alignedEdgeWordTiming(): string;
 
     /**
      * Produce a timestamped transcript of an entire service recording.

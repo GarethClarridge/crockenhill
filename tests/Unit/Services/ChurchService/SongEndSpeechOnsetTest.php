@@ -7,8 +7,8 @@ namespace Tests\Unit\Services\ChurchService;
 use App\Services\ChurchService\SongEndSpeechOnset;
 use App\Services\Media\Audio\AudioTimeline;
 use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
 use Tests\Support\AudioTimelineFixture;
+use Tests\TestCase;
 
 /**
  * RA3, heard 11-07 (video plan §4.1d, song-end listening and A/B pages): a song that runs into
@@ -149,6 +149,25 @@ class SongEndSpeechOnsetTest extends TestCase
     {
         $this->assertTrue(array_all((new SongEndSpeechOnset)->windows(self::CUT, 5000.0),
             static fn (array $window): bool => $window['word_timing'] === SongEndSpeechOnset::WORD_TIMING));
+    }
+
+    #[Test]
+    public function the_local_provider_stamps_windows_with_dtw(): void
+    {
+        config(['media-processing.service_structure.transcription_service' => 'local']);
+
+        $this->assertTrue(array_all((new SongEndSpeechOnset)->windows(self::CUT, 5000.0),
+            static fn (array $window): bool => $window['word_timing'] === 'dtw'));
+    }
+
+    #[Test]
+    public function the_openai_provider_stamps_windows_with_its_own_word_timing(): void
+    {
+        config(['media-processing.service_structure.transcription_service' => 'openai']);
+
+        $this->assertTrue(array_all((new SongEndSpeechOnset)->windows(self::CUT, 5000.0),
+            static fn (array $window): bool => $window['word_timing'] === 'whisper-1-word-end'
+                && $window['window_rule'] === SongEndSpeechOnset::RULE));
     }
 
     /**
