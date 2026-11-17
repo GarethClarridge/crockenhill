@@ -36,7 +36,11 @@ class SecurityHeaders
 
         // Security Header: Cross-Origin Policies
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
-        $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        // A response that deliberately serves another origin (the notices calendar
+        // feed) declares its own policy; every other response stays same-origin.
+        if (! $response->headers->has('Cross-Origin-Resource-Policy')) {
+            $response->headers->set('Cross-Origin-Resource-Policy', 'same-origin');
+        }
 
         // Security Header: Prevent Flash/PDF from loading cross-domain data
         $response->headers->set('X-Permitted-Cross-Domain-Policies', 'none');

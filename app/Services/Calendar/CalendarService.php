@@ -40,6 +40,22 @@ class CalendarService
     }
 
     /**
+     * Confirmed, categorised events starting between the two dates, earliest first.
+     *
+     * @return Collection<int, CalendarEvent>
+     */
+    public function getCategorizedEventsBetween(Carbon $from, Carbon $until): Collection
+    {
+        return CalendarEvent::query()
+            ->select(['id', 'meeting_slug', 'start_datetime', 'end_datetime'])
+            ->whereNotNull('meeting_slug')
+            ->confirmed()
+            ->whereBetween('start_datetime', [$from, $until])
+            ->orderBy('start_datetime')
+            ->get();
+    }
+
+    /**
      * @throws ModelNotFoundException
      */
     public function manuallyCategorizeEvent(int $eventId, string $meetingSlug): CalendarEvent
