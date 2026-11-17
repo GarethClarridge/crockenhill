@@ -264,6 +264,22 @@ added and synced before the round starts (the runbook forbids catalogue edits du
 titled "Rejoice" so the next sync updates row 1162 (same canonical key) instead of creating a twin.
 Its `lyrics_plain` holds only the two slides seen in clip 435; OpenLP's full lyrics replace them.
 
+**To add to OpenLP (local additions).** Each row is local only; add it in OpenLP with exactly this
+title (no hymnbook number, or the key differs and a twin results). Lyrics are slide OCR; OpenLP's
+replace them. `import_metadata.local_addition` records the evidence.
+
+| Song | Title | Source section |
+|---|---|---|
+| 1162 | Rejoice | 1363 §4534 |
+| 1163 | My God, How Wonderful Thou Art | 4516, 4451 |
+| 1164 | Great Providence of Heaven | 4140 |
+| 1165 | Christ the Word from Everlasting (census: "Praise the Word from everlasting"; confirm title) | 4327 |
+| 1166 | Did You Know? | 4342 |
+| 1167 | Strength Will Rise | 4372 |
+| 1168 | Creation Sings the Father's Song | 4070 |
+
+"Welcome Home" (section 4345) is not added: it awaits confirmation that the section is that song.
+
 **3. Alternative titles (6):** ST3's table (712, 254, 644, 606, 996, 980).
 
 **Resolved since recorded:** song 83 "Angel Voices Ever Singing" lacked lyrics (10-12); it
