@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\ChurchServiceController;
 use App\Http\Controllers\Api\MailgunInboundWebhookController;
 use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\NoticesCalendarController;
 use App\Http\Controllers\Api\SermonApiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -11,6 +12,11 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
+
+// Upcoming meeting dates for the projector notices player (read-only, public)
+Route::get('notices/calendar', NoticesCalendarController::class)
+    ->middleware('throttle:api')
+    ->name('api.notices.calendar');
 
 // Sermon data endpoints (read-only)
 Route::prefix('sermons')->name('api.sermons.')->group(function () {
