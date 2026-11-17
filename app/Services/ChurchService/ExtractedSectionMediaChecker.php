@@ -15,14 +15,16 @@ class ExtractedSectionMediaChecker
      * Whether the extracted assets a section is published from are present: a talk's video and
      * audio, a song's video. Songs are never cut to audio, so asking for one refused every song
      * held for review (1363's "Rejoice", 2026-10-22) and let a split or merged song keep its clip.
+     * A publication handler passes its own audio rule; otherwise the section's type decides.
      */
-    public function hasExtractedMedia(ServiceSection $section): bool
+    public function hasExtractedMedia(ServiceSection $section, ?bool $audioRequired = null): bool
     {
+        $audioRequired ??= $section->section_type !== ServiceSectionType::Song;
         $videoPath = $section->extracted_video_path;
-        $audioPath = $section->section_type === ServiceSectionType::Song ? null : $section->extracted_audio_path;
+        $audioPath = $audioRequired ? $section->extracted_audio_path : null;
 
         if (! is_string($videoPath) || $videoPath === ''
-            || ($section->section_type !== ServiceSectionType::Song && (! is_string($audioPath) || $audioPath === ''))) {
+            || ($audioRequired && (! is_string($audioPath) || $audioPath === ''))) {
             return false;
         }
 

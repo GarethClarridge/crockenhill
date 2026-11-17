@@ -40,6 +40,7 @@ class ExtractedSectionMediaCheckerTest extends TestCase
     {
         config(['filesystems.disks.wp74_checker' => ['driver' => 'local', 'root' => storage_path('framework/testing/disks/wp74_checker')]]);
         Storage::fake('wp74_checker');
+        config(['filesystems.disks.wp74_checker.root' => Storage::disk('wp74_checker')->path('')]);
         config([
             'media-processing.storage.historic_staging_disk' => 'wp74_checker',
             'media-processing.storage.sermon_disk' => 'wp74_checker',

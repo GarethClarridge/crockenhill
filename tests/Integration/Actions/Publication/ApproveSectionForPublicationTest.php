@@ -63,6 +63,7 @@ class ApproveSectionForPublicationTest extends TestCase
         Queue::fake();
         config(['filesystems.disks.wp74_staging' => ['driver' => 'local', 'root' => storage_path('framework/testing/disks/wp74_staging')]]);
         Storage::fake('wp74_staging');
+        config(['filesystems.disks.wp74_staging.root' => Storage::disk('wp74_staging')->path('')]);
         config([
             'media-processing.storage.historic_staging_disk' => 'wp74_staging',
             'media-processing.storage.sermon_disk' => 'wp74_staging',

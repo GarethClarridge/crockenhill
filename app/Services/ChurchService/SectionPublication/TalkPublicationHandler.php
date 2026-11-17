@@ -72,7 +72,7 @@ class TalkPublicationHandler implements SectionPublicationHandler
      */
     public function hasReusableExtractedMedia(ServiceSection $section): bool
     {
-        return $this->mediaChecker->hasExtractedMedia($section);
+        return $this->mediaChecker->hasExtractedMedia($section, $this->requiresAudioExtraction());
     }
 
     /**

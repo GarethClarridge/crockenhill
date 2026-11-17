@@ -72,7 +72,7 @@ class SongPublicationHandler implements SectionPublicationHandler
      */
     public function hasReusableExtractedMedia(ServiceSection $section): bool
     {
-        return app(ExtractedSectionMediaChecker::class)->hasExtractedMedia($section);
+        return app(ExtractedSectionMediaChecker::class)->hasExtractedMedia($section, $this->requiresAudioExtraction());
     }
 
     /**
