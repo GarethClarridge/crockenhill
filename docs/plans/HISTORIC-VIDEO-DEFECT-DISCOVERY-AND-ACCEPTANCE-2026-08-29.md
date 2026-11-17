@@ -1813,17 +1813,17 @@ the state column here in place; no diaries.
 | 1 Edge evidence and complete replay | Passed on `9ec03a526` (11-14); owed on the candidate | W13 |
 | 2 Acceptance checks that mean reprocessing | Not started; the main risk of a second round | W9 |
 | 3 Open cut-changing items and review classes | Hold check, G14 and row 12 built; RA4 and RA5 classes to be resolved down to edge cases (G16) | W5 |
-| 4 Stopped runs | Done apart from named runs | W8 |
+| 4 Stopped runs | 11-17: 954 corrected to 2 John 1:10-11 (curated); 844's Luke 1:26–56 confirmed from its analysis, X13 clean-up has run. Owed: operator review of 569 then re-extract; 945's review (`named-runs-20261117-wp08/report.md`) | W8 |
 | 5 Bytes and tags | Done; 49 sermons and 6 songs re-encode in the round (`peak-1055-20261112/pns-manifest.json`) | W13 |
 | 6 Production census and rehearsal | Tooling built; server visit owed | W10 |
-| 7 Talk-type detection and confirmation | Proposal built, never run on real sections; confirmation still manual; automate before the freeze (G15) | W11 |
+| 7 Talk-type detection and confirmation | 11-17: proposals stored on 283 of 334 (255 by model, $0.31); 201 of 225 typed match the labels, no exposing error. Bar ruled (T12). Automatic confirmation and the approval change being built (`talk-types-20261117-wp11/report.md`) | W11 |
 | 8 Repair route | Done 11-14 | — |
-| 9 Weekly backend | Chain failure fixed (`c6f90e508`); aligned timing on production and the measurement open | W3, W4 |
+| 9 Weekly backend | 11-17: W3 measured ($0.15): no word rule fails; whisper-1 timing matches local aligned ends on 27 of 31 (R18: operator hears the four differences before the route is chosen). W4 not started | W3, W4 |
 | 10 Fresh-services trial | Moved after the round as the take-over validation (R16, 11-17) | W17 |
-| 11 CI-validated revision | HEAD red | W1, W13 |
+| 11 CI-validated revision | 11-17: green again from `213a433cc` (W1 done: parallel-token disk roots in two tests, the song handler's audio rule); owed again on the candidate | W13 |
 | 12 Windows derived twice | Built (`c0e81c4d6`); evidence top-up not counted | W13 |
-| 13 Missing songs | Seven listed (`sol-20261116/wp61/partA-missing-songs.md`); none added | W7 |
-| 14 Round measures | Time is recorded; redraw rate, CPU and cost are not (`wp61/partB-round-measures.md`) | W6 |
+| 13 Missing songs | 11-17: six added locally (1163–1168) and listed for OpenLP; 1165's title and 4345 ("Welcome Home") wait on the operator's listening page (S13) | W7 |
+| 14 Round measures | 11-17: redraw comparison built in `structure:ensemble-batch-report` (`ebd7b718f`); CPU (wall × width) and cost from logged tokens still to be wired into the canary | W6 |
 | 15 Pending production actions | Not reconciled since 10-16 | W10 |
 | 16 Production configuration and capacity (new) | Unknown: droplet size, `.env.production` values, image contents, time per service | W10 |
 | 17 Speaker naming (new; G15) | §4.1e not started; 455 local sermons await a name | W12 |
