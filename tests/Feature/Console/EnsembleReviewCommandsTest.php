@@ -527,6 +527,119 @@ class EnsembleReviewCommandsTest extends TestCase
         $this->assertSame(1, $report['review_minutes_estimate']);
     }
 
+    #[Test]
+    public function the_batch_report_has_no_redraw_comparison_for_a_run_with_one_attempt(): void
+    {
+        $log = $this->redrawRun([[['type' => 'welcome', 'start_time' => 0.0, 'end_time' => 120.0]]]);
+        $reportPath = "{$this->out}/redraw-none.json";
+        File::ensureDirectoryExists($this->out);
+
+        $this->artisan('structure:ensemble-batch-report', ['runs' => [$log->id], '--report' => $reportPath])->assertSuccessful();
+
+        $redraw = json_decode((string) file_get_contents($reportPath), true)['redraw'];
+        $this->assertSame(0, $redraw['runs_compared']);
+        $this->assertSame(0, $redraw['runs_changed']);
+        $this->assertSame([], $redraw['changes']);
+        $this->assertSame([], $redraw['k16_flips']);
+    }
+
+    #[Test]
+    public function an_unchanged_redraw_is_compared_and_reports_no_change(): void
+    {
+        $sections = [
+            ['type' => 'welcome', 'title' => 'Welcome', 'start_time' => 0.0, 'end_time' => 120.0],
+            ['type' => 'sermon', 'title' => 'Luke 15', 'start_time' => 600.0, 'end_time' => 2200.0],
+        ];
+        $moved = $sections;
+        $moved[1]['end_time'] = 2200.3;
+        $log = $this->redrawRun([$sections, $moved]);
+        $reportPath = "{$this->out}/redraw-same.json";
+        File::ensureDirectoryExists($this->out);
+
+        $this->artisan('structure:ensemble-batch-report', ['runs' => [$log->id], '--report' => $reportPath])->assertSuccessful();
+
+        $redraw = json_decode((string) file_get_contents($reportPath), true)['redraw'];
+        $this->assertSame([1, 0], [$redraw['runs_compared'], $redraw['runs_changed']]);
+        $this->assertSame([], $redraw['changes']);
+    }
+
+    #[Test]
+    public function a_moved_retyped_retitled_added_and_removed_section_is_listed_with_before_and_after(): void
+    {
+        $before = [
+            ['type' => 'welcome', 'title' => 'Welcome', 'start_time' => 0.0, 'end_time' => 120.0],
+            ['type' => 'short_talk', 'title' => 'Children', 'start_time' => 130.0, 'end_time' => 400.0],
+            ['type' => 'prayer', 'title' => 'Prayer', 'start_time' => 400.0, 'end_time' => 430.0],
+            ['type' => 'sermon', 'title' => 'Luke 15', 'start_time' => 600.0, 'end_time' => 2200.0],
+        ];
+        $after = [
+            ['type' => 'welcome', 'title' => 'Welcome', 'start_time' => 0.0, 'end_time' => 120.0],
+            ['type' => 'prayer', 'title' => 'Children', 'start_time' => 130.0, 'end_time' => 400.0],
+            ['type' => 'prayer', 'title' => 'Prayer', 'start_time' => 400.0, 'end_time' => 430.0],
+            ['type' => 'sermon', 'title' => 'Luke 15:1-10', 'start_time' => 600.0, 'end_time' => 2230.0],
+            ['type' => 'song', 'title' => 'Praise', 'start_time' => 2240.0, 'end_time' => 2400.0],
+        ];
+        $log = $this->redrawRun([$before, $after]);
+        $reportPath = "{$this->out}/redraw-changed.json";
+        File::ensureDirectoryExists($this->out);
+
+        $this->artisan('structure:ensemble-batch-report', ['runs' => [$log->id], '--report' => $reportPath])
+            ->expectsOutputToContain('Redraw changes')
+            ->assertSuccessful();
+
+        $redraw = json_decode((string) file_get_contents($reportPath), true)['redraw'];
+        $this->assertSame([1, 1], [$redraw['runs_compared'], $redraw['runs_changed']]);
+        $byKind = collect($redraw['changes'])->keyBy('change');
+        $this->assertSame('short_talk', $byKind['retyped']['before']['type']);
+        $this->assertSame('prayer', $byKind['retyped']['after']['type']);
+        $this->assertEquals(2200.0, $byKind['moved']['before']['end_time']);
+        $this->assertEquals(2230.0, $byKind['moved']['after']['end_time']);
+        $this->assertSame('Luke 15', $byKind['retitled']['before']['title']);
+        $this->assertSame('Luke 15:1-10', $byKind['retitled']['after']['title']);
+        $this->assertNull($byKind['added']['before']);
+        $this->assertSame('Praise', $byKind['added']['after']['title']);
+        $this->assertSame($log->id, $byKind['added']['run']);
+    }
+
+    #[Test]
+    public function a_sermon_song_introduction_that_changed_its_end_or_tie_across_identities_is_a_flip(): void
+    {
+        $log = $this->redrawRun([[['type' => 'welcome', 'start_time' => 0.0, 'end_time' => 120.0]]]);
+        $store = app(ServiceArtifactStorage::class);
+        $store->putJson($log->processing_id, 'sermon-song-introduction-a', ['identity' => ['part' => null, 'song_start' => 2210.0, 'prompt_version' => 2], 'end' => 2195.0, 'ties_to_sermon' => false]);
+        $store->putJson($log->processing_id, 'sermon-song-introduction-b', ['identity' => ['part' => null, 'song_start' => 2210.0, 'prompt_version' => 3], 'end' => 2204.5, 'ties_to_sermon' => true]);
+        $store->putJson($log->processing_id, 'sermon-song-introduction-c', ['identity' => ['part' => 0, 'song_start' => 900.0, 'prompt_version' => 2], 'end' => 880.0, 'ties_to_sermon' => false]);
+        $store->putJson($log->processing_id, 'sermon-song-introduction-d', ['identity' => ['part' => 0, 'song_start' => 900.0, 'prompt_version' => 3], 'end' => 880.0, 'ties_to_sermon' => false]);
+        $reportPath = "{$this->out}/redraw-k16.json";
+        File::ensureDirectoryExists($this->out);
+
+        $this->artisan('structure:ensemble-batch-report', ['runs' => [$log->id], '--report' => $reportPath])->assertSuccessful();
+
+        $flips = json_decode((string) file_get_contents($reportPath), true)['redraw']['k16_flips'];
+        $this->assertCount(1, $flips);
+        $this->assertEquals([$log->id, null, 2210.0], [$flips[0]['run'], $flips[0]['part'], $flips[0]['song_start']]);
+        $this->assertEquals(['end' => 2195.0, 'ties_to_sermon' => false], $flips[0]['before']);
+        $this->assertEquals(['end' => 2204.5, 'ties_to_sermon' => true], $flips[0]['after']);
+    }
+
+    /**
+     * A run whose ensemble bank holds one attempt per list of sections.
+     *
+     * @param  list<list<array<string, mixed>>>  $attempts
+     */
+    private function redrawRun(array $attempts): MediaProcessingLog
+    {
+        return MediaProcessingLog::factory()->livestream()->pending()->create([
+            'processing_metadata' => [
+                'service_structure_ensemble' => array_map(static fn (array $sections, int $index): array => [
+                    'attempt_id' => "attempt-{$index}",
+                    'started_at' => now()->addMinutes($index)->toIso8601String(),
+                    'composition' => ['structure' => ['sections' => $sections]],
+                ], $attempts, array_keys($attempts)),
+            ],
+        ]);
+    }
+
     /** Four identical drafts, optionally followed by another speech section. */
     private function agreedRun(float $talkEnd, bool $prayer, string $neighbourType = 'prayer'): MediaProcessingLog
     {
