@@ -20,7 +20,7 @@ Rules for using this folder, written for AI agents as much as humans:
 | [`plans/`](plans/README.md) | **Active plans only.** The README is the authoritative index and ordering. |
 | [`issues/README.md`](issues/README.md) | Consolidated open-issues tracker (audit findings from Mortician/Pathfinder runs land here, then the source reports are deleted). |
 | `reports/` | Recent decision-support reports (currently: service automation opportunities, 2026-07-05). |
-| [`design-style-guide.md`](design-style-guide.md) | **Read before any UI work.** Brand tokens, components, anti-patterns. Screenshots in `design-references/` (gitignored; regenerate per the guide). |
+| [`design-style-guide.md`](design-style-guide.md) | **Read before any UI work.** One brand for the website and the projector notices (Part A), then website tokens, components and migration order (Part B). The site is not migrated yet: see its status note. |
 | [`api/media-processing.md`](api/media-processing.md) | API reference for the media/services/webhook endpoints (`routes/api.php` wins on conflict). |
 | [`operations/production.md`](operations/production.md) | Production stack, Horizon queues, scheduler, deploy/rollback. |
 | [`operations/historic-video-pass-control.md`](operations/historic-video-pass-control.md) | **Read before running a historic-video pass.** Starting, watching, stopping and resuming one; reading its dispositions; what a provider 429 actually means. |
