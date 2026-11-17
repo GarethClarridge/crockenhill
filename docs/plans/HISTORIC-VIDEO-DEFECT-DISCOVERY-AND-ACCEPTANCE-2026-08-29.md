@@ -1801,8 +1801,10 @@ address typed `sermon`. No data pass is in flight.
 
 **Rules for the agent doing the work.** One package at a time, in order. Check each dated claim
 against the code and database first. Failing test before a fix. No test or Dusk run during a data
-pass; tests only from the main checkout. Nothing here authorises a round, a paid call, a
-production change or a release: those are the operator's (list at the end). A build that moves a
+pass; tests only from the main checkout. Nothing here authorises a round, a production change
+or a release: those are the operator's (list at the end). Paid model and transcription calls are
+authorised only for W3, W4, W5 and W11, within R17's $12 ceiling in total; stop and ask before
+going past it. A build that moves a
 cut owes W13 again. Put evidence in `storage/scratch/<topic>-<date>-wpNN/report.md` and update
 the state column here in place; no diaries.
 
@@ -1810,7 +1812,7 @@ the state column here in place; no diaries.
 |---|---|---|
 | 1 Edge evidence and complete replay | Passed on `9ec03a526` (11-14); owed on the candidate | W13 |
 | 2 Acceptance checks that mean reprocessing | Not started; the main risk of a second round | W9 |
-| 3 Open cut-changing items | Hold check, G14 and row 12 built; the rest need a disposition | W5 |
+| 3 Open cut-changing items and review classes | Hold check, G14 and row 12 built; RA4 and RA5 classes to be resolved down to edge cases (G16) | W5 |
 | 4 Stopped runs | Done apart from named runs | W8 |
 | 5 Bytes and tags | Done; 49 sermons and 6 songs re-encode in the round (`peak-1055-20261112/pns-manifest.json`) | W13 |
 | 6 Production census and rehearsal | Tooling built; server visit owed | W10 |
@@ -1863,27 +1865,49 @@ whisper.cpp tokens; whisper-1 has never been scored, and on production it also m
 full-service transcript that structure and song matching read. Declare a sample of 10 services
 and a seed. Cost at the 11-17 prices: a 70-minute full transcript is about $0.42, its edge
 windows about $0.15, and four structure draws on gpt-5.6-luna about $0.10, so about $7 for 10
-services. Within the operator's ceiling for paid measurement calls; prepare edges and plan cuts with the OpenAI provider in a process of its own
+services, inside R17's $12 ceiling. Prepare edges and plan cuts with the OpenAI provider in a process of its own
 (evidence is namespaced by provider), read-only replay; compare with local cuts and banked
 rulings. *Done when* each difference class is fixed in shared code or named residue with a hold.
 
-**W5 — Dispose of each open cut-changing item (row 3).** Built and measured, or named residue;
-none stays pending. Default is residue with its hold unless a class has a measured fix (E23).
-**Size (11-14 inventory, `final-replay-20261114/inventory.jsonl`; recount on W13's inventory):**
-RA4 is 112 sections in 96 runs: 35 transcript-repetition suspects; 77 song-identity records
-(48 where the catalogue song exists and only the label differs, 8 missing songs for W7, 20
-unidentifiable, 12 of them "Happy Birthday", and 1 on an excluded run); 19 single-source and
-10 suspect-transcript identities; 4 title-marker mismatches. RA5 is 249 sections in 181 runs:
-103 + 70 low confidence, 42 same-type order-of-service inversions, 23 unresolved item types,
-19 talk audio dropouts, 18 untranscribed speech before a section, 14 micro-sections, 14 unowned
-speech beside a sermon, 11 interrupted talks, 8 talk fragments and 7 others. 67 of the RA5
-sections also wait on talk type or speaker, which W11 and W12 take. First candidate for a fix
-rather than residue: the 48 label-only song identities (register Q6, "a title variant is not a
-question"). Items: RA4 and RA5 class by class as above; the lyric-ended tail exemption
-(`wp60/brief.md`); speech inside a fade at 1293/3666 and 1290/3628; 1233's start; the no-passage
-stretches on 1044, 1258, 960, 1163; music under a prayer and speech missed inside a section (read
-from W13's replay); the lyric-protection check on rendered clips (fold into W9). Already named:
-18422/335851, 1218/2686, 1247/3092, §1572, §2718, the five breath cases.
+**W5 — Resolve the open review classes down to edge cases (row 3; register G16).** These are
+not residue yet. Keep building shared fixes until only edge cases are left.
+- **A class** is two or more sections that share a cause. Each class gets a fix in the step that
+  owns it: a failing test first, a replay over the corpus showing no edge heard right moves and no
+  content is lost, then application through the pipeline (G3).
+- **An edge case** is a section whose cause no other section shares, or a source limitation (a
+  dropout, missing audio, a dead feed). Only an edge case may stay as residue, under E23's
+  conditions and with its hold kept. Rulings already made stand: 18422/335851, 1218/2686,
+  1247/3092, §1572, §2718, the five breath cases and run 1019 (X15).
+- **Stop a class** when everything left in it is an edge case. List those with their causes and
+  put them to the operator once, at W13.
+
+**Size (11-14 inventory, `final-replay-20261114/inventory.jsonl`; recount before starting and on
+W13's inventory):** RA4 is 112 sections in 96 runs; RA5 is 249 sections in 181 runs. 67 of the
+RA5 sections also wait on talk type or speaker; do W11 and W12 first, then recount.
+
+**Order, cheapest and largest first:**
+1. **48 song labels** where the catalogue song exists and only the label differs (Q6: "a title
+   variant is not a question").
+2. **Other song identities:** 19 single-source, 10 from a suspect transcript, 4 title-marker
+   mismatches, 20 unidentifiable. 12 of the 20 are "Happy Birthday": ask the operator once whether
+   a birthday song makes a clip at all.
+3. **35 transcript-repetition suspects** (§4.1d RA4: tell legitimate repetition from decoder
+   loops before re-decoding).
+4. **173 low-confidence structures** (103 flagged, 70 by score). Find why first: low confidence is
+   not cured by raising the score (§4.1d RA5).
+5. **Order-of-service mismatches:** 42 same-type inversions, 23 unresolved item types, 3 shared
+   items.
+6. **Talk shape:** 19 audio dropouts, 11 interrupted talks, 8 fragments, 14 micro-sections, 18
+   untranscribed speech before a section, 14 unowned speech beside a sermon.
+7. **Cut items:** the lyric-ended tail exemption (`wp60/brief.md`); speech inside a fade
+   (1293/3666, 1290/3628); 1233's start; the no-passage stretches on 1044, 1258, 960 and 1163;
+   music under a prayer and speech missed inside a section (read from W13's replay); the
+   lyric-protection check on rendered clips (with W9).
+
+For each class report sections before and after, questions per service (Q15), what moved, and
+any paid calls (within R17). A fix that moves cuts owes W13; batch them so W13 runs once. *Done
+when* every class is resolved and the remainder is one list of edge cases, each with its cause
+and hold.
 
 **W6 — Round measures (row 14).** Add a read-only redraw comparison to
 `structure:ensemble-batch-report`; take `video-pass-status --performance-report` before and after
@@ -1931,7 +1955,7 @@ confirmation (T2) and an approval (`TalkPublicationHandler::requiresApproval()` 
 This has to land before the freeze, not after. A proposal of "sermon" or "not a talk" changes the
 service's structure, and so its cuts: run 944's Psalm 77 address was one.
 1. Run the free preview of `service:propose-talk-types` and report how many talks the rules
-   decide and the model calls for the rest. Apply on the go-ahead (worst case about $4).
+   decide and the model calls for the rest. Apply within R17's ceiling (worst case about $4).
 2. Measure against the study's labels and the operator's 22 answers
    (`storage/scratch/talk-type-rules-20261111/final-labels.json`, `operator-answers-20261112.json`).
    The held-out half was seen during rule refinement, so this measure is optimistic. The
@@ -2006,12 +2030,13 @@ settle (an unnamed speaker among it, P8), and the release decisions reserved to 
 (C1, G4). W11 and W12 remove the per-service talk-type confirmation and most speaker naming.
 Count what is left per service in W9, on the round, and in W17 (Q15).
 
-**Operator decisions, to put together:** the ceiling for paid measurement calls (W3, W4, W11:
-about $10 at the 11-17 prices); the song-end timing route after W3's measurement; the bars for
-automatic talk types and speaker names, once measured (W11, W12); W5's residue list; review of
-service 569 (W8); the server visit (W10); dispatch authority (W14); where the originals from
-2026-08-30 are (W17). Decided 11-17: the three converted batch-only tests from `wp74` are kept;
-1019 stays held into the round as named residue.
+**Operator decisions, to put together:** the song-end timing route after W3's measurement; the
+bars for automatic talk types and speaker names, once measured (W11, W12); whether a birthday song
+makes a clip (W5); the edge cases left after W5, once, at W13; review of service 569 (W8); the
+server visit (W10); dispatch authority (W14); where the originals from 2026-08-30 are (W17).
+Decided 11-17: the $12 ceiling for paid measurement calls (R17); classes are resolved, not
+parked (G16); the three converted batch-only tests from `wp74` are kept; 1019 stays held into
+the round as named residue (X15).
 
 **Status: planned 11-10 from a review the operator asked for; nothing built, run or decided by
 this section.** The operator wants the next round to be the last and as much automation as is
