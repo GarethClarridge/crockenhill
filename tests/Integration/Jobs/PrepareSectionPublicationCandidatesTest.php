@@ -1693,8 +1693,18 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
         $this->assertSame($firstUpdatedAt, $section->updated_at?->toISOString());
     }
 
+    /** @return array<string, array{ServiceSectionPublicationStatus}> */
+    public static function automaticSongPublicationStates(): array
+    {
+        return [
+            'fresh' => [ServiceSectionPublicationStatus::NotApplicable],
+            'already pending' => [ServiceSectionPublicationStatus::PendingApproval],
+        ];
+    }
+
     #[Test]
-    public function it_dispatches_auto_publish_for_confirmed_song_sections(): void
+    #[DataProvider('automaticSongPublicationStates')]
+    public function it_dispatches_auto_publish_for_confirmed_song_sections(ServiceSectionPublicationStatus $initialStatus): void
     {
         Storage::fake('local');
         Storage::fake('public');
@@ -1731,7 +1741,7 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
             'section_type' => ServiceSectionType::Song->value,
             'status' => ServiceSectionStatus::Identified->value,
             'needs_manual_review' => false,
-            'publication_status' => ServiceSectionPublicationStatus::NotApplicable->value,
+            'publication_status' => $initialStatus,
             'song_match_type' => ServiceSectionSongMatchType::Confirmed->value,
             'metadata' => ['confidence_level' => 'high'],
             'start_time' => 60.0,
@@ -1756,8 +1766,8 @@ class PrepareSectionPublicationCandidatesTest extends TestCase
 
         $section->refresh();
 
-        // Song sections do NOT go to PENDING_APPROVAL — they dispatch auto-publish instead.
-        $this->assertNotSame(ServiceSectionPublicationStatus::PendingApproval, $section->publication_status);
+        // Preparation queues both shapes; automatic approval owns the pending transition.
+        $this->assertSame($initialStatus, $section->publication_status);
         $this->assertNotNull($section->extracted_video_path);
         $this->assertNull($section->extracted_audio_path);
         $this->assertNotNull($section->extracted_at);

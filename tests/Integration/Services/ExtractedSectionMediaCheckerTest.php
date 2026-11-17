@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace Tests\Integration\Services;
 
 use App\Enums\ServiceSectionType;
+use App\Models\MediaProcessingLog;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
+use App\Services\ChurchService\SectionPublication\SongPublicationHandler;
+use App\Services\ChurchService\SectionPublication\TalkPublicationHandler;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
+use App\Services\HistoricMedia\HistoricStagingGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
@@ -28,6 +33,42 @@ class ExtractedSectionMediaCheckerTest extends TestCase
         Storage::fake('public');
         Storage::fake('local');
         Config::set('media-processing.storage.sermon_disk', 'public');
+    }
+
+    #[Test]
+    public function all_reuse_checks_resolve_the_recorded_context_and_preserve_an_active_one(): void
+    {
+        config(['filesystems.disks.wp74_checker' => ['driver' => 'local', 'root' => storage_path('framework/testing/disks/wp74_checker')]]);
+        Storage::fake('wp74_checker');
+        config([
+            'media-processing.storage.historic_staging_disk' => 'wp74_checker',
+            'media-processing.storage.sermon_disk' => 'wp74_checker',
+            'media-processing.storage.transcript_disk' => 'wp74_checker',
+        ]);
+        HistoricStagingGuard::resetBaselineForTesting();
+        $context = app(HistoricStagingGuard::class)->contextForApprovedPlan(str_repeat('e', 64), str_repeat('f', 64));
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'processing_metadata' => ['historic_import' => ['staging_context' => $context->toArray()]],
+        ]);
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song,
+            'asset_disk' => 'wp74_checker',
+            'extracted_video_path' => 'section/video.mp4',
+            'extracted_audio_path' => 'section/audio.mp3',
+        ]);
+        Storage::disk('wp74_checker')->put($context->batchRoot.'/section/video.mp4', 'video');
+        Storage::disk('wp74_checker')->put($context->batchRoot.'/section/audio.mp3', 'audio');
+        $registry = app(HistoricStagingContextRegistry::class);
+        $this->assertTrue($this->service->hasExtractedMedia($section));
+        $this->assertTrue(app(SongPublicationHandler::class)->hasReusableExtractedMedia($section));
+        $registry->within($context, function () use ($registry, $section, $context): void {
+            $section->section_type = ServiceSectionType::ShortTalk;
+            $this->assertTrue(app(TalkPublicationHandler::class)->hasReusableExtractedMedia($section));
+            $this->assertSame($context, $registry->activeContext());
+        });
+        $this->assertFalse($registry->isActive());
+        $this->assertFalse(Storage::disk('wp74_checker')->exists('section/video.mp4'));
     }
 
     #[Test]

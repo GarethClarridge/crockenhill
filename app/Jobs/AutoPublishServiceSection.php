@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use App\Contracts\SectionPublicationHandler;
+use App\Actions\Publication\ApproveSectionForPublication;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\HistoricImportNestedJob;
 use App\Models\ServiceSection;
+use App\Services\ChurchService\SectionPublication\AutomaticPublicationJudgement;
 use App\Services\ChurchService\SectionPublication\SectionPublicationHandlerFactory;
-use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
@@ -18,28 +18,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
-/**
- * Publish one section the preparation step judged eligible.
- *
- * **Eligibility is re-asked here, not inherited from the dispatch.**
- * {@see PrepareSectionPublicationCandidates} decides what may publish and then
- * queues this, so between the two there is a window in which a section can
- * acquire a hold, lose its handler eligibility, come to require approval, or
- * have its owning run retired. Nothing in the queue payload notices, and the
- * publication transition table only closes half the door: it refuses
- * `pending_approval` and `rejected`, but `not_applicable` and `approved` may
- * both become `published`, and those are the states a section sits in while it
- * waits.
- *
- * That window is not hypothetical. The 2026-09-09 repetition screen raised holds
- * on 194 sections, 157 of them `not_applicable`; a job queued a moment earlier
- * would have published every one of them over its own hold.
- *
- * So this fails closed on anything that changed, leaving the section for review
- * rather than publishing it. A section that is genuinely still eligible is
- * unaffected — the questions are the same ones preparation asked, asked again
- * under the row lock that makes the answer current.
- */
+/** Re-ask preparation's judgement under a row lock before publishing or approving a pending cut. */
 class AutoPublishServiceSection implements ShouldQueue
 {
     use InteractsWithQueue;
@@ -97,7 +76,7 @@ class AutoPublishServiceSection implements ShouldQueue
                 return;
             }
 
-            if ($section->publication_status === ServiceSectionPublicationStatus::Published) {
+            if (in_array($section->publication_status, [ServiceSectionPublicationStatus::Published, ServiceSectionPublicationStatus::Approved], true)) {
                 return;
             }
 
@@ -106,7 +85,11 @@ class AutoPublishServiceSection implements ShouldQueue
                 throw new \RuntimeException('No publication handler registered for section type: '.$section->section_type->value);
             }
 
-            $withheld = $this->reasonToWithhold($section, $handler);
+            $withheld = app(AutomaticPublicationJudgement::class)->reasonToWithhold($section, $handler);
+
+            if ($section->isDirty()) {
+                $section->save();
+            }
 
             if ($withheld !== null) {
                 // Deliberately not an exception. The section is not broken and
@@ -122,6 +105,20 @@ class AutoPublishServiceSection implements ShouldQueue
                 return;
             }
 
+            if ($section->publication_status === ServiceSectionPublicationStatus::PendingApproval) {
+                $error = app(ApproveSectionForPublication::class)->execute($section, [
+                    'source' => 'automatic',
+                    'action' => 'advance_clean_pending_section',
+                    'approved_at' => now()->toIso8601String(),
+                    'approved_by_user_id' => null,
+                ]);
+                if ($error !== null) {
+                    throw new \RuntimeException($error);
+                }
+
+                return;
+            }
+
             $handler->publish($section);
         });
 
@@ -130,58 +127,6 @@ class AutoPublishServiceSection implements ShouldQueue
             $nestedJob->settled_at = now();
             $nestedJob->save();
         }
-    }
-
-    /**
-     * Why this section may no longer publish, or null when it still may.
-     *
-     * Three facts that can lapse between dispatch and execution, and only facts:
-     * the owning run's retirement — a retired run's result is withdrawn, so
-     * publishing from it would republish a conclusion the import has already
-     * taken back — the review hold, and the handler's own eligibility. Both
-     * `isEligible()` implementations are pure reads, so asking again here costs
-     * nothing and changes nothing.
-     *
-     * `requiresApproval()` is deliberately **not** re-asked, though the 2026-09-09
-     * review lists it. It is not a predicate: the song handler's version runs the
-     * publication review policy and writes the boundary evidence and review
-     * reasons back onto the section. It is a decide-and-record step owned by
-     * {@see PrepareSectionPublicationCandidates}, which calls it only after
-     * `afterExtraction()` has supplied what the assessment reads — so re-deriving
-     * it here answers from inputs this job does not own, and a regression proved
-     * it: the guard withheld a section that publishes correctly today.
-     *
-     * Nothing is lost by leaving it out. A section that came to require approval
-     * during preparation was transitioned to `pending_approval`, which
-     * {@see ServiceSectionPublicationTransitionService} refuses to `published`. That
-     * refusal is asked here, before the handler runs, as a pure read: left to the
-     * handler it once came after the candidate had moved (1223, 2026-10-10). For the
-     * states the table permits — `not_applicable` and `approved` — the hold is the
-     * durable expression of "a reviewer must look".
-     */
-    private function reasonToWithhold(ServiceSection $section, SectionPublicationHandler $handler): ?string
-    {
-        // The relation is not guarded: `media_processing_log_id` is non-nullable
-        // and the rest of the codebase reads it the same way.
-        if ($section->processingLog->isRetired()) {
-            return 'the owning run has been retired';
-        }
-
-        if ($section->needs_manual_review) {
-            return 'the section has been held for manual review';
-        }
-
-        // A state the transition table will refuse, such as `pending_approval` reached after
-        // the job was queued (1223, 2026-10-10), is a lapsed answer, not a failed job.
-        if (! app(ServiceSectionPublicationTransitionService::class)->canTransition($section, ServiceSectionPublicationStatus::Published)) {
-            return sprintf('the section may not become published from %s', $section->publication_status->value);
-        }
-
-        if (! $handler->isEligible($section)) {
-            return 'the section is no longer eligible for publication';
-        }
-
-        return null;
     }
 
     public function failed(\Throwable $exception): void

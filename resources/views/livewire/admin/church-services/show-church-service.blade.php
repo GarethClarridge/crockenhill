@@ -49,7 +49,7 @@
             @endif
         </div>
 
-        @if($confirmableSectionCount > 0 || ($sectionPublishingEnabled && $pendingApprovalCount > 0))
+        @if($confirmableSectionCount > 0)
             <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-200 pt-4">
                 @if($confirmableSectionCount > 0)
                     <x-form-button
@@ -65,18 +65,7 @@
                     </x-form-button>
                 @endif
 
-                @if($sectionPublishingEnabled && $pendingApprovalCount > 0)
-                    <x-form-button
-                        type="button"
-                        variant="primary"
-                        size="sm"
-                        wire:click="approvePendingPublications({{ $churchService->id }})"
-                        wire:target="approvePendingPublications({{ $churchService->id }})"
-                        wire:loading.attr="disabled"
-                    >
-                        Approve pending publications ({{ $pendingApprovalCount }})
-                    </x-form-button>
-                @endif
+
             </div>
         @endif
     </x-card>

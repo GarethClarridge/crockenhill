@@ -1044,7 +1044,6 @@ class ShowChurchServiceTest extends TestCase
             fn ($component) => $component->call('saveSection', $section->id),
             fn ($component) => $component->call('confirmSection', $section->id),
             fn ($component) => $component->call('confirmAllSections', $service->id),
-            fn ($component) => $component->call('approvePendingPublications', $service->id),
             // The confirmMerge() authorization gap from the dashboard must not be copied (C4),
             // and the pending-merge state setters are guarded too.
             fn ($component) => $component->call('initiateMerge', $section->id, $section->id),
@@ -1063,7 +1062,7 @@ class ShowChurchServiceTest extends TestCase
     }
 
     #[Test]
-    public function it_offers_batch_approval_when_publications_are_pending(): void
+    public function it_keeps_individual_approval_without_a_batch_approval_button(): void
     {
         [$service, $run] = $this->workbenchServiceWithRun();
 
@@ -1074,9 +1073,10 @@ class ShowChurchServiceTest extends TestCase
 
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $service])
-            ->assertSee('Approve pending publications (1)')
-            ->call('approvePendingPublications', $service->id)
-            ->assertDispatched('notify');
+            ->assertDontSee('Approve pending publications')
+            ->assertSee('wire:click="approve(', false);
+
+        $this->assertFalse(method_exists(ShowChurchService::class, 'approvePendingPublications'));
     }
 
     // -------------------------------------------------------------------------

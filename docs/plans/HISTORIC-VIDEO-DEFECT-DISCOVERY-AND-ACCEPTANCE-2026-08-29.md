@@ -1881,7 +1881,23 @@ production. Each row below moves one of them ahead of the freeze.
   cuts as named residue. A released section already in pending approval stays there today (the
   auto-publish job refuses pending to published; 10 of the 11 releases, and 69 of the 463 stale-cut
   sections are pending with no reason). G14 removes that step for sections with no reason, flag or
-  hold: **design and build owed before the freeze**; C1's release batch is unchanged.
+  hold; C1's release batch is unchanged.
+  **G14 built 11-17 (WP73 comparison, WP74 build):** `AutoPublishServiceSection` asks one fresh
+  judgement (`AutomaticPublicationJudgement`: retirement, holds, blocking flags, eligibility, fresh
+  `requiresApproval`, extraction block, candidate staleness, media present) for a new candidate and
+  for one already pending, under its row lock; a clean pending section advances through
+  `ApproveSectionForPublication` with `source=automatic`. No new transition, no sweep. The batch
+  approve action and its workbench button are removed; its tests are converted, none deleted (three
+  cover retired batch-only behaviour and await a deletion ruling). The comparison found one
+  difference among the 164 clean-labelled songs: the approval action looked for the clip outside
+  the run's recorded staging context and refused six existing clips;
+  `ExtractedSectionMediaChecker` now reads inside that context for every caller. Read-only forecast
+  over the 329 pending historic songs: 170 advance (160 of the 164, plus the 10 releases above),
+  159 held (154 fresh review reasons, 3 stale candidates §3771/§3773/§3775, 2 manual review);
+  §2072 held by today's trailing reason. All 170 are reached by the round's ordinary preparation
+  (102 reuse, 68 recut). Nothing was advanced. Not listened to: eight songs with few transcribed
+  words (1843, 1845, 2531, 3438, 3010, 3462, 3922, 4208) all carry music and pass. Evidence:
+  `storage/scratch/sol-20261116/wp73`, `wp74`.
 - **Row 12 built 11-16 (`c0e81c4d6`, WP62):** clamped section ends
   (`SermonExtractionPlanResolver::endWithinRecording`), dependent-opening windows read from the
   plan's own audit (`DependentSongOpening::plannedWindows`), exposed edges from `plannedParts`

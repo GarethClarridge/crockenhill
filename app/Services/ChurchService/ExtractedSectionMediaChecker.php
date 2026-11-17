@@ -6,6 +6,7 @@ namespace App\Services\ChurchService;
 
 use App\Enums\ServiceSectionType;
 use App\Models\ServiceSection;
+use App\Services\HistoricMedia\HistoricStagingContextRegistry;
 use Illuminate\Support\Facades\Storage;
 
 class ExtractedSectionMediaChecker
@@ -25,8 +26,13 @@ class ExtractedSectionMediaChecker
             return false;
         }
 
-        $disk = Storage::disk($section->extractedAssetDisk());
+        $read = static function () use ($section, $videoPath, $audioPath): bool {
+            $disk = Storage::disk($section->extractedAssetDisk());
 
-        return $disk->exists($videoPath) && ($audioPath === null || $disk->exists($audioPath));
+            return $disk->exists($videoPath) && ($audioPath === null || $disk->exists($audioPath));
+        };
+        $context = $section->processingLog->historicStagingContext();
+
+        return $context === null ? $read() : app(HistoricStagingContextRegistry::class)->within($context, $read);
     }
 }

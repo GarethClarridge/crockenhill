@@ -12,6 +12,7 @@ use App\Enums\ServiceSectionPublicationStatus;
 use App\Models\ChurchServiceItem;
 use App\Models\ServiceSection;
 use App\Models\SongVideo;
+use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
 use App\Services\HistoricMedia\HistoricAssetPromotion;
 use App\Services\Media\ExtractedMediaDurationProbe;
@@ -71,13 +72,7 @@ class SongPublicationHandler implements SectionPublicationHandler
      */
     public function hasReusableExtractedMedia(ServiceSection $section): bool
     {
-        $videoPath = $section->extracted_video_path;
-
-        if (! is_string($videoPath) || $videoPath === '') {
-            return false;
-        }
-
-        return Storage::disk($section->extractedAssetDisk())->exists($videoPath);
+        return app(ExtractedSectionMediaChecker::class)->hasExtractedMedia($section);
     }
 
     /**

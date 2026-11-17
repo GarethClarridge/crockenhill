@@ -58,6 +58,41 @@ class ApproveSectionForPublicationTest extends TestCase
     // -------------------------------------------------------------------------
 
     #[Test]
+    public function approval_checks_media_only_in_the_runs_recorded_batch_root(): void
+    {
+        Queue::fake();
+        config(['filesystems.disks.wp74_staging' => ['driver' => 'local', 'root' => storage_path('framework/testing/disks/wp74_staging')]]);
+        Storage::fake('wp74_staging');
+        config([
+            'media-processing.storage.historic_staging_disk' => 'wp74_staging',
+            'media-processing.storage.sermon_disk' => 'wp74_staging',
+            'media-processing.storage.transcript_disk' => 'wp74_staging',
+        ]);
+        HistoricStagingGuard::resetBaselineForTesting();
+        $context = app(HistoricStagingGuard::class)->contextForApprovedPlan(str_repeat('a', 64), str_repeat('b', 64));
+        $run = MediaProcessingLog::factory()->livestream()->create([
+            'processing_metadata' => ['historic_import' => ['staging_context' => $context->toArray()]],
+        ]);
+        $section = $this->makePendingSection([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::Song,
+            'extracted_video_path' => 'sections/batch-only.mp4',
+            'extracted_audio_path' => null,
+            'asset_disk' => 'wp74_staging',
+        ]);
+        Storage::disk('wp74_staging')->put($context->batchRoot.'/sections/batch-only.mp4', 'video');
+        $this->assertFalse(Storage::disk('wp74_staging')->exists('sections/batch-only.mp4'));
+        $this->assertNull($this->action->execute($section));
+        $this->assertSame(ServiceSectionPublicationStatus::Approved, $section->fresh()->publication_status);
+        $this->assertFalse(app(HistoricStagingContextRegistry::class)->isActive());
+        Queue::assertPushed(PublishApprovedServiceSection::class);
+
+        $section->update(['publication_status' => ServiceSectionPublicationStatus::PendingApproval, 'extracted_video_path' => 'sections/genuinely-missing.mp4']);
+        $this->assertSame('Section media is missing. Reclassify and prepare candidates again.', $this->action->execute($section));
+        $this->assertSame(ServiceSectionPublicationStatus::PendingApproval, $section->fresh()->publication_status);
+    }
+
+    #[Test]
     public function it_returns_error_when_extracted_paths_are_empty(): void
     {
         $section = $this->makePendingSection([
@@ -158,7 +193,7 @@ class ApproveSectionForPublicationTest extends TestCase
 
         $this->assertNull($this->action->execute($section));
 
-        $this->assertSame(['batches/20261022-approval'], $registry->observed);
+        $this->assertSame(['batches/20261022-approval (queued after the context ended)', 'batches/20261022-approval'], $registry->observed);
         Queue::assertPushed(PublishApprovedServiceSection::class);
     }
 

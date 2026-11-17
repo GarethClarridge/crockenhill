@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Livewire\Admin\ChurchServices\Concerns;
 
-use App\Actions\ServiceReview\BatchApproveServicePublications;
 use App\Actions\ServiceReview\ConfirmServiceSection;
 use App\Actions\ServiceReview\ConfirmServiceSections;
 use App\Actions\ServiceReview\MarkServiceReviewed;
@@ -104,8 +103,6 @@ trait ReviewsServiceSections
 
     protected ConfirmServiceSections $confirmSectionsAction;
 
-    protected BatchApproveServicePublications $batchApproveAction;
-
     protected MergeAdjacentServiceSections $mergeAction;
 
     protected MergeInterruptedTalk $interruptedTalkMergeAction;
@@ -118,7 +115,6 @@ trait ReviewsServiceSections
         ConfirmServiceSection $confirmSectionAction,
         ConfirmServiceSections $confirmSectionsAction,
         MarkServiceReviewed $markReviewedAction,
-        BatchApproveServicePublications $batchApproveAction,
         MergeAdjacentServiceSections $mergeAction,
         MergeInterruptedTalk $interruptedTalkMergeAction,
         SplitServiceSection $splitAction,
@@ -128,7 +124,6 @@ trait ReviewsServiceSections
         $this->confirmSectionAction = $confirmSectionAction;
         $this->confirmSectionsAction = $confirmSectionsAction;
         $this->markReviewedAction = $markReviewedAction;
-        $this->batchApproveAction = $batchApproveAction;
         $this->mergeAction = $mergeAction;
         $this->interruptedTalkMergeAction = $interruptedTalkMergeAction;
         $this->splitAction = $splitAction;
@@ -366,49 +361,6 @@ trait ReviewsServiceSections
         }
 
         $this->success('Service marked as reviewed.');
-    }
-
-    public function approvePendingPublications(int $serviceId): void
-    {
-        $this->authorizeAdmin();
-
-        $service = ChurchService::query()->find($serviceId);
-        if (! $service instanceof ChurchService) {
-            $this->error('Service not found.');
-
-            return;
-        }
-
-        $result = $this->batchApproveAction->execute($service, $this->reviewingUserId());
-
-        $approvedCount = $result['approved_count'];
-        $skippedReasons = $result['skipped_reasons'];
-
-        if ($approvedCount === 0) {
-            $this->error(sprintf(
-                'No sections were batch-approved. %s',
-                $this->formatBatchApprovalSkipSummary($skippedReasons)
-            ));
-
-            return;
-        }
-
-        if ($skippedReasons === []) {
-            $this->success(sprintf(
-                'Approved all %d pending %s for this service.',
-                $approvedCount,
-                Str::plural('publication', $approvedCount)
-            ));
-
-            return;
-        }
-
-        $this->success(sprintf(
-            'Approved %d pending %s. %s',
-            $approvedCount,
-            Str::plural('publication', $approvedCount),
-            $this->formatBatchApprovalSkipSummary($skippedReasons)
-        ));
     }
 
     public function initiateMerge(int $sectionIdA, int $sectionIdB): void
