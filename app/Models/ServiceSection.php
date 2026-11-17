@@ -399,6 +399,15 @@ class ServiceSection extends Model
             || $this->publicationTalkType() !== null;
     }
 
+    /**
+     * A short talk answered "not a talk": withheld, and no longer a talk-type question.
+     */
+    public function isWithheldTalk(): bool
+    {
+        return $this->section_type === ServiceSectionType::ShortTalk
+            && ($this->metadata?->talkType?->isWithheld() ?? false);
+    }
+
     public function hasResolvedTalkSpeaker(): bool
     {
         return $this->section_type !== ServiceSectionType::ShortTalk

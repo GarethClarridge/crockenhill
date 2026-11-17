@@ -81,6 +81,33 @@ class TalkPublicationHandlerTest extends TestCase
     }
 
     #[Test]
+    public function approval_is_skipped_only_for_a_resolved_non_testimony_type_with_a_resolved_speaker(): void
+    {
+        $speaker = ['reviewed' => ['preacher_name' => 'A. Speaker', 'source' => 'manual']];
+        $make = fn (array $metadata): ServiceSection => ServiceSection::factory()->make([
+            'section_type' => ServiceSectionType::ShortTalk, 'metadata' => $metadata,
+        ]);
+
+        $this->assertTrue($this->handler->requiresApproval($make(['talk_speaker' => $speaker])), 'no type');
+        $this->assertTrue($this->handler->requiresApproval($make(['talk_type' => ['reviewed' => ['value' => 'childrens_talk']]])), 'no speaker');
+        $this->assertTrue($this->handler->requiresApproval($make(['talk_type' => ['reviewed' => ['value' => 'testimony']], 'talk_speaker' => $speaker])), 'testimony withheld by G10');
+        $this->assertFalse($this->handler->requiresApproval($make(['talk_type' => ['reviewed' => ['value' => 'childrens_talk']], 'talk_speaker' => $speaker])));
+    }
+
+    #[Test]
+    public function a_withheld_short_talk_is_not_eligible(): void
+    {
+        $section = ServiceSection::factory()->make([
+            'section_type' => ServiceSectionType::ShortTalk, 'confidence' => 0.99,
+            'metadata' => ['talk_type' => ['reviewed' => ['value' => 'none', 'source' => 'automatic']]],
+        ]);
+        $this->assertFalse($this->handler->isEligible($section));
+
+        $section->metadata = ServiceSectionMetadata::fromArray(['talk_type' => ['reviewed' => ['value' => 'childrens_talk']]]);
+        $this->assertTrue($this->handler->isEligible($section));
+    }
+
+    #[Test]
     public function it_checks_reusable_media_requires_both_video_and_audio(): void
     {
         Storage::fake('public');

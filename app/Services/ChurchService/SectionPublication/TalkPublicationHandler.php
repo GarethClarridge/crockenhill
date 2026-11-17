@@ -10,6 +10,7 @@ use App\Data\ServiceSectionMetadata;
 use App\Enums\AudioProfile;
 use App\Enums\ServiceSectionPublicationStatus;
 use App\Enums\ServiceSectionType;
+use App\Enums\TalkType;
 use App\Models\ServiceSection;
 use App\Services\ChurchService\ExtractedSectionMediaChecker;
 use App\Services\ChurchService\ServiceSectionPublicationTransitionService;
@@ -87,6 +88,10 @@ class TalkPublicationHandler implements SectionPublicationHandler
      */
     public function isEligible(ServiceSection $section): bool
     {
+        if ($section->isWithheldTalk()) {
+            return false;
+        }
+
         $requireHighConfidence = (bool) config('media-processing.section_publishing.require_high_confidence', true);
 
         return ! $requireHighConfidence || ($section->confidence ?? 0.0) >= ServiceSectionConfidence::HIGH_THRESHOLD;
@@ -109,11 +114,17 @@ class TalkPublicationHandler implements SectionPublicationHandler
     }
 
     /**
-     * {@inheritDoc}
+     * A talk publishes without approval only when nothing needs the operator's judgement (G14):
+     * its type is resolved, it is not a testimony (G10 withholds standalone testimonies by
+     * default), and a named speaker is resolved (P8: an unnamed speaker waits for the operator).
      */
     public function requiresApproval(ServiceSection $section): bool
     {
-        return true;
+        $type = $section->publicationTalkType();
+
+        return $type === null
+            || $type === TalkType::Testimony
+            || ! $section->hasResolvedTalkSpeaker();
     }
 
     /**

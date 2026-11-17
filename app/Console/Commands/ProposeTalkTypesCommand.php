@@ -80,6 +80,13 @@ class ProposeTalkTypesCommand extends Command
         return $failed ? self::FAILURE : self::SUCCESS;
     }
 
+    private function automaticOutcome(ServiceSection $section): string
+    {
+        $reviewed = $section->metadata?->talkType?->reviewed;
+
+        return ($reviewed['source'] ?? null) === 'automatic' ? (string) ($reviewed['value'] ?? '-') : '-';
+    }
+
     private function proposalSummary(ServiceSection $section): string
     {
         $proposal = $section->metadata?->talkType?->proposal();
@@ -89,6 +96,7 @@ class ProposeTalkTypesCommand extends Command
             .' proposal_status='.($proposal->status ?? 'none')
             .' testimony_risk='.(($proposal?->signals['testimony_risk'] ?? false) ? 'yes' : 'no')
             .' reviewed_type='.($section->publicationTalkType()->value ?? 'none')
-            .' publication_status='.$section->publication_status->value;
+            .' publication_status='.$section->publication_status->value
+            .' confirmed_automatically='.$this->automaticOutcome($section);
     }
 }

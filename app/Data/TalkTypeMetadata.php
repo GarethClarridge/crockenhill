@@ -54,6 +54,14 @@ final readonly class TalkTypeMetadata extends JsonData
     }
 
     /**
+     * Answered "not a talk", by the operator or automatically (T11): nothing is published for it.
+     */
+    public function isWithheld(): bool
+    {
+        return ($this->reviewed['value'] ?? null) === 'none';
+    }
+
+    /**
      * The series the operator accepted with the confirmed type, never the proposed
      * series, and never without a confirmed type.
      */

@@ -161,6 +161,46 @@ class TalkTypeProposalTest extends TestCase
         $this->assertSame($before, $section->fresh()->getRawOriginal());
     }
 
+    #[Test]
+    public function persist_stores_an_automatic_confirmation_and_leaves_an_operator_answer(): void
+    {
+        $section = $this->section();
+        $metadata = $section->metadata->toArray();
+        unset($metadata['talk_type']['reviewed']);
+        $section->update(['metadata' => $metadata]);
+        $input = app(TalkTypeInputBuilder::class)->build($section->fresh(), ['classifier' => 'b1']);
+        $proposal = new TalkTypeProposal(proposed: TalkType::ChildrensTalk, disposition: 'proposed', confidence: 0.98, decidedBy: 'model');
+
+        $this->assertSame('stored', app(ProposeTalkType::class)->persist($input, $proposal));
+
+        $reviewed = $section->fresh()->metadata->talkType->reviewed;
+        $this->assertSame('childrens_talk', $reviewed['value']);
+        $this->assertSame('automatic', $reviewed['source']);
+        $this->assertSame(TalkType::ChildrensTalk, $section->fresh()->publicationTalkType());
+
+        $operator = $this->section();
+        $operatorInput = app(TalkTypeInputBuilder::class)->build($operator, ['classifier' => 'b1']);
+        app(ProposeTalkType::class)->persist($operatorInput, $proposal);
+        $this->assertSame('partner_update', $operator->fresh()->metadata->talkType->reviewed['value']);
+    }
+
+    #[Test]
+    public function persist_withholds_a_not_a_talk_proposal_and_demotes_a_changed_one(): void
+    {
+        $section = $this->section();
+        $metadata = $section->metadata->toArray();
+        unset($metadata['talk_type']['reviewed']);
+        $section->update(['metadata' => $metadata]);
+        $action = app(ProposeTalkType::class);
+        $input = app(TalkTypeInputBuilder::class)->build($section->fresh(), ['classifier' => 'b1']);
+        $action->persist($input, new TalkTypeProposal(disposition: 'not_a_talk', decidedBy: 'model', confidence: null));
+        $this->assertTrue($section->fresh()->metadata->talkType->isWithheld());
+
+        $next = app(TalkTypeInputBuilder::class)->build($section->fresh(), ['classifier' => 'b2']);
+        $action->persist($next, new TalkTypeProposal(proposed: TalkType::PartnerUpdate, disposition: 'proposed', confidence: 0.99, decidedBy: 'model'));
+        $this->assertNull($section->fresh()->metadata->talkType->reviewed);
+    }
+
     private function section(): ServiceSection
     {
         return ServiceSection::factory()->create([

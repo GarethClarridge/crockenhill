@@ -742,6 +742,7 @@ class ServiceReviewDashboardQuery
     private function needsTalkTypeReview(ServiceSection $section): bool
     {
         return ! $section->hasResolvedTalkType()
+            && ! $section->isWithheldTalk()
             && ! in_array($section->publication_status, self::TalkTypeSettledStatuses, true);
     }
 

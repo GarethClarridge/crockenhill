@@ -228,6 +228,31 @@ class ProposeTalkTypesCommandTest extends TestCase
     }
 
     #[Test]
+    public function rerun_applies_automatic_confirmation_to_an_unchanged_proposal_without_a_model_call(): void
+    {
+        $section = $this->section();
+        $this->mock(TalkTypeClassifier::class)->shouldReceive('classify')->once()
+            ->andReturn(new TalkTypeProposal(proposed: TalkType::ChildrensTalk, disposition: 'proposed', confidence: 0.97, decidedBy: 'model', reasons: ['family']));
+        $this->artisan('service:propose-talk-types', ['--section' => [$section->id], '--apply' => true])
+            ->expectsOutputToContain('confirmed_automatically=childrens_talk')->assertSuccessful();
+
+        $metadata = $section->fresh()->metadata->toArray();
+        unset($metadata['talk_type']['reviewed']);
+        $section->update(['metadata' => $metadata]);
+        $this->assertNull($section->fresh()->publicationTalkType());
+
+        $this->artisan('service:propose-talk-types', ['--section' => [$section->id], '--apply' => true])
+            ->expectsOutputToContain('confirmed_automatically=childrens_talk')->assertSuccessful();
+        $reviewed = $section->fresh()->metadata->talkType->reviewed;
+        $this->assertSame('childrens_talk', $reviewed['value']);
+        $this->assertSame('automatic', $reviewed['source']);
+
+        $before = $section->fresh()->getRawOriginal();
+        $this->artisan('service:propose-talk-types', ['--section' => [$section->id], '--apply' => true])->assertSuccessful();
+        $this->assertSame($before, $section->fresh()->getRawOriginal());
+    }
+
+    #[Test]
     public function mixed_explicit_selection_reports_each_superseded_id(): void
     {
         $kept = $this->section();

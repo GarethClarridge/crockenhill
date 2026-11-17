@@ -64,12 +64,29 @@ class ShowChurchServiceTest extends TestCase
             'media_processing_log_id' => $run->id,
             'section_type' => ServiceSectionType::ShortTalk,
             'metadata' => ['talk_type' => ['reviewed' => ['value' => 'none']]],
+            'needs_manual_review' => true,
         ]);
 
         Livewire::actingAs($this->admin)
             ->test(ShowChurchService::class, ['churchService' => $service])
             ->assertSet('sectionEdits.'.$section->id.'.talk_type', 'none');
         $this->assertFalse($section->hasResolvedTalkType());
+    }
+
+    /** A talk answered "not a talk" is withheld (T11) and is no longer a review candidate on its own. */
+    #[Test]
+    public function a_withheld_talk_with_no_other_reason_is_not_seeded_for_review(): void
+    {
+        [$service, $run] = $this->workbenchServiceWithRun();
+        $section = ServiceSection::factory()->create([
+            'media_processing_log_id' => $run->id,
+            'section_type' => ServiceSectionType::ShortTalk,
+            'metadata' => ['talk_type' => ['reviewed' => ['value' => 'none']]],
+            'needs_manual_review' => false,
+        ]);
+
+        $component = Livewire::actingAs($this->admin)->test(ShowChurchService::class, ['churchService' => $service]);
+        $this->assertArrayNotHasKey($section->id, $component->get('sectionEdits'));
     }
 
     #[Test]

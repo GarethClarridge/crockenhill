@@ -822,6 +822,20 @@ class ServiceReviewDashboardQueryTest extends TestCase
         $this->assertSame('talk type review required', $this->query->confirmationSkipReason($section));
     }
 
+    #[Test]
+    public function a_withheld_short_talk_is_not_a_talk_type_question(): void
+    {
+        $section = ServiceSection::factory()->create([
+            'section_type' => ServiceSectionType::ShortTalk,
+            'needs_manual_review' => false,
+            'confidence' => 0.99,
+            'publication_status' => ServiceSectionPublicationStatus::NotApplicable,
+            'metadata' => ['talk_type' => ['proposed' => null, 'reviewed' => ['value' => 'none', 'source' => 'automatic', 'rule' => 'T11']]],
+        ]);
+
+        $this->assertNotContains('talk_type_review', array_column($this->query->reviewReasons($section), 'key'));
+    }
+
     /**
      * A published or rejected talk can no longer be approved, so an unconfirmed
      * type on it is nothing to review.

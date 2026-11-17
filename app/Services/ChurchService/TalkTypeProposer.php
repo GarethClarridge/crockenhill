@@ -97,6 +97,8 @@ class TalkTypeProposer
         $current = $section->fresh()?->metadata?->talkType->raw ?? [];
         if (($current['input_hash'] ?? null) === $input->inputHash()
             && in_array($current['proposal_status'] ?? null, ['completed', 'unresolved'], true)) {
+            $this->persistence->confirmStored($section->id);
+
             return 'unchanged';
         }
         $proposal = $this->rules->evaluate($input);
