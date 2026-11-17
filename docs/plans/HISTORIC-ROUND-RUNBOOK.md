@@ -411,7 +411,9 @@ change frozen membership mid-pass. State the round's purpose and stopping condit
    production's transcription backend (R13), the frozen revision is one CI has passed, missing
    songs are added and synced (no catalogue edit is allowed once the round starts, §2.4), and the
    canary shows the round's measurements being written (redraw changes; time, CPU and cost per
-   stage; questions per service).
+   stage; questions per service). From 11-17 the checklist is worked as the video plan's work
+   packages W1–W13; the freeze record is W13's output (membership, routes, held list, named
+   residue).
 1. Freeze exact membership in the snapshot; settle transcript and structure dependencies before
    cutting; retain or exclude unresolved cases explicitly rather than widening the batch.
    Include every eligible sermon output in the K16 check, including runs whose last selected

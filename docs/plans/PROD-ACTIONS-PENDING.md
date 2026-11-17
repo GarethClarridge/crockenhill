@@ -7,6 +7,12 @@ they touch `.env.production` or production data rather than the repository.
 it begins with the speaker-identification items and should be added to as further
 deploy-time actions arise. Tick items off here when they are done, with the date.
 
+**2026-11-17:** none of these statuses has been checked since 10-16. The server visit
+(video plan §4.1f, work package W10) reconciles every item. Item 1 must be confirmed before any
+processing runs on production. Items 3 and 4 are settled before the production binding map is
+enumerated. The visit also records production's processing settings and capacity (transcription
+provider, `nproc`, memory, image contents), which this list has never covered.
+
 ---
 
 ## 1. Disable speaker identification (from `619634926`)

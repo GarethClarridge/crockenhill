@@ -10,6 +10,11 @@ checklist that makes that possible; nothing freezes until each of its rows is do
 **Weekly runs on production with the OpenAI Whisper API (operator 11-16, R13)**, so the checklist
 now also proves the rules on that backend before the freeze (rows 9–15).
 
+**Start here (11-17):** [§4.1f "Work packages to the last round"](#work-packages-to-the-last-round-review-2026-11-17--follow-these-the-text-below-is-the-record)
+is the ordered list of everything left (W1–W17), with a done-when for each and the operator
+decisions it needs. Everything else in §4 is the record behind it. Where they disagree, the work
+packages are current.
+
 This cleanup made no fresh corpus/production census and ran no processing. Detailed execution
 history through 11-06 is in the [archived record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-11-06.md).
 Use the current work below; an archived “next”, “owed” or “final round” is not a second backlog.
@@ -1686,6 +1691,9 @@ question rather than opening another whole-corpus discovery or processing round.
 
 ### 4.1e Speaker identification before the next run (proposed 2026-11-08)
 
+**11-17: scheduled before the freeze as work package W12 in §4.1f, with automatic naming as the
+target (register G15).** Nothing is built yet. The text below is the design W12 follows.
+
 **Status: go given 11-09 (operator: "We're going to do it"), not started.** The operator asked on
 11-08 to consider fixing and resuming speaker identification before the next processing run. On 11-09
 they authorised doing it as this section proposes: implementation, dependency changes, re-enrolment and
@@ -1781,6 +1789,230 @@ record the residual identity work explicitly.
 
 ### 4.1f Making the next round the last (review 2026-11-10)
 
+#### Work packages to the last round (review 2026-11-17) — follow these; the text below is the record
+
+Read-only review of the plans, register, 11-16/17 work packages, code, CI and the local database.
+Nothing was run. Where this block and the older text below disagree, this block is current.
+
+**Corrections to the older text.** The push landed: `origin/master` is `37a913cd6`. Production
+runs `61332ab29` (deployed 11-16 20:40 UTC, CI green). **HEAD `37a913cd6` is red in CI** and is
+not deployed. Run 944's replacement (run 20934, service 569) completed 11-16 with its Psalm 77
+address typed `sermon`. No data pass is in flight.
+
+**Rules for the agent doing the work.** One package at a time, in order. Check each dated claim
+against the code and database first. Failing test before a fix. No test or Dusk run during a data
+pass; tests only from the main checkout. Nothing here authorises a round, a paid call, a
+production change or a release: those are the operator's (list at the end). A build that moves a
+cut owes W13 again. Put evidence in `storage/scratch/<topic>-<date>-wpNN/report.md` and update
+the state column here in place; no diaries.
+
+| Row | State 11-17 | Package |
+|---|---|---|
+| 1 Edge evidence and complete replay | Passed on `9ec03a526` (11-14); owed on the candidate | W13 |
+| 2 Acceptance checks that mean reprocessing | Not started; the main risk of a second round | W9 |
+| 3 Open cut-changing items | Hold check, G14 and row 12 built; the rest need a disposition | W5 |
+| 4 Stopped runs | Done apart from named runs | W8 |
+| 5 Bytes and tags | Done; 49 sermons and 6 songs re-encode in the round (`peak-1055-20261112/pns-manifest.json`) | W13 |
+| 6 Production census and rehearsal | Tooling built; server visit owed | W10 |
+| 7 Talk-type detection and confirmation | Proposal built, never run on real sections; confirmation still manual; automate before the freeze (G15) | W11 |
+| 8 Repair route | Done 11-14 | — |
+| 9 Weekly backend | Chain failure fixed (`c6f90e508`); aligned timing on production and the measurement open | W3, W4 |
+| 10 Fresh-services trial | Moved after the round as the take-over validation (R16, 11-17) | W17 |
+| 11 CI-validated revision | HEAD red | W1, W13 |
+| 12 Windows derived twice | Built (`c0e81c4d6`); evidence top-up not counted | W13 |
+| 13 Missing songs | Seven listed (`sol-20261116/wp61/partA-missing-songs.md`); none added | W7 |
+| 14 Round measures | Time is recorded; redraw rate, CPU and cost are not (`wp61/partB-round-measures.md`) | W6 |
+| 15 Pending production actions | Not reconciled since 10-16 | W10 |
+| 16 Production configuration and capacity (new) | Unknown: droplet size, `.env.production` values, image contents, time per service | W10 |
+| 17 Speaker naming (new; G15) | §4.1e not started; 455 local sermons await a name | W12 |
+
+**W1 — Master green.** Three tests fail in CI only, all checking media inside a run's recorded
+staging context: `ExtractedSectionMediaCheckerTest::all_reuse_checks_…`,
+`SongPublicationHandlerTest::it_checks_reusable_media_passes_with_video_only`,
+`ApproveSectionForPublicationTest::approval_checks_media_only_in_the_runs_recorded_batch_root`.
+Compare the CI test environment (`.github/workflows/deploy.yml`) with `.env.testing`, reproduce,
+fix. *Done when* the Deploy workflow is green on HEAD. A green push deploys; that is safe while
+production processing is paused.
+
+**W2 — Put the operator decisions to the operator, once.** W3, W4, W5, W11 and W12 wait on them.
+Gather the "Operator decisions" list at the end of this block into one page or message: for each,
+the evidence in two or three sentences, the recommendation and the cost or risk (register Q11).
+Record each answer in the register with its date before the package that needs it starts.
+Some decisions need a measurement first: W3's route, and W11's and W12's bars. Put those once
+their numbers exist, not before. *Done when* each decision is answered or explicitly left open with what waits on it.
+
+**W3 — Song-end word timing on production: measure, then choose (row 9).** The WP63 brief's
+option A (whisper.cpp with DTW inside the production image) is **not adopted**. It would put a
+second transcriber beside the API, add about 1.6 GB to the image and about 3 GB of memory
+(estimates), and it rests on 28 of 31 heard endings against 25 of 31. Both of those figures are
+whisper.cpp; whisper-1 has never been scored. Score three arms on the 31 heard endings of 11-08
+(`storage/scratch/song-end-dtw-20261108/score.py`, targets `T`) and on every banked ruling on a
+song end: (a) local aligned DTW, the baseline; (b) whisper-1's own word times through the same
+agreement rule, as unaligned windows under their own rule identity; (c) no word rule, the
+fallback built in `c6f90e508` (the voice-track ending where stems exist, else the planner's cut).
+The 31 endings are 124 windows of 12 s, about 25 minutes of audio at whisper-1's $0.006 a minute
+(checked 11-17), so about $0.15. Even if each short request were billed as a full minute it would
+be under $1. Adopt (b) or (c) if it cuts no sung word and leaves no more speech than
+(a) on the material cases. Consider option A only if both lose material endings; W10's capacity
+figures then decide whether it fits. Whichever is chosen is one shared code path (G2). *Done
+when* the choice is ruled in the register, built, and an OpenAI-provider run prepares edges and
+plans cuts with no refusal. A change that moves cuts owes W13.
+
+**W4 — Measure whisper-1 against the rulings (row 9c).** Every edge threshold was fitted on
+whisper.cpp tokens; whisper-1 has never been scored, and on production it also makes the
+full-service transcript that structure and song matching read. Declare a sample of 10 services
+and a seed. Cost at the 11-17 prices: a 70-minute full transcript is about $0.42, its edge
+windows about $0.15, and four structure draws on gpt-5.6-luna about $0.10, so about $7 for 10
+services. Within the operator's ceiling for paid measurement calls; prepare edges and plan cuts with the OpenAI provider in a process of its own
+(evidence is namespaced by provider), read-only replay; compare with local cuts and banked
+rulings. *Done when* each difference class is fixed in shared code or named residue with a hold.
+
+**W5 — Dispose of each open cut-changing item (row 3).** Built and measured, or named residue;
+none stays pending. Default is residue with its hold unless a class has a measured fix (E23).
+**Size (11-14 inventory, `final-replay-20261114/inventory.jsonl`; recount on W13's inventory):**
+RA4 is 112 sections in 96 runs: 35 transcript-repetition suspects; 77 song-identity records
+(48 where the catalogue song exists and only the label differs, 8 missing songs for W7, 20
+unidentifiable, 12 of them "Happy Birthday", and 1 on an excluded run); 19 single-source and
+10 suspect-transcript identities; 4 title-marker mismatches. RA5 is 249 sections in 181 runs:
+103 + 70 low confidence, 42 same-type order-of-service inversions, 23 unresolved item types,
+19 talk audio dropouts, 18 untranscribed speech before a section, 14 micro-sections, 14 unowned
+speech beside a sermon, 11 interrupted talks, 8 talk fragments and 7 others. 67 of the RA5
+sections also wait on talk type or speaker, which W11 and W12 take. First candidate for a fix
+rather than residue: the 48 label-only song identities (register Q6, "a title variant is not a
+question"). Items: RA4 and RA5 class by class as above; the lyric-ended tail exemption
+(`wp60/brief.md`); speech inside a fade at 1293/3666 and 1290/3628; 1233's start; the no-passage
+stretches on 1044, 1258, 960, 1163; music under a prayer and speech missed inside a section (read
+from W13's replay); the lyric-protection check on rendered clips (fold into W9). Already named:
+18422/335851, 1218/2686, 1247/3092, §1572, §2718, the five breath cases.
+
+**W6 — Round measures (row 14).** Add a read-only redraw comparison to
+`structure:ensemble-batch-report`; take `video-pass-status --performance-report` before and after
+each stage; report cost from logged tokens and name what is unlogged; CPU as wall seconds times
+worker width unless the operator wants more. *Done when* the canary shows each.
+
+**W7 — Missing songs (row 13; register S12).** Add the songs to the **local** catalogue before
+the freeze, the way "Rejoice" was added on 10-21 (song 1162). Give each row its catalogue title,
+the lyrics seen on its slides (from the section's OCR metadata) and `import_metadata.local_addition`
+with `by`, `reason`, `added_at` and `evidence`, so the next OpenLP sync updates the same row by
+its canonical key and does not make a twin. The songs are My God How Wonderful Thou Art, Great
+Providence of Heaven, Christ the Word from Everlasting, Did You Know?, Strength Will Rise and
+Creation Sings the Father's Song (sections and first lines in `sol-20261116/wp61/partA-missing-songs.md`).
+"Welcome Home" is added only once section 4345 is shown to be that song. Then list every local
+addition, 1162 included, in the song curation plan as "to add to OpenLP" for the operator. No merge
+and no identity change. The sections bind on the next song matching: W13's replay and the round.
+
+**W8 — Named runs.** 20934: operator reviews `/admin/services/569`, then `sermons:re-extract`
+(`run-944-refreeze-20261115-wp42/v2-commands.md` §6). 1019: sermon 954 still reads 3 John
+1:10-11; correct to 2 John by the hand-ruled route. It then stays held into the round as named
+residue (operator, 11-17).
+1380: sermon 844 now reads Luke 1:26–56 with no provenance; confirm and record it, and check
+that X13's seeded-residue clean-up has run on it (844 is one of the three seeder rows). 945: open
+review. 1107 and 1143 stay held. *Done when* each is finished or listed held in the freeze record.
+
+**W9 — Pre-freeze acceptance on the historic outputs (row 2).** The audit's "Before the freeze"
+lanes, agent-first, on a declared sample of historic services and the replay's planned cuts:
+source-first completeness, every assembled join, transcription gaps, detector evaluation, song
+protocol stage 2/M2/M4, and questions and minutes per service. *Done when* each lane reports
+checked and unassessable counts and every finding is fixed and measured, held, or named. The
+fresh-services trial is **not** here: it moved after the round as the take-over validation
+(register R16, W17).
+
+**W10 — Server visit (rows 6, 15, 16).** Refresh `deploy-readiness-20261116-wp58/server-visit.md`
+for the deployed revision. Read-only on the server: revision, `migrate:status`, idle queues,
+`config:show media-processing` saved for a diff with local, the transcription provider (default
+is `mock`), speaker identification off (PROD-ACTIONS item 1, needed before any production run),
+`nproc` and memory, torch/demucs/classifier present in the image, the census export and a dump.
+Reconcile PROD-ACTIONS items 1–7, items 3 and 4 before the binding map. Then locally: compare,
+enumerate the binding map, rehearse one small era on a production copy.
+
+**W11 — Talk types, confirmed automatically (row 7; register G15).** The proposal step is built
+(rules first, then the model) but has never run on real sections, and every talk still needs a
+confirmation (T2) and an approval (`TalkPublicationHandler::requiresApproval()` returns `true`).
+This has to land before the freeze, not after. A proposal of "sermon" or "not a talk" changes the
+service's structure, and so its cuts: run 944's Psalm 77 address was one.
+1. Run the free preview of `service:propose-talk-types` and report how many talks the rules
+   decide and the model calls for the rest. Apply on the go-ahead (worst case about $4).
+2. Measure against the study's labels and the operator's 22 answers
+   (`storage/scratch/talk-type-rules-20261111/final-labels.json`, `operator-answers-20261112.json`).
+   The held-out half was seen during rule refinement, so this measure is optimistic. The
+   independent check is the fresh services after the round (W17). A type found wrong there is
+   relabelled through the type step with no re-cut, because the outcomes that change structure
+   are not automated (step 3). Report a confusion table by type. Count separately the two errors that expose
+   something: a non-sermon typed `sermon` (public), and a testimony typed as anything else
+   (released to members; G10 withholds testimonies).
+3. Build automatic confirmation in the shared step, for weekly and historic alike. A type is
+   confirmed, recorded `source=automatic`, when the evidence meets the bar the operator rules on
+   from step 2's numbers (amending T2); anything below the bar stays a question. **Ruled 11-17
+   (T11):** a "not a talk" proposal is withheld automatically, and a "sermon" proposal stays a
+   question (7 of 334 in the study).
+4. A talk with a confirmed type and no reason, flag or hold advances through
+   `AutomaticPublicationJudgement` as a song does (G14). Remove the unconditional `true`.
+5. Apply over every existing short talk before W13, so the replay sees the structural outcomes.
+*Done when* the bar is ruled, steps 3–4 are built with tests, the pass is applied, and the
+remaining talk questions are counted. The series field on the review form can follow the round.
+
+**W12 — Speaker named automatically (new row 17; register G15).** §4.1e has had a go since 11-09,
+dependency changes included, but nothing is built: there is no ECAPA code (checked 11-17).
+Locally 444 sermons carry the placeholder preacher (`preacher_source=default`) and 11 a model
+guess, all awaiting review; 807 carry an ID3 name. Follow §4.1e steps 1–4: make proposal mode safe
+(it must never overwrite a confirmed or ID3 name), add ECAPA to the image beside the torch already
+there, build the reference library from confirmed names (local ID3 plus production's hand-assigned
+sermons from W10's dump; never the historic-video sermons' current names, which the operator
+treats as all wrong, 10-23), and validate on held-out recordings, reporting infrequent and absent
+speakers separately.
+
+Voice cannot name a preacher it has never heard. The **order of service** is the other source
+(operator, 11-17): the email or text often names the preacher, and especially a visitor. Read
+11-17: 68 of 656 local emails mention preaching or a speaker, for example "Andrew Wilson is our
+preacher this morning", "Morning speaker - former pastor Malcolm Jones", "Jason Roach (LCM) will
+be the speaker", "Ralph preaching". The parser does not extract it today (no preacher field in the
+`Oos*` code). Add a narrow preacher annotation to the shared semantic parser, so weekly emails
+and the historic sources both get it. Bind it to the right service: "Next Sunday … Andrew W
+preaching" names the next service, not this one. Resolve first names and abbreviations against
+`preachers` and `preacher_aliases`, and record a name that resolves to no preacher as itself,
+never as a guess. Measure the extraction on the historic emails before trusting it. The Google
+calendar's `speaker` field is a third possible source; it holds 3 local events, so check
+production's in W10 before building anything on it.
+
+Then build automatic naming in the shared `IdentifySpeaker` step. A name is assigned when the
+order of service names the preacher and the voice does not contradict it, or when the voice
+margin alone meets the operator's bar. **Ruled 11-17 (P8): a talk with no name from either source
+is not published;** it waits for the operator. Visiting preachers are infrequent, so this is a
+small queue. In the same build, change the runbook's speaker-off preflight and watcher stop
+(§5.1, §6 step 4) and amend P3. Run the bounded pass over every finished sermon and talk before
+W13; it moves no cut. *Done when* the bar is ruled, naming is built and tested, the pass is
+applied, and every placeholder preacher is either named or waiting as a counted question.
+PROD-ACTIONS item 1 (off on production) stands until this is deployed.
+
+**W13 — Candidate revision (rows 1, 11, 12).** After the last cut-changing commit: full gates and
+CI green; evidence top-up for moved windows; the guarded replay (harness in
+`final-replay-20261114/`) with post-flight PASS; inventory and routes; moved ends reconciled
+against rulings (words and levels first, a page only for what needs the ear); K21 recount; then
+the freeze record: membership, routes, held list, named residue.
+
+**W14 — The round.** Runbook §§3–8, on the operator's dispatch authority. **W15 — After it**,
+single-run routes only: R15's backfill and demotion, `verify-output-generations --hash`, held
+releases, audit §7, thumbnails (regenerated after W12's names), AM15. A class defect found later is a commit plus the single-run routes
+over the named runs, never another corpus-wide dispatch. **W16** production convergence
+(programme §§7–8). **W17** weekly take-over (§4.2): the services recorded from 2026-08-30 run on
+production through the ordinary upload route as the take-over validation (register R16). That
+is the independent check of every automatic rule, talk types and speaker names included. It
+reports source-first completeness, unflagged errors, and questions and review minutes per
+service. A finding there is fixed in shared code and applied to historic runs through the
+single-run routes.
+
+**What stays manual after all this:** only consequential residue that the measured rules cannot
+settle (an unnamed speaker among it, P8), and the release decisions reserved to the operator
+(C1, G4). W11 and W12 remove the per-service talk-type confirmation and most speaker naming.
+Count what is left per service in W9, on the round, and in W17 (Q15).
+
+**Operator decisions, to put together:** the ceiling for paid measurement calls (W3, W4, W11:
+about $10 at the 11-17 prices); the song-end timing route after W3's measurement; the bars for
+automatic talk types and speaker names, once measured (W11, W12); W5's residue list; review of
+service 569 (W8); the server visit (W10); dispatch authority (W14); where the originals from
+2026-08-30 are (W17). Decided 11-17: the three converted batch-only tests from `wp74` are kept;
+1019 stays held into the round as named residue.
+
 **Status: planned 11-10 from a review the operator asked for; nothing built, run or decided by
 this section.** The operator wants the next round to be the last and as much automation as is
 reasonable (G13). The review read this plan, the runbook, the audit, the programme, the register
@@ -1802,8 +2034,8 @@ over the 355 short-talk sections in 288 runs: the preview is free, `--apply` mak
 $0.20/$1.20 per million tokens standard, about half on flex; worst case about $4, 355 calls of
 8,000 tokens each; not yet measured on a real run); (5) the server visit
 (`storage/scratch/deploy-readiness-20261116-wp58/`), still NO-GO until it is validated and pushed.
-**The push has not landed:** `origin/master` is still `3498602e7` because this session's SSH agent
-holds no key, and an HTTPS push of the 273-commit pack stalled; push from the operator's terminal.
+**Superseded 11-17:** the push has landed (`origin/master` = `37a913cd6`); production runs
+`61332ab29`; run 944's replacement completed as run 20934; HEAD is red in CI (work package W1).
 
 **Review 11-16, at the operator's request: what is left, and what the checklist did not cover.**
 Read-only; nothing was built or run. The operator ruled that weekly runs on production with the
@@ -1819,7 +2051,8 @@ Whisper API (register R13) and agreed to the rest, so rows 9–15 are added belo
   RA5 class by class from the inventory; each class is built and measured or recorded as left as
   it is (row 3).
 - **The 377 reserved sections** are 335 talk type (302 of them also speaker) and 42 content holds
-  and others. Neither talk type nor speaker changes a cut. **Recorded 11-16:** speaker
+  and others. Neither talk type nor speaker changes a cut. **Superseded 11-17 by G15 (both
+  automated before the freeze, W11 and W12):** speaker
   identification (§4.1e) and talk-type measurement and confirmation (steps 4–5 below) follow the
   round as bounded passes over finished sections.
 - **Row 2 has not started** (audit status table). It is the main risk of a second round.
@@ -1849,7 +2082,7 @@ production. Each row below moves one of them ahead of the freeze.
 | 7 | **Talk-type detection for the weekly pipeline.** See "Talk-type detection" below. Type does not change a cut, so the work must be shaped so that it needs no round: a step of its own over finished sections, not a change to the structure prompt. Speaker identification is §4.1e's and is not repeated here. **Implementation plan written 11-14** (`storage/scratch/talk-type-plan-20261114-wp34/plan.md`, five build packages and an evaluation; not started): the step runs over existing sections with no re-detection, round or cut, and needs no new column. The study's held-out half was seen during rule refinement, so an independent measure needs fresh services. 190427 is settled by register X8. | **Design accepted 11-11 with one amendment (register T8).** **Ground-truth page published 11-11** (334 pending talks; `storage/scratch/talk-type-truth-20261111/`; answers in the page's `rulings` collection, keyed by section id; no answers yet). Still to do: the type step is confirmed to run on existing sections without re-detection. Measurement and any ruling on automatic confirmation can follow the round. | Register T1, T2, G10; RA6 |
 | 8 | **Repair route after the round.** **Decided 11-11 (register C7): the route is kept.** Masters on the Sonnics archive, a database dump at closeout and the promotion tooling outlive IC8. | One named run is taken through each single-run route as a test before the freeze. **Done 11-14, authorised by the operator** (`storage/scratch/row8-repair-test-20261114/`, before-images of rows and files per run). `sections:recut` on 1306 re-cut two promoted songs and then **failed at promotion**: a clips-only recut carried no authority to replace a quarantine file (the only authority was the run-wide one a sermon re-extraction issues). Fixed in `246feb49c`: republishing a song over its own file records the published bytes' size and hash, promotion replaces the quarantine copy only for those bytes, once. 1306 was finished through `sermons:re-extract` (songs and sermon video replaced, run completed). `sections:recut` then passed on 970 on the new authority (only §931 replaced). `sermons:re-extract --held-section=1233` passed on 1003 (run completed, section still held, sermon re-cut 1.54–1324.37). No new failed jobs in any. Local sermon summaries and points were rewritten by the re-run analysis on 1306 and 1003. | §4.6; programme IC8 |
 | 9 | **The weekly backend (added 11-16; register R13).** Weekly runs on production and transcribes with the OpenAI Whisper API. The round runs on whisper.cpp `large-v3-turbo`, a second aligned whisper server, and host classifier and ffmpeg services; `docker-compose.prod.yml` defines none of them. Read from code 11-16: production's full-service and edge transcripts come from `whisper-1`; `OpenAiServiceTranscriptionService::transcribeEdgeWindow` throws a non-retryable refusal for an aligned window; `PrepareOutputEdgeWordTimings` asks for an aligned decode on every window that carries `word_timing` (the song-end windows). The classifier and stem separation reach production by the image build (music plan §10, `Dockerfile`); that is unverified on the server. **Work:** (a) list every rule that reads evidence only a local backend produces (aligned word ends, two-decode agreement, the classifier timeline, separated stems) and establish, with a reproducing test where a chain fails, what a production run does at each: fail, hold, or fall back; (b) choose per rule between giving production the evidence and a path that works without it, in shared code, never a historic-only or local-only branch (G2); (c) measure the chosen behaviour on a declared sample by preparing edges and planning cuts with the OpenAI backend and comparing with the local cuts and their rulings. (c) makes paid calls and needs the operator's go-ahead and a cost estimate first. A change to shared cut code owes row 1's evidence top-up and replay. | Each such rule has its production behaviour recorded and measured; every difference is fixed before the freeze or named as residue with its hold; a production run cannot fail or cut differently for want of a local service without that being recorded. | §4.2; register R13, G2 |
-| 10 | **Trial on fresh services (added 11-16; register R14).** Run a declared sample of the services recorded from 2026-08-30 onward through the ordinary upload route, on the backend row 9 settles where that is possible, with nothing published. Declare the sample, seed and size before the draw. First confirm that the originals from 2026-08-30 are preserved. These recordings were never used to tune a rule, so the same sample serves row 2's source-first check and the talk-type measure that row 7 says needs fresh services. Not resumption (G5, R8). | The sample has run end to end through the upload entry point; each finding is fixed and measured, held, or named; questions and review minutes per service are reported (D24/Q15). | Audit §0; §4.2; register R14 |
+| 10 | **Trial on fresh services (added 11-16; register R14; moved after the round 11-17, R16, W17).** Run a declared sample of the services recorded from 2026-08-30 onward through the ordinary upload route, on the backend row 9 settles where that is possible, with nothing published. Declare the sample, seed and size before the draw. First confirm that the originals from 2026-08-30 are preserved. These recordings were never used to tune a rule, so the same sample serves row 2's source-first check and the talk-type measure that row 7 says needs fresh services. Not resumption (G5, R8). | The sample has run end to end through the upload entry point; each finding is fixed and measured, held, or named; questions and review minutes per service are reported (D24/Q15). | Audit §0; §4.2; register R14 |
 | 11 | **Freeze on a revision CI has validated (added 11-16).** CI has not run on the commits above `origin/master` (`3498602e7`; 272 on 11-16). Push from the operator's terminal and get CI green on the candidate revision before the freeze. A fix CI forces in `app`, `config`, `database`, `resources` or `routes` after the freeze changes the code revision that dispatch and evidence checks compare (R2). | The frozen revision is one CI passed, or each CI failure is recorded as unrelated to processing. | Runbook §6; `deploy-readiness-20261116-wp58/` |
 | 12 | **Windows derived twice (added 11-16).** The 11-13 replay repair reported three places where evidence preparation and cut planning derive their windows separately: duration-normalised section ends, dependent-song review before edge overrides, and exposed-edge follow-up from raw section bounds (§4.1a step 2, "Reported, not fixed"; no local case found). A weekly run has one draw and no replay, so a mismatch there is missing evidence on a live service. This joins row 3's list. | Each of the three has one derivation with a test, or is named residue with what a mismatch would do. | §4.1a step 2 |
 | 13 | **Songs missing from the catalogue (added 11-16).** The catalogue cannot be edited or synced during a round (runbook §2.4), and only a new song is safe to add before one (S4; merges still wait for the relink). The 11-14 inventory has 31 unmatched and 46 inferred song sections. Recount which of them are songs absent from OpenLP, add those, and sync before the freeze ("Rejoice" for 1363 §4534 is the known case). No merge and no identity change. | The missing songs are listed, added and synced, or listed as left out; the list is recorded in the song curation plan. | Song curation plan; RA4; runbook §2.4 |
@@ -2079,7 +2312,7 @@ Planned work, in order:
 Steps 1 and 3's design come before the freeze; the rest can follow the round, because a
 type changes access and labelling, not a cut.
 
-**Order.** Row 3 first (it changes cuts), with row 7's design alongside; then row 1 and the replay; rows 2, 4, 5, 6 and 8
+**Order (superseded 11-17 by work packages W1–W17 at the top of this section).** Row 3 first (it changes cuts), with row 7's design alongside; then row 1 and the replay; rows 2, 4, 5, 6 and 8
 can run alongside. **Order from 11-16:** row 9's reading of the code first, because its answer can
 change shared cut code; then row 3 with row 12 (RA3's hold check, then RA4 and RA5 by class) and
 row 13; row 11's push as soon as the tree is clean, so that CI and the server visit (rows 6, 15)
@@ -2107,7 +2340,7 @@ in the [record](../archived-plans/HISTORIC-VIDEO-EXECUTION-RECORD-THROUGH-2026-1
 - [ ] Land architecture AM15 (cut planner) between the last round's close and the take-over check
   below, if AM-D5 is answered that way, so the check runs on the planner weekly will use. AM15
   changes no cut; its acceptance is the round's recorded cuts replayed unchanged.
-- [ ] Run two recent services through the production weekly path at take-over, measuring time,
+- [ ] Run the services recorded from 2026-08-30 through the production weekly path at take-over (R16, §4.1f W17), measuring time,
   CPU and cost, with all questions answerable and outputs accepted under the audit procedure.
 - [ ] Preserve originals for the backlog from 2026-08-30 onward and process oldest first after take-over.
 - [ ] Extend the source-reviewed evaluation set beyond deterministic cut fixtures to structure and
@@ -2182,7 +2415,7 @@ It includes production-only sermons and starts after historic completion and wee
 
 | Decision | Recorded status / next evidence |
 |---|---|
-| Last-round readiness | §4.1f, added 11-10: eight rows open. Reconciled against the code 11-11/12: rows 7 and 8 have their decisions (T8, T9, C7); row 5 is ruled (A5, P6) with two small builds owed; row 3's answer preservation and operator-end guard are built and committed (`a6abce118`, `8f523439f`). **The operator authorised the edge evidence pass on 11-12 if it takes under eight hours.** Most of the rest of row 3 waits on it. No freeze until each is done or disposed of. **11-16:** rows 4, 5 and 8 are done apart from named runs (944's replacement, 954, 1019, 1380, 945's review); row 1's replay passed on `9ec03a526` and is owed again on the candidate; row 2 has not started; row 3 still owes RA3's hold check and a disposition for RA4 and RA5; row 6 waits on the push and the server visit. Rows 9–15 were added 11-16 (weekly backend under R13, fresh-services trial under R14, CI-validated revision, twice-derived windows, missing songs, round measurements, pending production actions). |
+| Last-round readiness | **11-17: no freeze yet.** Work packages W1–W13 in §4.1f stand between here and the freeze; the row table there gives each row's state. HEAD is red in CI (W1); production aligned timing (W3), the whisper-1 measurement (W4), the pre-freeze acceptance and fresh trial (W9) and the server visit (W10) have not started. Earlier record: §4.1f, added 11-10: eight rows open. Reconciled against the code 11-11/12: rows 7 and 8 have their decisions (T8, T9, C7); row 5 is ruled (A5, P6) with two small builds owed; row 3's answer preservation and operator-end guard are built and committed (`a6abce118`, `8f523439f`). **The operator authorised the edge evidence pass on 11-12 if it takes under eight hours.** Most of the rest of row 3 waits on it. No freeze until each is done or disposed of. **11-16:** rows 4, 5 and 8 are done apart from named runs (944's replacement, 954, 1019, 1380, 945's review); row 1's replay passed on `9ec03a526` and is owed again on the candidate; row 2 has not started; row 3 still owes RA3's hold check and a disposition for RA4 and RA5; row 6 waits on the push and the server visit. Rows 9–15 were added 11-16 (weekly backend under R13, fresh-services trial under R14, CI-validated revision, twice-derived windows, missing songs, round measurements, pending production actions). |
 | Processing | November round and named repairs closed. K19 reach-back built and ruled 11-06, not yet applied; it and the other later built fixes need the measured routes and output checks above. No new dispatch authority. |
 | Content acceptance | Incomplete. Ten stale main generations require verified recovery; other coverage, content and editorial obligations are in the audit ledger. The old 21-container-path incident is resolved, not an outstanding loss. |
 | Production convergence and delivery | Fresh programme census, rehearsal and destination verification still required. |

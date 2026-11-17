@@ -142,10 +142,11 @@ owns the measured queue baseline and RA1–RA6 build sequence: evidence routing,
 song boundaries/identity, repetition recovery, consequential structure checks and reusable answers.
 Talk-type confirmation and other reserved decisions remain explicit; no round or data apply is started.
 
-**Last-round checklist (planned 2026-11-10):** [video §4.1f](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md#41f-making-the-next-round-the-last-review-2026-11-10)
+**Last-round checklist (planned 2026-11-10; work packages 2026-11-17):** [video §4.1f](HISTORIC-VIDEO-DEFECT-DISCOVERY-AND-ACCEPTANCE-2026-08-29.md#41f-making-the-next-round-the-last-review-2026-11-10)
 lists what must be done or disposed of before the freeze so the next round is the last corpus-wide
-one (G13): edge evidence and a complete replay, moved acceptance checks, open cut-changing items,
-stopped runs, byte-changing fixes, the production census, talk-type detection for weekly and the repair route.
+one (G13). **Start at its "Work packages to the last round" block (W1–W17):** an ordered list
+with a done-when for each package and the operator decisions it needs, written for an agent to
+follow. The first is W1: master is red in CI at `37a913cd6` (three staging-context media tests).
 
 **Cut-planner refactor (planned 2026-11-11):** [architecture AM15](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md#am15--cut-planner-ordered-typed-rules-over-evidence-loaded-once)
 owns the restructuring of the code that places each talk's and song's cut. It changes no cut and is
@@ -160,7 +161,7 @@ changed hashes invalidate dependent checks.
 
 | Order | Plan | Verified status | Next independently useful slice |
 |---|---|---|---|
-| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Programme authority; media worklists reconciled 11-06. November round closed, later fixes/acceptance still pending; weekly remains paused. | Video §4.1a–d: apply K19 (built 11-06), K20 introduction miss, review-automation RA1–RA6, measured routes and current-output verification; audit §7 before production convergence and signed release. |
+| H0 | [Historic incremental convergence](HISTORIC-IMPORT-INCREMENTAL-CONVERGENCE-2026-08-14.md) | Programme authority; media worklists reconciled 11-06, last-round work packages written 11-17. November round closed; pre-freeze code largely built; weekly remains paused. | Video §4.1f work packages W1–W13 (CI green, operator decisions, song-end timing and whisper-1 measured on the API, cut-item dispositions, fresh-services trial and pre-freeze acceptance, server visit, automatic talk types and speaker names (G15), candidate replay), then the last round (W14) and production convergence. |
 | M0 | [Architectural maintainability delivery](ARCHITECTURAL-MAINTAINABILITY-DELIVERY-2026-08-12.md) | Not started; immediate safety lane and post-G9 permanent-core lane are explicitly separated. **AM15 (cut planner) planned 2026-11-11** from a code review of how services are split into talks and songs; nothing built | Record D1-D6; AM2 timing and AM3 log-rotation tests can start independently; AM15.0's plan snapshot (tests only) can land before the last-round freeze |
 | H1 | [Sentry error tracking](SENTRY-ERROR-TRACKING.md) | Optional; not installed; dependency approval required | If approved, install/configure errors-only capture; sequence caught terminal processing reporting after architecture AM8 |
 | M1 | [Code-quality remediation](CODE-QUALITY-REMEDIATION-2026-07-19.md) | WP2.1/WP6.1 done; other items open; level 8 | WP2's small fail-closed/config/signature fixes plus the computed-call structural guard |

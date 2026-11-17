@@ -18,7 +18,7 @@ Its historical “resume”, “next” and “not started” instructions are s
 | Output generations / access | Ten stale main generations remain; promotion cause fixed. 21 host-valid clips readable after app-container recreation | Verify recovered video/audio/text generations and fresh-container access after processing. Repairs belong to video §4.1b. |
 | Independent media/identity checks | 442 frozen packets; 26 text-overlap pairs triaged; 18 source/output windows over six services; three retained-transcription comparisons | No new confirmed processing defect in this scope. Semantic listening, full output/join coverage and named residual leads remain open. |
 | Delivery | Six local HTTP probes; quarantine correctly denied. Staging URL guard blocked listing/published-media rehearsal | Use an isolated published-media rehearsal with correct storage context, then authorised destination checks; keep quarantine protected. No production-outage claim. |
-| Pre-freeze acceptance (11-10) | Not started | §0 "Before the freeze": the reprocessing-sensitive lanes run before the last round's freeze (video §4.1f row 2). |
+| Pre-freeze acceptance (11-10) | Not started (checked 11-17) | §0 "Before the freeze": the reprocessing-sensitive lanes run before the last round's freeze, on a declared sample of historic services (video §4.1f row 2; work package W9). The fresh-services trial moved after the round as the take-over validation (register R16). |
 | Release | No batch authorised | Complete §7 and pass exact accepted membership to programme §§7–8. Weekly remains paused. |
 
 ### 2026-11-06 supplemental Luna boundary reviews
@@ -112,9 +112,9 @@ or re-cutting runs before the freeze, on current outputs and the final-code repl
 - the detector/transcript evaluation;
 - song protocol stage 2/M2/M4.
 
-**Added 11-16 (register R13, R14; video plan §4.1f rows 9 and 10).** The fresh sample includes a
-declared draw from the services recorded from 2026-08-30 onward, run through the ordinary upload
-route: no rule was tuned on them. Weekly runs on production with the OpenAI Whisper API, so
+**Added 11-16 (register R13, R14; video plan §4.1f rows 9 and 10); amended 11-17 (R16):** the
+services recorded from 2026-08-30 onward are no longer part of this pre-freeze sample. They run
+after the round, on production, as the take-over validation and the independent check. Weekly runs on production with the OpenAI Whisper API, so
 where a check depends on transcription or edge evidence, report it on that backend as well as
 the local one.
 
